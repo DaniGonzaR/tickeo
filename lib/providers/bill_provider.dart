@@ -24,6 +24,8 @@ class BillProvider extends ChangeNotifier {
   List<Bill> get billHistory => _billHistory;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get hasBillsToSync => _billHistory.any((bill) => !bill.isSynced);
+  int get unsyncedBillsCount => _billHistory.where((bill) => !bill.isSynced).length;
 
   // Create new bill from OCR
   Future<void> createBillFromImage(File imageFile, String billName) async {
@@ -377,6 +379,96 @@ class BillProvider extends ChangeNotifier {
     }).toList();
 
     _currentBill = _currentBill!.copyWith(payments: updatedPayments);
+  }
+
+  // Cloud synchronization methods
+  Future<void> syncBillsWithCloud() async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      // Upload unsynced bills to cloud
+      final unsyncedBills = _billHistory.where((bill) => !bill.isSynced).toList();
+      
+      for (final bill in unsyncedBills) {
+        await _firebaseService.saveBill(bill);
+        // Mark bill as synced
+        final index = _billHistory.indexWhere((b) => b.id == bill.id);
+        if (index != -1) {
+          _billHistory[index] = bill.copyWith(isSynced: true);
+        }
+      }
+
+      // Download bills from cloud that aren't in local storage
+      final cloudBills = await _firebaseService.getUserBills();
+      
+      for (final cloudBill in cloudBills) {
+        final existsLocally = _billHistory.any((bill) => bill.id == cloudBill.id);
+        if (!existsLocally) {
+          _billHistory.add(cloudBill.copyWith(isSynced: true));
+        }
+      }
+
+      // Sort bills by creation date (newest first)
+      _billHistory.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      
+      notifyListeners();
+    } catch (e) {
+      _setError('Error sincronizando con la nube: ${e.toString()}');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> uploadBillToCloud(Bill bill) async {
+    try {
+      await _firebaseService.saveBill(bill);
+      
+      // Mark bill as synced in local storage
+      final index = _billHistory.indexWhere((b) => b.id == bill.id);
+      if (index != -1) {
+        _billHistory[index] = bill.copyWith(isSynced: true);
+        notifyListeners();
+      }
+    } catch (e) {
+      _setError('Error subiendo factura a la nube: ${e.toString()}');
+    }
+  }
+
+  Future<void> downloadBillsFromCloud() async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final cloudBills = await _firebaseService.getUserBills();
+      
+      // Replace local bills with cloud bills (cloud is source of truth)
+      _billHistory.clear();
+      _billHistory.addAll(cloudBills.map((bill) => bill.copyWith(isSynced: true)));
+      
+      // Sort bills by creation date (newest first)
+      _billHistory.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      
+      notifyListeners();
+    } catch (e) {
+      _setError('Error descargando facturas de la nube: ${e.toString()}');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  void markAllBillsAsUnsynced() {
+    for (int i = 0; i < _billHistory.length; i++) {
+      _billHistory[i] = _billHistory[i].copyWith(isSynced: false);
+    }
+    notifyListeners();
+  }
+
+  void clearLocalData() {
+    _billHistory.clear();
+    _currentBill = null;
+    _clearError();
+    notifyListeners();
   }
 
   String _generateShareCode() {

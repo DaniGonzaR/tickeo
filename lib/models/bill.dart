@@ -16,6 +16,7 @@ class Bill {
   final String? imageUrl;
   final bool isCompleted;
   final String shareCode;
+  final bool isSynced;
 
   Bill({
     required this.id,
@@ -32,6 +33,7 @@ class Bill {
     this.imageUrl,
     this.isCompleted = false,
     required this.shareCode,
+    this.isSynced = false,
   });
 
   factory Bill.fromJson(Map<String, dynamic> json) {
@@ -56,6 +58,7 @@ class Bill {
       imageUrl: json['imageUrl'],
       isCompleted: json['isCompleted'] ?? false,
       shareCode: json['shareCode'] ?? '',
+      isSynced: json['isSynced'] ?? false,
     );
   }
 
@@ -75,6 +78,7 @@ class Bill {
       'imageUrl': imageUrl,
       'isCompleted': isCompleted,
       'shareCode': shareCode,
+      'isSynced': isSynced,
     };
   }
 
@@ -112,6 +116,7 @@ class Bill {
     String? imageUrl,
     bool? isCompleted,
     String? shareCode,
+    bool? isSynced,
   }) {
     return Bill(
       id: id ?? this.id,
@@ -128,6 +133,7 @@ class Bill {
       imageUrl: imageUrl ?? this.imageUrl,
       isCompleted: isCompleted ?? this.isCompleted,
       shareCode: shareCode ?? this.shareCode,
+      isSynced: isSynced ?? this.isSynced,
     );
   }
 

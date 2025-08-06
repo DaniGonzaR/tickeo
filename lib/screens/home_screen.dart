@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tickeo/providers/bill_provider.dart';
+import 'package:tickeo/providers/auth_provider.dart';
 import 'package:tickeo/screens/bill_details_screen.dart';
 import 'package:tickeo/screens/join_bill_screen.dart';
 import 'package:tickeo/screens/analytics_screen.dart';
+import 'package:tickeo/screens/profile_screen.dart';
+import 'package:tickeo/screens/auth_screen.dart';
 import 'package:tickeo/widgets/custom_button.dart';
 import 'package:tickeo/widgets/bill_history_card.dart';
 import 'package:tickeo/widgets/loading_state_widget.dart';
@@ -187,44 +190,91 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         centerTitle: true,
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
-            onSelected: (value) {
-              switch (value) {
-                case 'analytics':
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const AnalyticsScreen(),
+          Consumer<AuthProvider>(
+            builder: (context, authProvider, child) {
+              return PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.white),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'profile':
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const ProfileScreen(),
+                        ),
+                      );
+                      break;
+                    case 'analytics':
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const AnalyticsScreen(),
+                        ),
+                      );
+                      break;
+                    case 'auth':
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const AuthScreen(),
+                        ),
+                      );
+                      break;
+                    case 'tips':
+                      NotificationService.showTipsDialog(context: context);
+                      break;
+                  }
+                },
+                itemBuilder: (BuildContext context) => [
+                  PopupMenuItem<String>(
+                    value: 'profile',
+                    child: Row(
+                      children: [
+                        Icon(
+                          authProvider.isAuthenticated 
+                            ? Icons.account_circle 
+                            : Icons.account_circle_outlined,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          authProvider.isAuthenticated 
+                            ? 'Mi Perfil' 
+                            : 'Perfil (Invitado)',
+                        ),
+                      ],
                     ),
-                  );
-                  break;
-                case 'tips':
-                  NotificationService.showTipsDialog(context: context);
-                  break;
-              }
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'analytics',
+                    child: Row(
+                      children: [
+                        Icon(Icons.analytics_outlined),
+                        SizedBox(width: 8),
+                        Text('Analytics'),
+                      ],
+                    ),
+                  ),
+                  if (!authProvider.isAuthenticated)
+                    const PopupMenuItem<String>(
+                      value: 'auth',
+                      child: Row(
+                        children: [
+                          Icon(Icons.login),
+                          SizedBox(width: 8),
+                          Text('Iniciar Sesión'),
+                        ],
+                      ),
+                    ),
+                  const PopupMenuItem<String>(
+                    value: 'tips',
+                    child: Row(
+                      children: [
+                        Icon(Icons.lightbulb_outline),
+                        SizedBox(width: 8),
+                        Text('Tips & Tricks'),
+                      ],
+                    ),
+                  ),
+                ],
+              );
             },
-            itemBuilder: (BuildContext context) => [
-              const PopupMenuItem<String>(
-                value: 'analytics',
-                child: Row(
-                  children: [
-                    Icon(Icons.analytics_outlined),
-                    SizedBox(width: 8),
-                    Text('Analytics'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem<String>(
-                value: 'tips',
-                child: Row(
-                  children: [
-                    Icon(Icons.lightbulb_outline),
-                    SizedBox(width: 8),
-                    Text('Tips & Tricks'),
-                  ],
-                ),
-              ),
-            ],
           ),
         ],
       ),

@@ -14,10 +14,10 @@ void main() {
       billProvider.dispose();
     });
 
-    test('should create manual bill with valid name', () async {
+    test('should create manual bill with valid name', () {
       final billProvider = BillProvider();
       
-      final success = await billProvider.createManualBill('Test Bill');
+      final success = billProvider.createManualBill('Test Bill');
       
       expect(success, isTrue);
       expect(billProvider.currentBill, isNotNull);
@@ -27,10 +27,10 @@ void main() {
       billProvider.dispose();
     });
 
-    test('should fail to create bill with empty name', () async {
+    test('should fail to create bill with empty name', () {
       final billProvider = BillProvider();
       
-      final success = await billProvider.createManualBill('');
+      final success = billProvider.createManualBill('');
       
       expect(success, isFalse);
       expect(billProvider.currentBill, isNull);
@@ -39,10 +39,10 @@ void main() {
       billProvider.dispose();
     });
 
-    test('should add participant successfully', () async {
+    test('should add participant successfully', () {
       final billProvider = BillProvider();
       
-      await billProvider.createManualBill('Test Bill');
+      billProvider.createManualBill('Test Bill');
       final success = billProvider.addParticipant('John Doe');
       
       expect(success, isTrue);

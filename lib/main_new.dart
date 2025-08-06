@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter/foundation.dart';
 import 'package:tickeo/providers/auth_provider.dart';
 import 'package:tickeo/providers/bill_provider.dart';
 import 'package:tickeo/screens/home_screen.dart';
@@ -9,21 +8,7 @@ import 'package:tickeo/screens/auth_screen.dart';
 import 'package:tickeo/utils/app_colors.dart';
 import 'package:tickeo/utils/app_text_styles.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Firebase only on mobile platforms for now
-  // Web version will work in offline mode
-  if (!kIsWeb) {
-    try {
-      // Firebase initialization would go here for mobile
-      // For now, we'll skip Firebase initialization to ensure web compatibility
-      debugPrint('Firebase initialization skipped for web compatibility');
-    } catch (e) {
-      debugPrint('Firebase initialization failed: $e');
-    }
-  }
-  
+void main() {
   runApp(const TickeoApp());
 }
 

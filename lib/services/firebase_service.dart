@@ -1,6 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:firebase_storage/firebase_storage.dart'; // Comentado temporalmente
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tickeo/models/bill.dart';
 
 class FirebaseService {
@@ -8,33 +7,43 @@ class FirebaseService {
   factory FirebaseService() => _instance;
   FirebaseService._internal();
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  // Local storage keys
+  static const String _billsKey = 'tickeo_bills';
+  static const String _userBillsPrefix = 'tickeo_user_bills_';
 
-  // Collections
-  static const String _billsCollection = 'bills';
-  static const String _usersCollection = 'users';
-
-  // Save bill to Firestore
+  // Save bill to local storage (simulating Firestore)
   Future<void> saveBill(Bill bill) async {
     try {
-      await _firestore
-          .collection(_billsCollection)
-          .doc(bill.id)
-          .set(bill.toJson());
+      final prefs = await SharedPreferences.getInstance();
+      final billsJson = prefs.getString(_billsKey) ?? '[]';
+      final bills = List<Map<String, dynamic>>.from(jsonDecode(billsJson));
+      
+      // Remove existing bill with same ID if it exists
+      bills.removeWhere((b) => b['id'] == bill.id);
+      
+      // Add the new/updated bill
+      bills.add(bill.toJson());
+      
+      await prefs.setString(_billsKey, jsonEncode(bills));
     } catch (e) {
       throw Exception('Error guardando la cuenta: $e');
     }
   }
 
-  // Get bill by ID
+  // Get bill by ID from local storage
   Future<Bill?> getBill(String billId) async {
     try {
-      final doc =
-          await _firestore.collection(_billsCollection).doc(billId).get();
-
-      if (doc.exists && doc.data() != null) {
-        return Bill.fromJson(doc.data()!);
+      final prefs = await SharedPreferences.getInstance();
+      final billsJson = prefs.getString(_billsKey) ?? '[]';
+      final bills = List<Map<String, dynamic>>.from(jsonDecode(billsJson));
+      
+      final billData = bills.firstWhere(
+        (b) => b['id'] == billId,
+        orElse: () => <String, dynamic>{},
+      );
+      
+      if (billData.isNotEmpty) {
+        return Bill.fromJson(billData);
       }
       return null;
     } catch (e) {
@@ -42,17 +51,20 @@ class FirebaseService {
     }
   }
 
-  // Get bill by share code
+  // Get bill by share code from local storage
   Future<Bill?> getBillByShareCode(String shareCode) async {
     try {
-      final querySnapshot = await _firestore
-          .collection(_billsCollection)
-          .where('shareCode', isEqualTo: shareCode)
-          .limit(1)
-          .get();
-
-      if (querySnapshot.docs.isNotEmpty) {
-        return Bill.fromJson(querySnapshot.docs.first.data());
+      final prefs = await SharedPreferences.getInstance();
+      final billsJson = prefs.getString(_billsKey) ?? '[]';
+      final bills = List<Map<String, dynamic>>.from(jsonDecode(billsJson));
+      
+      final billData = bills.firstWhere(
+        (b) => b['shareCode'] == shareCode,
+        orElse: () => <String, dynamic>{},
+      );
+      
+      if (billData.isNotEmpty) {
+        return Bill.fromJson(billData);
       }
       return null;
     } catch (e) {
@@ -60,159 +72,77 @@ class FirebaseService {
     }
   }
 
-  // Update bill
+  // Update bill in local storage
   Future<void> updateBill(Bill bill) async {
     try {
-      await _firestore
-          .collection(_billsCollection)
-          .doc(bill.id)
-          .update(bill.toJson());
+      await saveBill(bill); // Same as save for local storage
     } catch (e) {
       throw Exception('Error actualizando la cuenta: $e');
     }
   }
 
-  // Delete bill
+  // Delete bill from local storage
   Future<void> deleteBill(String billId) async {
     try {
-      await _firestore.collection(_billsCollection).doc(billId).delete();
+      final prefs = await SharedPreferences.getInstance();
+      final billsJson = prefs.getString(_billsKey) ?? '[]';
+      final bills = List<Map<String, dynamic>>.from(jsonDecode(billsJson));
+      
+      bills.removeWhere((b) => b['id'] == billId);
+      
+      await prefs.setString(_billsKey, jsonEncode(bills));
     } catch (e) {
       throw Exception('Error eliminando la cuenta: $e');
     }
   }
 
-  // Get user's bills (requires authentication)
+  // Get user's bills from local storage (simulating authenticated user bills)
   Future<List<Bill>> getUserBills() async {
-    final user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('Usuario no autenticado');
-    }
-
     try {
-      final querySnapshot = await _firestore
-          .collection(_billsCollection)
-          .where('createdBy', isEqualTo: user.uid)
-          .orderBy('createdAt', descending: true)
-          .get();
-
-      return querySnapshot.docs
-          .map((doc) => Bill.fromJson(doc.data()))
-          .toList();
+      final prefs = await SharedPreferences.getInstance();
+      final billsJson = prefs.getString(_billsKey) ?? '[]';
+      final bills = List<Map<String, dynamic>>.from(jsonDecode(billsJson));
+      
+      return bills
+          .map((billData) => Bill.fromJson(billData))
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
-      throw Exception('Error obteniendo las cuentas del usuario: $e');
+      throw Exception('Error obteniendo cuentas del usuario: $e');
     }
   }
 
-  // Listen to bill changes in real-time
-  Stream<Bill?> listenToBill(String billId) {
-    return _firestore
-        .collection(_billsCollection)
-        .doc(billId)
-        .snapshots()
-        .map((snapshot) {
-      if (snapshot.exists && snapshot.data() != null) {
-        return Bill.fromJson(snapshot.data()!);
-      }
-      return null;
-    });
-  }
-
-  // Anonymous sign in (for users without account)
-  Future<void> signInAnonymously() async {
+  // Get all bills from local storage
+  Future<List<Bill>> getAllBills() async {
     try {
-      await _auth.signInAnonymously();
+      return await getUserBills(); // Same for offline mode
     } catch (e) {
-      throw Exception('Error en autenticación anónima: $e');
+      throw Exception('Error obteniendo todas las cuentas: $e');
     }
   }
 
-  // Sign in with email and password
-  Future<UserCredential> signInWithEmailAndPassword(
-      String email, String password) async {
+  // Clear all bills from local storage
+  Future<void> clearAllBills() async {
     try {
-      return await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_billsKey);
     } catch (e) {
-      throw Exception('Error en inicio de sesión: $e');
+      throw Exception('Error limpiando cuentas: $e');
     }
   }
 
-  // Create account with email and password
-  Future<UserCredential> createUserWithEmailAndPassword(
-      String email, String password) async {
+  // Get bills count
+  Future<int> getBillsCount() async {
     try {
-      return await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      final bills = await getUserBills();
+      return bills.length;
     } catch (e) {
-      throw Exception('Error creando cuenta: $e');
+      return 0;
     }
   }
 
-  // Sign out
-  Future<void> signOut() async {
-    try {
-      await _auth.signOut();
-    } catch (e) {
-      throw Exception('Error cerrando sesión: $e');
-    }
-  }
-
-  // Get current user
-  User? get currentUser => _auth.currentUser;
-
-  // Check if user is authenticated
-  bool get isAuthenticated => _auth.currentUser != null;
-
-  // Listen to auth state changes
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
-
-  // Save user profile
-  Future<void> saveUserProfile(Map<String, dynamic> userData) async {
-    final user = _auth.currentUser;
-    if (user == null) return;
-
-    try {
-      await _firestore.collection(_usersCollection).doc(user.uid).set({
-        ...userData,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (e) {
-      throw Exception('Error guardando perfil: $e');
-    }
-  }
-
-  // Get user profile
-  Future<Map<String, dynamic>?> getUserProfile() async {
-    final user = _auth.currentUser;
-    if (user == null) return null;
-
-    try {
-      final doc =
-          await _firestore.collection(_usersCollection).doc(user.uid).get();
-
-      return doc.data();
-    } catch (e) {
-      throw Exception('Error obteniendo perfil: $e');
-    }
-  }
-
-  // Batch operations for better performance
-  Future<void> saveBillsBatch(List<Bill> bills) async {
-    final batch = _firestore.batch();
-
-    for (final bill in bills) {
-      final docRef = _firestore.collection(_billsCollection).doc(bill.id);
-      batch.set(docRef, bill.toJson());
-    }
-
-    try {
-      await batch.commit();
-    } catch (e) {
-      throw Exception('Error guardando cuentas en lote: $e');
-    }
+  // Check if service is available (always true for offline mode)
+  Future<bool> isServiceAvailable() async {
+    return true;
   }
 }

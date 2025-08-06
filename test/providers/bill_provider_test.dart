@@ -14,10 +14,10 @@ void main() {
       billProvider.dispose();
     });
 
-    test('should create a new manual bill successfully', () async {
+    test('should create a new manual bill successfully', () {
       const billName = 'Test Bill';
       
-      final success = await billProvider.createManualBill(billName);
+      final success = billProvider.createManualBill(billName);
       
       expect(success, isTrue);
       expect(billProvider.currentBill, isNotNull);
@@ -28,21 +28,21 @@ void main() {
       expect(billProvider.error, isNull);
     });
 
-    test('should fail to create bill with invalid name', () async {
+    test('should fail to create bill with invalid name', () {
       const invalidBillName = '';
       
-      final success = await billProvider.createManualBill(invalidBillName);
+      final success = billProvider.createManualBill(invalidBillName);
       
       expect(success, isFalse);
       expect(billProvider.currentBill, isNull);
       expect(billProvider.error, isNotNull);
     });
 
-    test('should add participant to bill successfully', () async {
+    test('should add participant to bill successfully', () {
       const billName = 'Test Bill';
       const participantName = 'John Doe';
       
-      await billProvider.createManualBill(billName);
+      billProvider.createManualBill(billName);
       final success = billProvider.addParticipant(participantName);
       
       expect(success, isTrue);
@@ -52,11 +52,11 @@ void main() {
       expect(billProvider.error, isNull);
     });
 
-    test('should fail to add participant with invalid name', () async {
+    test('should fail to add participant with invalid name', () {
       const billName = 'Test Bill';
       const invalidParticipantName = '';
       
-      await billProvider.createManualBill(billName);
+      billProvider.createManualBill(billName);
       final success = billProvider.addParticipant(invalidParticipantName);
       
       expect(success, isFalse);
@@ -64,12 +64,12 @@ void main() {
       expect(billProvider.error, isNotNull);
     });
 
-    test('should add manual item to bill successfully', () async {
+    test('should add manual item to bill successfully', () {
       const billName = 'Test Bill';
       const itemName = 'Pizza';
       const itemPrice = 15.99;
       
-      await billProvider.createManualBill(billName);
+      billProvider.createManualBill(billName);
       final success = billProvider.addManualItem(itemName, itemPrice);
       
       expect(success, isTrue);
@@ -79,12 +79,12 @@ void main() {
       expect(billProvider.error, isNull);
     });
 
-    test('should fail to add item with invalid price', () async {
+    test('should fail to add item with invalid price', () {
       const billName = 'Test Bill';
       const itemName = 'Pizza';
       const invalidPrice = -5.0;
       
-      await billProvider.createManualBill(billName);
+      billProvider.createManualBill(billName);
       final success = billProvider.addManualItem(itemName, invalidPrice);
       
       expect(success, isFalse);
@@ -92,11 +92,11 @@ void main() {
       expect(billProvider.error, isNotNull);
     });
 
-    test('should remove participant from bill', () async {
+    test('should remove participant from bill', () {
       const billName = 'Test Bill';
       const participantName = 'John Doe';
       
-      await billProvider.createManualBill(billName);
+      billProvider.createManualBill(billName);
       billProvider.addParticipant(participantName);
       
       final participantId = billProvider.currentBill!.participants.first;
@@ -106,13 +106,13 @@ void main() {
       expect(billProvider.currentBill!.payments, isEmpty);
     });
 
-    test('should toggle item selection for participant', () async {
+    test('should toggle item selection for participant', () {
       const billName = 'Test Bill';
       const participantName = 'John Doe';
       const itemName = 'Pizza';
       const itemPrice = 15.99;
       
-      await billProvider.createManualBill(billName);
+      billProvider.createManualBill(billName);
       billProvider.addParticipant(participantName);
       billProvider.addManualItem(itemName, itemPrice);
       
@@ -128,11 +128,11 @@ void main() {
       expect(billProvider.currentBill!.items.first.selectedBy, isEmpty);
     });
 
-    test('should update tip and recalculate total', () async {
+    test('should update tip and recalculate total', () {
       const billName = 'Test Bill';
       const tip = 5.0;
       
-      await billProvider.createManualBill(billName);
+      billProvider.createManualBill(billName);
       billProvider.addManualItem('Pizza', 15.99);
       billProvider.updateTip(tip);
       
@@ -140,10 +140,10 @@ void main() {
       expect(billProvider.currentBill!.total, equals(20.99)); // 15.99 + 5.0
     });
 
-    test('should split bill equally among participants', () async {
+    test('should split bill equally among participants', () {
       const billName = 'Test Bill';
       
-      await billProvider.createManualBill(billName);
+      billProvider.createManualBill(billName);
       billProvider.addParticipant('Jane');
       billProvider.addManualItem('Pizza', 20.0);
       
@@ -155,10 +155,10 @@ void main() {
       }
     });
 
-    test('should mark payment as paid', () async {
+    test('should mark payment as paid', () {
       const billName = 'Test Bill';
       
-      await billProvider.createManualBill(billName);
+      billProvider.createManualBill(billName);
       billProvider.addParticipant('John');
       
       final participantId = billProvider.currentBill!.participants.first;
@@ -171,10 +171,10 @@ void main() {
       expect(payment.notes, equals('Test payment'));
     });
 
-    test('should calculate total correctly with multiple items', () async {
+    test('should calculate total correctly with multiple items', () {
       const billName = 'Test Bill';
       
-      await billProvider.createManualBill(billName);
+      billProvider.createManualBill(billName);
       billProvider.addManualItem('Pizza', 15.99);
       billProvider.addManualItem('Drink', 3.50);
       

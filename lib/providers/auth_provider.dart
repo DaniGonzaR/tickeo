@@ -1,135 +1,188 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:tickeo/services/firebase_service.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
+
+// Simple user model for offline mode
+class TickeoUser {
+  final String uid;
+  final String? email;
+  final String? displayName;
+  final bool isAnonymous;
+  
+  TickeoUser({
+    required this.uid,
+    this.email,
+    this.displayName,
+    this.isAnonymous = false,
+  });
+  
+  Map<String, dynamic> toJson() => {
+    'uid': uid,
+    'email': email,
+    'displayName': displayName,
+    'isAnonymous': isAnonymous,
+  };
+  
+  factory TickeoUser.fromJson(Map<String, dynamic> json) => TickeoUser(
+    uid: json['uid'] ?? '',
+    email: json['email'],
+    displayName: json['displayName'],
+    isAnonymous: json['isAnonymous'] ?? false,
+  );
+}
 
 class AuthProvider extends ChangeNotifier {
-  final FirebaseService _firebaseService = FirebaseService();
-
-  User? _user;
+  // For web compatibility, we'll use local storage instead of Firebase
+  static const String _userKey = 'tickeo_user';
+  final Uuid _uuid = const Uuid();
+  
+  TickeoUser? _user;
   bool _isLoading = false;
   String? _error;
 
   // Getters
-  User? get user => _user;
+  TickeoUser? get user => _user;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _user != null && !_user!.isAnonymous;
   bool get isAnonymous => _user?.isAnonymous ?? false;
+  String? get userDisplayName => _user?.displayName ?? _user?.email?.split('@').first;
+  String? get userEmail => _user?.email;
 
   AuthProvider() {
     _initializeAuth();
   }
 
-  void _initializeAuth() {
-    _firebaseService.authStateChanges.listen((User? user) {
-      _user = user;
-      notifyListeners();
-    });
+  Future<void> _initializeAuth() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString(_userKey);
+      if (userJson != null) {
+        final userData = jsonDecode(userJson);
+        _user = TickeoUser.fromJson(userData);
+      }
+    } catch (e) {
+      debugPrint('Error loading user from storage: $e');
+    }
+    notifyListeners();
   }
 
-  // Sign in anonymously for users without account
+  Future<void> _saveUserToStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_user != null) {
+        await prefs.setString(_userKey, jsonEncode(_user!.toJson()));
+      } else {
+        await prefs.remove(_userKey);
+      }
+    } catch (e) {
+      debugPrint('Error saving user to storage: $e');
+    }
+  }
+
+  // Anonymous sign in
   Future<void> signInAnonymously() async {
     _setLoading(true);
     _clearError();
 
     try {
-      await _firebaseService.signInAnonymously();
-    } catch (e) {
-      _setError('Error en autenticación: $e');
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  // Sign in with email and password
-  Future<bool> signInWithEmailAndPassword(String email, String password) async {
-    _setLoading(true);
-    _clearError();
-
-    try {
-      await _firebaseService.signInWithEmailAndPassword(email, password);
-      return true;
-    } catch (e) {
-      _setError('Error en inicio de sesión: $e');
-      return false;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  // Create account with email and password
-  Future<bool> createUserWithEmailAndPassword(
-    String email,
-    String password,
-    String displayName,
-  ) async {
-    _setLoading(true);
-    _clearError();
-
-    try {
-      final userCredential =
-          await _firebaseService.createUserWithEmailAndPassword(
-        email,
-        password,
+      _user = TickeoUser(
+        uid: _uuid.v4(),
+        isAnonymous: true,
+        displayName: 'Usuario Invitado',
       );
-
-      // Update display name
-      await userCredential.user?.updateDisplayName(displayName);
-
-      // Save user profile
-      await _firebaseService.saveUserProfile({
-        'displayName': displayName,
-        'email': email,
-        'createdAt': DateTime.now().toIso8601String(),
-      });
-
-      return true;
+      await _saveUserToStorage();
     } catch (e) {
-      _setError('Error creando cuenta: $e');
-      return false;
+      _setError('Error al iniciar sesión como invitado: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Email/password sign in (offline simulation)
+  Future<void> signInWithEmailAndPassword(String email, String password) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      // Simulate authentication delay
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // In a real app, this would authenticate with Firebase
+      // For now, we'll create a user account locally
+      _user = TickeoUser(
+        uid: _uuid.v4(),
+        email: email,
+        displayName: email.split('@').first,
+        isAnonymous: false,
+      );
+      await _saveUserToStorage();
+    } catch (e) {
+      _setError('Error al iniciar sesión: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Create user with email/password (offline simulation)
+  Future<void> createUserWithEmailAndPassword({
+    required String email,
+    required String password,
+    String? displayName,
+  }) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      // Simulate account creation delay
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // In a real app, this would create account with Firebase
+      // For now, we'll create a user account locally
+      _user = TickeoUser(
+        uid: _uuid.v4(),
+        email: email,
+        displayName: displayName ?? email.split('@').first,
+        isAnonymous: false,
+      );
+      await _saveUserToStorage();
+    } catch (e) {
+      _setError('Error al crear cuenta: $e');
     } finally {
       _setLoading(false);
     }
   }
 
   // Convert anonymous account to permanent account
-  Future<bool> convertAnonymousAccount(
-    String email,
-    String password,
-    String displayName,
-  ) async {
+  Future<void> convertAnonymousAccount({
+    required String email,
+    required String password,
+    String? displayName,
+  }) async {
     if (_user == null || !_user!.isAnonymous) {
       _setError('No hay cuenta anónima para convertir');
-      return false;
+      return;
     }
 
     _setLoading(true);
     _clearError();
 
     try {
-      // Create email credential
-      final credential = EmailAuthProvider.credential(
+      // Simulate conversion delay
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // Convert anonymous user to permanent user
+      _user = TickeoUser(
+        uid: _user!.uid, // Keep the same UID to preserve data
         email: email,
-        password: password,
+        displayName: displayName ?? email.split('@').first,
+        isAnonymous: false,
       );
-
-      // Link anonymous account with email credential
-      await _user!.linkWithCredential(credential);
-
-      // Update display name
-      await _user!.updateDisplayName(displayName);
-
-      // Save user profile
-      await _firebaseService.saveUserProfile({
-        'displayName': displayName,
-        'email': email,
-        'convertedAt': DateTime.now().toIso8601String(),
-      });
-
-      return true;
+      await _saveUserToStorage();
     } catch (e) {
-      _setError('Error convirtiendo cuenta: $e');
-      return false;
+      _setError('Error al convertir cuenta: $e');
     } finally {
       _setLoading(false);
     }
@@ -141,80 +194,72 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      await _firebaseService.signOut();
+      _user = null;
+      await _saveUserToStorage();
     } catch (e) {
-      _setError('Error cerrando sesión: $e');
+      _setError('Error al cerrar sesión: $e');
     } finally {
       _setLoading(false);
     }
   }
 
-  // Reset password
-  Future<bool> resetPassword(String email) async {
+  // Reset password (offline simulation)
+  Future<void> resetPassword(String email) async {
     _setLoading(true);
     _clearError();
 
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      return true;
+      // Simulate password reset delay
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // In a real app, this would send password reset email via Firebase
+      // For now, we'll just simulate success
     } catch (e) {
-      _setError('Error enviando email de recuperación: $e');
-      return false;
+      _setError('Error al enviar email de recuperación: $e');
     } finally {
       _setLoading(false);
-    }
-  }
-
-  // Get user profile
-  Future<Map<String, dynamic>?> getUserProfile() async {
-    try {
-      return await _firebaseService.getUserProfile();
-    } catch (e) {
-      _setError('Error obteniendo perfil: $e');
-      return null;
     }
   }
 
   // Update user profile
-  Future<bool> updateUserProfile(Map<String, dynamic> userData) async {
+  Future<void> updateUserProfile({
+    String? displayName,
+    String? email,
+  }) async {
+    if (_user == null) return;
+
     _setLoading(true);
     _clearError();
 
     try {
-      await _firebaseService.saveUserProfile(userData);
-      return true;
+      _user = TickeoUser(
+        uid: _user!.uid,
+        email: email ?? _user!.email,
+        displayName: displayName ?? _user!.displayName,
+        isAnonymous: _user!.isAnonymous,
+      );
+      await _saveUserToStorage();
     } catch (e) {
-      _setError('Error actualizando perfil: $e');
-      return false;
+      _setError('Error al actualizar perfil: $e');
     } finally {
       _setLoading(false);
     }
   }
 
-  // Private methods
+  // Helper methods
   void _setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
   }
 
-  void _setError(String error) {
-    _error = error;
+  void _clearError() {
+    _error = null;
     notifyListeners();
   }
 
-  void _clearError() {
-    _error = null;
+  void _setError(String error) {
+    _error = error;
+    _isLoading = false;
+    notifyListeners();
   }
-
-  String get userDisplayName {
-    if (_user?.displayName?.isNotEmpty == true) {
-      return _user!.displayName!;
-    }
-    if (_user?.email?.isNotEmpty == true) {
-      return _user!.email!.split('@').first;
-    }
-    return 'Usuario';
-  }
-
-  String get userEmail => _user?.email ?? '';
 }

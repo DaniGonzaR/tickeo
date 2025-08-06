@@ -23,6 +23,10 @@ dependencies:
   
   # Dependencias para persistencia
   shared_preferences: ^2.2.2
+  
+  # Image processing for OCR (optional, can be disabled for web)
+  # image_picker: ^1.0.4
+  # google_ml_kit: ^0.16.0
 
 dev_dependencies:
   flutter_test:
