@@ -1,5 +1,5 @@
 [build]
-  publish = "build/web"
+  publish = "dist"
   # No build command - using pre-built static files
 
 [[redirects]]
