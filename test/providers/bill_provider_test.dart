@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tickeo/providers/bill_provider.dart';
-import 'package:tickeo/models/bill.dart';
-import 'package:tickeo/models/bill_item.dart';
 import 'package:tickeo/models/payment.dart';
 
 void main() {
@@ -12,243 +10,214 @@ void main() {
       billProvider = BillProvider();
     });
 
-    test('should initialize with empty state', () {
-      expect(billProvider.currentBill, null);
-      expect(billProvider.billHistory, []);
-      expect(billProvider.isLoading, false);
-      expect(billProvider.error, null);
+    tearDown(() {
+      billProvider.dispose();
     });
 
-    test('should create manual bill correctly', () {
-      const billName = 'Test Manual Bill';
+    test('should create a new manual bill successfully', () async {
+      const billName = 'Test Bill';
       
-      billProvider.createManualBill(billName);
+      final success = await billProvider.createManualBill(billName);
       
+      expect(success, isTrue);
       expect(billProvider.currentBill, isNotNull);
-      expect(billProvider.currentBill!.name, billName);
-      expect(billProvider.currentBill!.items, []);
-      expect(billProvider.currentBill!.participants, []);
-      expect(billProvider.currentBill!.total, 0.0);
-      expect(billProvider.currentBill!.shareCode, isNotEmpty);
-      expect(billProvider.isLoading, false);
-      expect(billProvider.error, null);
+      expect(billProvider.currentBill!.name, equals(billName));
+      expect(billProvider.currentBill!.items, isEmpty);
+      expect(billProvider.currentBill!.participants, isEmpty);
+      expect(billProvider.currentBill!.payments, isEmpty);
+      expect(billProvider.error, isNull);
     });
 
-    test('should add item to current bill', () {
-      billProvider.createManualBill('Test Bill');
+    test('should fail to create bill with invalid name', () async {
+      const invalidBillName = '';
       
-      billProvider.addItem('Pizza', 15.99);
+      final success = await billProvider.createManualBill(invalidBillName);
       
-      expect(billProvider.currentBill!.items.length, 1);
-      expect(billProvider.currentBill!.items.first.name, 'Pizza');
-      expect(billProvider.currentBill!.items.first.price, 15.99);
-      expect(billProvider.currentBill!.subtotal, 15.99);
-      expect(billProvider.currentBill!.total, 15.99);
+      expect(success, isFalse);
+      expect(billProvider.currentBill, isNull);
+      expect(billProvider.error, isNotNull);
     });
 
-    test('should not add item when no current bill', () {
-      billProvider.addItem('Pizza', 15.99);
+    test('should add participant to bill successfully', () async {
+      const billName = 'Test Bill';
+      const participantName = 'John Doe';
       
-      expect(billProvider.currentBill, null);
+      await billProvider.createManualBill(billName);
+      final success = billProvider.addParticipant(participantName);
+      
+      expect(success, isTrue);
+      expect(billProvider.currentBill!.participants, hasLength(1));
+      expect(billProvider.currentBill!.payments, hasLength(1));
+      expect(billProvider.currentBill!.payments.first.participantName, equals(participantName));
+      expect(billProvider.error, isNull);
     });
 
-    test('should add multiple items and calculate totals correctly', () {
-      billProvider.createManualBill('Test Bill');
+    test('should fail to add participant with invalid name', () async {
+      const billName = 'Test Bill';
+      const invalidParticipantName = '';
       
-      billProvider.addItem('Pizza', 15.99);
-      billProvider.addItem('Drink', 2.50);
-      billProvider.addItem('Dessert', 6.00);
+      await billProvider.createManualBill(billName);
+      final success = billProvider.addParticipant(invalidParticipantName);
       
-      expect(billProvider.currentBill!.items.length, 3);
-      expect(billProvider.currentBill!.subtotal, 24.49);
-      expect(billProvider.currentBill!.total, 24.49);
+      expect(success, isFalse);
+      expect(billProvider.currentBill!.participants, isEmpty);
+      expect(billProvider.error, isNotNull);
     });
 
-    test('should remove item from current bill', () {
-      billProvider.createManualBill('Test Bill');
-      billProvider.addItem('Pizza', 15.99);
-      billProvider.addItem('Drink', 2.50);
+    test('should add manual item to bill successfully', () async {
+      const billName = 'Test Bill';
+      const itemName = 'Pizza';
+      const itemPrice = 15.99;
       
+      await billProvider.createManualBill(billName);
+      final success = billProvider.addManualItem(itemName, itemPrice);
+      
+      expect(success, isTrue);
+      expect(billProvider.currentBill!.items, hasLength(1));
+      expect(billProvider.currentBill!.items.first.name, equals(itemName));
+      expect(billProvider.currentBill!.items.first.price, equals(itemPrice));
+      expect(billProvider.error, isNull);
+    });
+
+    test('should fail to add item with invalid price', () async {
+      const billName = 'Test Bill';
+      const itemName = 'Pizza';
+      const invalidPrice = -5.0;
+      
+      await billProvider.createManualBill(billName);
+      final success = billProvider.addManualItem(itemName, invalidPrice);
+      
+      expect(success, isFalse);
+      expect(billProvider.currentBill!.items, isEmpty);
+      expect(billProvider.error, isNotNull);
+    });
+
+    test('should remove participant from bill', () async {
+      const billName = 'Test Bill';
+      const participantName = 'John Doe';
+      
+      await billProvider.createManualBill(billName);
+      billProvider.addParticipant(participantName);
+      
+      final participantId = billProvider.currentBill!.participants.first;
+      billProvider.removeParticipant(participantId);
+      
+      expect(billProvider.currentBill!.participants, isEmpty);
+      expect(billProvider.currentBill!.payments, isEmpty);
+    });
+
+    test('should toggle item selection for participant', () async {
+      const billName = 'Test Bill';
+      const participantName = 'John Doe';
+      const itemName = 'Pizza';
+      const itemPrice = 15.99;
+      
+      await billProvider.createManualBill(billName);
+      billProvider.addParticipant(participantName);
+      billProvider.addManualItem(itemName, itemPrice);
+      
+      final participantId = billProvider.currentBill!.participants.first;
       final itemId = billProvider.currentBill!.items.first.id;
-      billProvider.removeItem(itemId);
       
-      expect(billProvider.currentBill!.items.length, 1);
-      expect(billProvider.currentBill!.items.first.name, 'Drink');
-      expect(billProvider.currentBill!.subtotal, 2.50);
-      expect(billProvider.currentBill!.total, 2.50);
-    });
-
-    test('should not remove item when no current bill', () {
-      billProvider.removeItem('fake-id');
-      expect(billProvider.currentBill, null);
-    });
-
-    test('should add participant to current bill', () {
-      billProvider.createManualBill('Test Bill');
+      // Toggle on
+      billProvider.toggleItemSelection(itemId, participantId);
+      expect(billProvider.currentBill!.items.first.selectedBy, contains(participantId));
       
-      billProvider.addParticipant('John');
-      
-      expect(billProvider.currentBill!.participants.length, 1);
-      expect(billProvider.currentBill!.participants.first, 'John');
-    });
-
-    test('should not add duplicate participant', () {
-      billProvider.createManualBill('Test Bill');
-      
-      billProvider.addParticipant('John');
-      billProvider.addParticipant('John');
-      
-      expect(billProvider.currentBill!.participants.length, 1);
-    });
-
-    test('should not add participant when no current bill', () {
-      billProvider.addParticipant('John');
-      expect(billProvider.currentBill, null);
-    });
-
-    test('should remove participant from current bill', () {
-      billProvider.createManualBill('Test Bill');
-      billProvider.addParticipant('John');
-      billProvider.addParticipant('Jane');
-      
-      billProvider.removeParticipant('John');
-      
-      expect(billProvider.currentBill!.participants.length, 1);
-      expect(billProvider.currentBill!.participants.first, 'Jane');
-    });
-
-    test('should assign item to participant', () {
-      billProvider.createManualBill('Test Bill');
-      billProvider.addItem('Pizza', 15.99);
-      billProvider.addParticipant('John');
-      
-      final itemId = billProvider.currentBill!.items.first.id;
-      billProvider.assignItemToParticipant(itemId, 'John');
-      
-      expect(billProvider.currentBill!.items.first.selectedBy, contains('John'));
-    });
-
-    test('should unassign item from participant', () {
-      billProvider.createManualBill('Test Bill');
-      billProvider.addItem('Pizza', 15.99);
-      billProvider.addParticipant('John');
-      
-      final itemId = billProvider.currentBill!.items.first.id;
-      billProvider.assignItemToParticipant(itemId, 'John');
-      billProvider.unassignItemFromParticipant(itemId, 'John');
-      
+      // Toggle off
+      billProvider.toggleItemSelection(itemId, participantId);
       expect(billProvider.currentBill!.items.first.selectedBy, isEmpty);
     });
 
-    test('should mark payment as paid', () {
-      billProvider.createManualBill('Test Bill');
-      billProvider.addParticipant('John');
+    test('should update tip and recalculate total', () async {
+      const billName = 'Test Bill';
+      const tip = 5.0;
       
-      billProvider.markPaymentAsPaid('John', 10.0, 'card');
+      await billProvider.createManualBill(billName);
+      billProvider.addManualItem('Pizza', 15.99);
+      billProvider.updateTip(tip);
       
-      final payment = billProvider.currentBill!.payments
-          .firstWhere((p) => p.participantId == 'John');
-      expect(payment.isPaid, true);
-      expect(payment.amount, 10.0);
-      expect(payment.paymentMethod, 'card');
-      expect(payment.paidAt, isNotNull);
+      expect(billProvider.currentBill!.tip, equals(tip));
+      expect(billProvider.currentBill!.total, equals(20.99)); // 15.99 + 5.0
     });
 
-    test('should mark payment as unpaid', () {
-      billProvider.createManualBill('Test Bill');
-      billProvider.addParticipant('John');
-      billProvider.markPaymentAsPaid('John', 10.0, 'card');
+    test('should split bill equally among participants', () async {
+      const billName = 'Test Bill';
       
-      billProvider.markPaymentAsUnpaid('John');
-      
-      final payment = billProvider.currentBill!.payments
-          .firstWhere((p) => p.participantId == 'John');
-      expect(payment.isPaid, false);
-      expect(payment.paidAt, null);
-    });
-
-    test('should save bill to history when completed', () {
-      billProvider.createManualBill('Test Bill');
-      billProvider.addItem('Pizza', 15.99);
-      billProvider.addParticipant('John');
-      
-      billProvider.saveBillToHistory();
-      
-      expect(billProvider.billHistory.length, 1);
-      expect(billProvider.billHistory.first.name, 'Test Bill');
-      expect(billProvider.currentBill, null);
-    });
-
-    test('should not save empty bill to history', () {
-      billProvider.createManualBill('Empty Bill');
-      
-      billProvider.saveBillToHistory();
-      
-      expect(billProvider.billHistory, isEmpty);
-      expect(billProvider.currentBill, isNotNull);
-    });
-
-    test('should clear current bill', () {
-      billProvider.createManualBill('Test Bill');
-      billProvider.addItem('Pizza', 15.99);
-      
-      billProvider.clearCurrentBill();
-      
-      expect(billProvider.currentBill, null);
-    });
-
-    test('should load bill by share code', () {
-      // Create and save a bill first
-      billProvider.createManualBill('Shared Bill');
-      billProvider.addItem('Pizza', 15.99);
-      final shareCode = billProvider.currentBill!.shareCode;
-      billProvider.saveBillToHistory();
-      
-      // Load by share code
-      final success = billProvider.loadBillByShareCode(shareCode);
-      
-      expect(success, true);
-      expect(billProvider.currentBill, isNotNull);
-      expect(billProvider.currentBill!.name, 'Shared Bill');
-    });
-
-    test('should fail to load non-existent share code', () {
-      final success = billProvider.loadBillByShareCode('INVALID');
-      
-      expect(success, false);
-      expect(billProvider.currentBill, null);
-    });
-
-    test('should calculate participant amounts correctly', () {
-      billProvider.createManualBill('Test Bill');
-      billProvider.addItem('Pizza', 20.0);
-      billProvider.addItem('Drink', 4.0);
-      billProvider.addParticipant('John');
+      await billProvider.createManualBill(billName);
       billProvider.addParticipant('Jane');
+      billProvider.addManualItem('Pizza', 20.0);
       
-      final pizzaId = billProvider.currentBill!.items
-          .firstWhere((item) => item.name == 'Pizza').id;
-      final drinkId = billProvider.currentBill!.items
-          .firstWhere((item) => item.name == 'Drink').id;
+      billProvider.splitBillEqually();
       
-      // John gets pizza (shared) and drink (solo)
-      billProvider.assignItemToParticipant(pizzaId, 'John');
-      billProvider.assignItemToParticipant(pizzaId, 'Jane');
-      billProvider.assignItemToParticipant(drinkId, 'John');
-      
-      final johnAmount = billProvider.getParticipantAmount('John');
-      final janeAmount = billProvider.getParticipantAmount('Jane');
-      
-      expect(johnAmount, 14.0); // 10.0 (pizza/2) + 4.0 (drink)
-      expect(janeAmount, 10.0); // 10.0 (pizza/2)
+      expect(billProvider.currentBill!.payments, hasLength(2));
+      for (final payment in billProvider.currentBill!.payments) {
+        expect(payment.amount, equals(10.0)); // 20.0 / 2
+      }
     });
 
-    test('should return 0 for non-existent participant', () {
-      billProvider.createManualBill('Test Bill');
+    test('should mark payment as paid', () async {
+      const billName = 'Test Bill';
       
-      final amount = billProvider.getParticipantAmount('NonExistent');
+      await billProvider.createManualBill(billName);
+      billProvider.addParticipant('John');
       
-      expect(amount, 0.0);
+      final participantId = billProvider.currentBill!.participants.first;
+      billProvider.markPaymentAsPaid(participantId, PaymentMethod.card, 'Test payment');
+      
+      final payment = billProvider.currentBill!.payments
+          .firstWhere((p) => p.participantId == participantId);
+      expect(payment.isPaid, isTrue);
+      expect(payment.method, equals(PaymentMethod.card));
+      expect(payment.notes, equals('Test payment'));
+    });
+
+    test('should calculate total correctly with multiple items', () async {
+      const billName = 'Test Bill';
+      
+      await billProvider.createManualBill(billName);
+      billProvider.addManualItem('Pizza', 15.99);
+      billProvider.addManualItem('Drink', 3.50);
+      
+      expect(billProvider.currentBill!.subtotal, equals(19.49));
+      expect(billProvider.currentBill!.total, equals(19.49)); // No tax or tip
+    });
+
+    test('should handle loading states correctly', () async {
+      expect(billProvider.isLoading, isFalse);
+      
+      // Loading state is internal, but we can test that operations complete
+      await billProvider.createManualBill('Test Bill');
+      
+      expect(billProvider.isLoading, isFalse);
+    });
+
+    test('should get participant name correctly', () async {
+      const billName = 'Test Bill';
+      const participantName = 'John Doe';
+      
+      await billProvider.createManualBill(billName);
+      billProvider.addParticipant(participantName);
+      
+      final participantId = billProvider.currentBill!.participants.first;
+      final retrievedName = billProvider.getParticipantName(participantId);
+      
+      expect(retrievedName, equals(participantName));
+    });
+
+    test('should return unknown for invalid participant id', () {
+      const invalidId = 'invalid-id';
+      final retrievedName = billProvider.getParticipantName(invalidId);
+      
+      expect(retrievedName, equals('Unknown'));
+    });
+
+    test('should handle error states correctly', () async {
+      // Test with invalid bill name
+      final success = await billProvider.createManualBill('');
+      
+      expect(success, isFalse);
+      expect(billProvider.error, isNotNull);
+      expect(billProvider.currentBill, isNull);
     });
   });
 }

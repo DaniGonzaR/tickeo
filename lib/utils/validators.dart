@@ -1,5 +1,3 @@
-import 'package:tickeo/utils/error_handler.dart';
-
 /// Utility class for input validation across the app
 class Validators {
   /// Validate bill name

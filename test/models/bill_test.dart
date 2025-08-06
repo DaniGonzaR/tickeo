@@ -31,24 +31,25 @@ void main() {
         ),
       ];
 
-      testPayments = [
-        Payment(
-          id: 'payment1',
-          participantId: 'user1',
-          amount: 10.75,
-          isPaid: true,
-          paymentMethod: 'card',
-          paidAt: DateTime.now(),
-        ),
-        Payment(
-          id: 'payment2',
-          participantId: 'user2',
-          amount: 13.74,
-          isPaid: false,
-          paymentMethod: 'cash',
-          paidAt: null,
-        ),
-      ];
+      final payment1 = Payment(
+        id: 'payment1',
+        participantId: 'user1',
+        participantName: 'John',
+        amount: 10.75,
+        method: PaymentMethod.cash,
+        isPaid: true,
+        paidAt: DateTime.now(),
+      );
+      final payment2 = Payment(
+        id: 'payment2',
+        participantId: 'user2',
+        participantName: 'Jane',
+        method: PaymentMethod.card,
+        amount: 13.74,
+        isPaid: false,
+      );
+
+      testPayments = [payment1, payment2];
 
       testBill = Bill(
         id: 'test-bill-1',

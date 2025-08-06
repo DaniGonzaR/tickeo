@@ -125,7 +125,7 @@ void main() {
     testWidgets('should handle checkbox tap', (WidgetTester tester) async {
       // Create a bill first to enable checkbox functionality
       mockBillProvider.createManualBill('Test Bill');
-      mockBillProvider.addItem('Pizza Margherita', 15.99);
+      mockBillProvider.addManualItem('Pizza Margherita', 15.99);
       mockBillProvider.addParticipant('user1');
       mockBillProvider.addParticipant('user2');
       mockBillProvider.addParticipant('user3');
@@ -176,7 +176,7 @@ void main() {
     testWidgets('should handle remove button tap', (WidgetTester tester) async {
       // Create a bill with the item
       mockBillProvider.createManualBill('Test Bill');
-      mockBillProvider.addItem('Pizza Margherita', 15.99);
+      mockBillProvider.addManualItem('Pizza Margherita', 15.99);
 
       await tester.pumpWidget(createTestWidget(testItem));
 
