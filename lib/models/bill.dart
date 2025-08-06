@@ -78,6 +78,25 @@ class Bill {
     };
   }
 
+  factory Bill.empty() {
+    return Bill(
+      id: '',
+      name: '',
+      createdAt: DateTime.now(),
+      items: [],
+      subtotal: 0.0,
+      tax: 0.0,
+      tip: 0.0,
+      total: 0.0,
+      participants: [],
+      payments: [],
+      restaurantName: null,
+      imageUrl: null,
+      isCompleted: false,
+      shareCode: '',
+    );
+  }
+
   Bill copyWith({
     String? id,
     String? name,

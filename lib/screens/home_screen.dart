@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:tickeo/providers/bill_provider.dart';
 import 'package:tickeo/screens/bill_details_screen.dart';
 import 'package:tickeo/screens/join_bill_screen.dart';
+import 'package:tickeo/screens/analytics_screen.dart';
 import 'package:tickeo/widgets/custom_button.dart';
 import 'package:tickeo/widgets/bill_history_card.dart';
 import 'package:tickeo/widgets/loading_state_widget.dart';
@@ -12,6 +13,8 @@ import 'package:tickeo/utils/app_colors.dart';
 import 'package:tickeo/utils/app_text_styles.dart';
 import 'package:tickeo/utils/error_handler.dart';
 import 'package:tickeo/utils/validators.dart';
+import 'package:tickeo/widgets/validated_form_field.dart';
+import 'package:tickeo/services/notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -175,14 +178,55 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
-          'Bill Splitter',
-          style: AppTextStyles.headingLarge.copyWith(
+          'Tickeo',
+          style: AppTextStyles.headingMedium.copyWith(
             color: Colors.white,
           ),
         ),
         backgroundColor: AppColors.primary,
         elevation: 0,
         centerTitle: true,
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            onSelected: (value) {
+              switch (value) {
+                case 'analytics':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const AnalyticsScreen(),
+                    ),
+                  );
+                  break;
+                case 'tips':
+                  NotificationService.showTipsDialog(context: context);
+                  break;
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'analytics',
+                child: Row(
+                  children: [
+                    Icon(Icons.analytics_outlined),
+                    SizedBox(width: 8),
+                    Text('Analytics'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'tips',
+                child: Row(
+                  children: [
+                    Icon(Icons.lightbulb_outline),
+                    SizedBox(width: 8),
+                    Text('Tips & Tricks'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Consumer<BillProvider>(
         builder: (context, billProvider, child) {
