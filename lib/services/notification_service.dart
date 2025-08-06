@@ -21,22 +21,71 @@ class NotificationService {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(cancelText),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: confirmColor != null
-                  ? ElevatedButton.styleFrom(backgroundColor: confirmColor)
-                  : null,
-              child: Text(confirmText),
-            ),
-          ],
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < 600;
+            
+            return AlertDialog(
+              title: Text(
+                title,
+                style: TextStyle(
+                  fontSize: isMobile ? 18 : 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              content: Text(
+                message,
+                style: TextStyle(
+                  fontSize: isMobile ? 16 : 14,
+                  height: 1.4,
+                ),
+              ),
+              contentPadding: EdgeInsets.fromLTRB(
+                isMobile ? 20 : 24,
+                isMobile ? 16 : 20,
+                isMobile ? 20 : 24,
+                isMobile ? 8 : 12,
+              ),
+              actionsPadding: EdgeInsets.fromLTRB(
+                isMobile ? 12 : 16,
+                0,
+                isMobile ? 12 : 16,
+                isMobile ? 12 : 16,
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  style: TextButton.styleFrom(
+                    minimumSize: Size(isMobile ? 80 : 64, isMobile ? 44 : 36),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 16 : 12,
+                      vertical: isMobile ? 12 : 8,
+                    ),
+                  ),
+                  child: Text(
+                    cancelText,
+                    style: TextStyle(fontSize: isMobile ? 16 : 14),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: confirmColor,
+                    minimumSize: Size(isMobile ? 80 : 64, isMobile ? 44 : 36),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 16 : 12,
+                      vertical: isMobile ? 12 : 8,
+                    ),
+                  ),
+                  child: Text(
+                    confirmText,
+                    style: TextStyle(fontSize: isMobile ? 16 : 14),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -105,15 +154,57 @@ class NotificationService {
     await showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Payment Reminder'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < 600;
+            
+            return AlertDialog(
+              title: Text(
+                'Payment Reminder',
+                style: TextStyle(
+                  fontSize: isMobile ? 18 : 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: isMobile ? 16 : 14,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+              contentPadding: EdgeInsets.fromLTRB(
+                isMobile ? 20 : 24,
+                isMobile ? 16 : 20,
+                isMobile ? 20 : 24,
+                isMobile ? 8 : 12,
+              ),
+              actionsPadding: EdgeInsets.fromLTRB(
+                isMobile ? 12 : 16,
+                0,
+                isMobile ? 12 : 16,
+                isMobile ? 12 : 16,
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: Size(isMobile ? 80 : 64, isMobile ? 44 : 36),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 16 : 12,
+                      vertical: isMobile ? 12 : 8,
+                    ),
+                  ),
+                  child: Text(
+                    'OK',
+                    style: TextStyle(fontSize: isMobile ? 16 : 14),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -140,15 +231,57 @@ class NotificationService {
     await showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('${bill.name} - Summary'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < 600;
+            
+            return AlertDialog(
+              title: Text(
+                '${bill.name} - Summary',
+                style: TextStyle(
+                  fontSize: isMobile ? 18 : 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: isMobile ? 16 : 14,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+              contentPadding: EdgeInsets.fromLTRB(
+                isMobile ? 20 : 24,
+                isMobile ? 16 : 20,
+                isMobile ? 20 : 24,
+                isMobile ? 8 : 12,
+              ),
+              actionsPadding: EdgeInsets.fromLTRB(
+                isMobile ? 12 : 16,
+                0,
+                isMobile ? 12 : 16,
+                isMobile ? 12 : 16,
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: Size(isMobile ? 80 : 64, isMobile ? 44 : 36),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 16 : 12,
+                      vertical: isMobile ? 12 : 8,
+                    ),
+                  ),
+                  child: Text(
+                    'Close',
+                    style: TextStyle(fontSize: isMobile ? 16 : 14),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -165,46 +298,122 @@ class NotificationService {
     await showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Share Bill'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.link),
-                title: const Text('Share Link'),
-                subtitle: const Text('Share bill via link'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  onShareLink();
-                },
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < 600;
+            
+            return AlertDialog(
+              title: Text(
+                'Share Bill',
+                style: TextStyle(
+                  fontSize: isMobile ? 18 : 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              ListTile(
-                leading: const Icon(Icons.qr_code),
-                title: const Text('Share QR Code'),
-                subtitle: const Text('Generate QR code for easy access'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  onShareQR();
-                },
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: Icon(
+                      Icons.link,
+                      size: isMobile ? 24 : 20,
+                    ),
+                    title: Text(
+                      'Share Link',
+                      style: TextStyle(fontSize: isMobile ? 16 : 14),
+                    ),
+                    subtitle: Text(
+                      'Share bill via link',
+                      style: TextStyle(fontSize: isMobile ? 14 : 12),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 16 : 12,
+                      vertical: isMobile ? 8 : 4,
+                    ),
+                    minVerticalPadding: isMobile ? 12 : 8,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      onShareLink();
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      Icons.qr_code,
+                      size: isMobile ? 24 : 20,
+                    ),
+                    title: Text(
+                      'Share QR Code',
+                      style: TextStyle(fontSize: isMobile ? 16 : 14),
+                    ),
+                    subtitle: Text(
+                      'Generate QR code for easy access',
+                      style: TextStyle(fontSize: isMobile ? 14 : 12),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 16 : 12,
+                      vertical: isMobile ? 8 : 4,
+                    ),
+                    minVerticalPadding: isMobile ? 12 : 8,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      onShareQR();
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      Icons.picture_as_pdf,
+                      size: isMobile ? 24 : 20,
+                    ),
+                    title: Text(
+                      'Export PDF',
+                      style: TextStyle(fontSize: isMobile ? 16 : 14),
+                    ),
+                    subtitle: Text(
+                      'Export bill as PDF document',
+                      style: TextStyle(fontSize: isMobile ? 14 : 12),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 16 : 12,
+                      vertical: isMobile ? 8 : 4,
+                    ),
+                    minVerticalPadding: isMobile ? 12 : 8,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      onExportPDF();
+                    },
+                  ),
+                ],
               ),
-              ListTile(
-                leading: const Icon(Icons.picture_as_pdf),
-                title: const Text('Export PDF'),
-                subtitle: const Text('Export bill as PDF document'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  onExportPDF();
-                },
+              contentPadding: EdgeInsets.fromLTRB(
+                isMobile ? 12 : 24,
+                isMobile ? 16 : 20,
+                isMobile ? 12 : 24,
+                isMobile ? 8 : 12,
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-          ],
+              actionsPadding: EdgeInsets.fromLTRB(
+                isMobile ? 12 : 16,
+                0,
+                isMobile ? 12 : 16,
+                isMobile ? 12 : 16,
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    minimumSize: Size(isMobile ? 80 : 64, isMobile ? 44 : 36),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 16 : 12,
+                      vertical: isMobile ? 12 : 8,
+                    ),
+                  ),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(fontSize: isMobile ? 16 : 14),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );

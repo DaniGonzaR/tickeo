@@ -41,206 +41,264 @@ class ParticipantCard extends StatelessWidget {
         .where((item) => item.selectedBy.contains(participantId))
         .toList();
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shadowColor: AppColors.shadow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Participant header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final isMobile = screenWidth < 600;
+        final cardPadding = isMobile ? 12.0 : 16.0;
+        final avatarRadius = isMobile ? 18.0 : 20.0;
+        final itemSpacing = isMobile ? 8.0 : 12.0;
+        
+        return Card(
+          margin: EdgeInsets.only(bottom: isMobile ? 8 : 12),
+          elevation: 2,
+          shadowColor: AppColors.shadow,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(cardPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Participant header
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    CircleAvatar(
-                      backgroundColor:
-                          isPaid ? AppColors.success : AppColors.primary,
-                      radius: 20,
-                      child: Text(
-                        participantName.isNotEmpty
-                            ? participantName[0].toUpperCase()
-                            : 'U',
-                        style: AppTextStyles.bodyLarge.copyWith(
-                          color: AppColors.textOnPrimary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: isPaid ? AppColors.success : AppColors.primary,
+                            radius: avatarRadius,
+                            child: Text(
+                              participantName.isNotEmpty
+                                  ? participantName[0].toUpperCase()
+                                  : 'U',
+                              style: AppTextStyles.bodyLarge.copyWith(
+                                color: AppColors.textOnPrimary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: isMobile ? 14 : 16,
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: itemSpacing),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  participantName,
+                                  style: isMobile 
+                                    ? AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold)
+                                    : AppTextStyles.headingSmall,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  isMobile 
+                                    ? '${selectedItems.length} items'
+                                    : '${selectedItems.length} productos',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    fontSize: isMobile ? 12 : 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    // Amount and status
                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          participantName,
-                          style: AppTextStyles.headingSmall,
+                          '€${amount.toStringAsFixed(2)}',
+                          style: isMobile 
+                            ? AppTextStyles.priceMedium.copyWith(fontSize: 16)
+                            : AppTextStyles.priceLarge,
                         ),
-                        Text(
-                          '${selectedItems.length} productos',
-                          style: AppTextStyles.bodySmall,
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isMobile ? 6 : 8,
+                            vertical: isMobile ? 2 : 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isPaid 
+                              ? AppColors.success.withOpacity(0.1)
+                              : AppColors.warning.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            isPaid ? 'Pagado' : 'Pendiente',
+                            style: TextStyle(
+                              color: isPaid ? AppColors.success : AppColors.warning,
+                              fontSize: isMobile ? 10 : 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ],
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '€${amount.toStringAsFixed(2)}',
-                      style: AppTextStyles.priceMedium,
+
+                if (selectedItems.isNotEmpty) ...[
+                  SizedBox(height: itemSpacing),
+                  // Selected items
+                  Container(
+                    padding: EdgeInsets.all(isMobile ? 8 : 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isMobile ? 'Items:' : 'Productos seleccionados:',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            fontWeight: FontWeight.w600,
+                            fontSize: isMobile ? 12 : 14,
+                          ),
+                        ),
+                        SizedBox(height: isMobile ? 4 : 8),
+                        if (isMobile && selectedItems.length > 3)
+                          // Mobile: Show condensed view for many items
+                          Column(
+                            children: [
+                              ...selectedItems.take(2).map((item) => 
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          item.name,
+                                          style: AppTextStyles.bodySmall,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      Text(
+                                        '€${(item.price / item.selectedBy.length).toStringAsFixed(2)}',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              if (selectedItems.length > 2)
+                                Text(
+                                  '... y ${selectedItems.length - 2} más',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                            ],
+                          )
+                        else
+                          // Desktop/Tablet: Show all items
+                          ...selectedItems.map((item) => 
+                            Padding(
+                              padding: EdgeInsets.only(bottom: isMobile ? 4 : 8),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      item.name,
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        fontSize: isMobile ? 12 : 14,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  Text(
+                                    '€${(item.price / item.selectedBy.length).toStringAsFixed(2)}',
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: isMobile ? 12 : 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                SizedBox(height: itemSpacing),
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showRemoveDialog(context),
+                        icon: Icon(
+                          Icons.person_remove,
+                          size: isMobile ? 16 : 18,
+                        ),
+                        label: Text(
+                          isMobile ? 'Quitar' : 'Quitar Participante',
+                          style: TextStyle(fontSize: isMobile ? 12 : 14),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          side: BorderSide(color: AppColors.error),
+                          padding: EdgeInsets.symmetric(
+                            vertical: isMobile ? 8 : 12,
+                            horizontal: isMobile ? 8 : 16,
+                          ),
+                        ),
                       ),
-                      decoration: BoxDecoration(
-                        color: isPaid
-                            ? AppColors.success.withOpacity(0.1)
-                            : AppColors.warning.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        isPaid ? 'Pagado' : 'Pendiente',
-                        style: isPaid
-                            ? AppTextStyles.statusPaid
-                            : AppTextStyles.statusPending,
+                    ),
+                    SizedBox(width: itemSpacing),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showPaymentDialog(context, payment),
+                        icon: Icon(
+                          isPaid ? Icons.edit : Icons.payment,
+                          size: isMobile ? 16 : 18,
+                        ),
+                        label: Text(
+                          isPaid 
+                            ? (isMobile ? 'Editar' : 'Editar Pago')
+                            : (isMobile ? 'Pagar' : 'Marcar Pago'),
+                          style: TextStyle(fontSize: isMobile ? 12 : 14),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isPaid ? AppColors.secondary : AppColors.success,
+                          foregroundColor: AppColors.textOnPrimary,
+                          padding: EdgeInsets.symmetric(
+                            vertical: isMobile ? 8 : 12,
+                            horizontal: isMobile ? 8 : 16,
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ],
             ),
-
-            if (selectedItems.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              const Divider(),
-              const SizedBox(height: 8),
-
-              Text(
-                'Productos seleccionados:',
-                style: AppTextStyles.label,
-              ),
-              const SizedBox(height: 8),
-
-              ...selectedItems.map((item) {
-                final shareCount = item.selectedBy.length;
-                final itemPrice = shareCount > 1
-                    ? item.totalPrice / shareCount
-                    : item.totalPrice;
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          shareCount > 1
-                              ? '${item.name} (compartido con ${shareCount - 1} más)'
-                              : item.name,
-                          style: AppTextStyles.bodySmall,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Text(
-                        '€${itemPrice.toStringAsFixed(2)}',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-
-              const SizedBox(height: 8),
-              const Divider(),
-              const SizedBox(height: 8),
-
-              // Breakdown
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Subtotal productos:', style: AppTextStyles.bodySmall),
-                  Text(
-                    '€${_getSubtotalForParticipant().toStringAsFixed(2)}',
-                    style: AppTextStyles.bodySmall,
-                  ),
-                ],
-              ),
-            ],
-
-            // Actions
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _showRemoveDialog(context),
-                    icon: const Icon(Icons.person_remove, size: 16),
-                    label: const Text('Remover'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.error,
-                      side: BorderSide(color: AppColors.error),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: selectedItems.isEmpty
-                        ? null
-                        : () => _showPaymentDialog(context),
-                    icon: Icon(
-                      isPaid ? Icons.check_circle : Icons.payment,
-                      size: 16,
-                    ),
-                    label: Text(isPaid ? 'Pagado' : 'Marcar Pagado'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          isPaid ? AppColors.success : AppColors.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 2,
-                      shadowColor: Colors.black26,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
-  }
-
-  double _getSubtotalForParticipant() {
-    double subtotal = 0.0;
-    for (var item in bill.items) {
-      if (item.selectedBy.contains(participantId)) {
-        subtotal += item.totalPrice / item.selectedBy.length;
-      }
-    }
-    return subtotal;
   }
 
   void _showRemoveDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Remover Participante', style: AppTextStyles.headingMedium),
-        content: Text(
-          '¿Estás seguro de que quieres remover a ${billProvider.getParticipantName(participantId)}? '
-          'Esto también lo quitará de todos los productos seleccionados.',
-          style: AppTextStyles.bodyMedium,
-        ),
+        title: const Text('Quitar Participante'),
+        content: Text('¿Estás seguro de que quieres quitar a ${billProvider.getParticipantName(participantId)} de la cuenta?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -253,114 +311,50 @@ class ParticipantCard extends StatelessWidget {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
+              foregroundColor: AppColors.textOnPrimary,
             ),
-            child: const Text('Remover'),
+            child: const Text('Quitar'),
           ),
         ],
       ),
     );
   }
 
-  void _showPaymentDialog(BuildContext context) {
-    final payment = bill.payments.firstWhere(
-      (p) => p.participantId == participantId,
-    );
-
-    if (payment.isPaid) return;
-
-    PaymentMethod selectedPaymentMethod = PaymentMethod.cash; // Default payment method
-    final Map<PaymentMethod, String> paymentMethodLabels = {
-      PaymentMethod.cash: 'Efectivo',
-      PaymentMethod.transfer: 'Transferencia',
-      PaymentMethod.other: 'Otros',
-    };
-
+  void _showPaymentDialog(BuildContext context, Payment payment) {
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text('Confirmar Pago', style: AppTextStyles.headingMedium),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${payment.participantName} debe pagar:',
-                style: AppTextStyles.bodyMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '€${payment.amount.toStringAsFixed(2)}',
-                style: AppTextStyles.priceLarge,
-              ),
-              const SizedBox(height: 16),
-              Text('Método de pago:', style: AppTextStyles.label),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<PaymentMethod>(
-                    value: selectedPaymentMethod,
-                    isExpanded: true,
-                    items: paymentMethodLabels.entries.map((entry) {
-                      return DropdownMenuItem<PaymentMethod>(
-                        value: entry.key,
-                        child: Row(
-                          children: [
-                            Icon(
-                              entry.key == PaymentMethod.cash
-                                  ? Icons.money
-                                  : entry.key == PaymentMethod.transfer
-                                      ? Icons.account_balance
-                                      : Icons.payment,
-                              size: 20,
-                              color: AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 12),
-                            Text(entry.value, style: AppTextStyles.bodyMedium),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (PaymentMethod? newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          selectedPaymentMethod = newValue;
-                        });
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                billProvider.markPaymentAsPaid(
-                  participantId,
-                  selectedPaymentMethod,
-                  null,
-                );
-                Navigator.of(context).pop();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Confirmar Pago'),
-            ),
+      builder: (context) => AlertDialog(
+        title: Text('${payment.isPaid ? 'Editar' : 'Registrar'} Pago'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Participante: ${payment.participantName}'),
+            const SizedBox(height: 8),
+            Text('Monto: €${payment.amount.toStringAsFixed(2)}'),
+            const SizedBox(height: 16),
+            if (!payment.isPaid)
+              const Text('¿Marcar como pagado?')
+            else
+              const Text('¿Marcar como pendiente?'),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              billProvider.togglePaymentStatus(payment.id);
+              Navigator.of(context).pop();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: payment.isPaid ? AppColors.warning : AppColors.success,
+              foregroundColor: AppColors.textOnPrimary,
+            ),
+            child: Text(payment.isPaid ? 'Marcar Pendiente' : 'Marcar Pagado'),
+          ),
+        ],
       ),
     );
   }

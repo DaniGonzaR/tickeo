@@ -28,19 +28,29 @@ class CustomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveBackgroundColor = backgroundColor ?? AppColors.primary;
-    final effectiveTextColor = textColor ?? AppColors.textOnPrimary;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+        final effectiveBackgroundColor = backgroundColor ?? AppColors.primary;
+        final effectiveTextColor = textColor ?? AppColors.textOnPrimary;
+        
+        // Adaptive button dimensions
+        final adaptiveHeight = isMobile ? 48.0 : height;
+        final fontSize = isMobile ? 16.0 : 14.0;
+        final iconSize = isMobile ? 20.0 : 18.0;
+        final borderRadius = isMobile ? 8.0 : 12.0;
+        final horizontalPadding = isMobile ? 20.0 : 16.0;
 
-    return SizedBox(
-      width: width ?? double.infinity,
-      height: height,
+        return SizedBox(
+          width: width ?? double.infinity,
+          height: adaptiveHeight,
       child: isOutlined
           ? OutlinedButton.icon(
               onPressed: isLoading ? null : onPressed,
               icon: isLoading
                   ? SizedBox(
-                      width: 20,
-                      height: 20,
+                      width: iconSize,
+                      height: iconSize,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         valueColor: AlwaysStoppedAnimation<Color>(
@@ -49,28 +59,29 @@ class CustomButton extends StatelessWidget {
                       ),
                     )
                   : (icon != null
-                      ? Icon(icon, size: 20)
+                      ? Icon(icon, size: iconSize)
                       : const SizedBox.shrink()),
               label: Text(
                 text,
                 style: AppTextStyles.buttonMedium.copyWith(
                   color: effectiveBackgroundColor,
+                  fontSize: fontSize,
                 ),
               ),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: effectiveBackgroundColor, width: 2),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(borderRadius),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
               ),
             )
           : ElevatedButton.icon(
               onPressed: isLoading ? null : onPressed,
               icon: isLoading
                   ? SizedBox(
-                      width: 20,
-                      height: 20,
+                      width: iconSize,
+                      height: iconSize,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         valueColor: AlwaysStoppedAnimation<Color>(
@@ -79,12 +90,13 @@ class CustomButton extends StatelessWidget {
                       ),
                     )
                   : (icon != null
-                      ? Icon(icon, size: 20)
+                      ? Icon(icon, size: iconSize)
                       : const SizedBox.shrink()),
               label: Text(
                 text,
                 style: AppTextStyles.buttonMedium.copyWith(
                   color: effectiveTextColor,
+                  fontSize: fontSize,
                 ),
               ),
               style: ElevatedButton.styleFrom(
@@ -93,11 +105,14 @@ class CustomButton extends StatelessWidget {
                 elevation: 2,
                 shadowColor: AppColors.shadow,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(borderRadius),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                textStyle: TextStyle(fontSize: fontSize),
               ),
             ),
+        );
+      },
     );
   }
 }

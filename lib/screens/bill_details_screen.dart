@@ -263,57 +263,96 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
           );
         }
 
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          appBar: AppBar(
-            title: Text(bill.name),
-            backgroundColor: AppColors.primary,
-            foregroundColor: AppColors.textOnPrimary,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.share),
-                onPressed: _showShareDialog,
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final screenWidth = constraints.maxWidth;
+            final isTablet = screenWidth > 600;
+            final isMobile = screenWidth < 600;
+            
+            return Scaffold(
+              backgroundColor: AppColors.background,
+              appBar: AppBar(
+                title: Text(
+                  bill.name,
+                  style: TextStyle(
+                    fontSize: isMobile ? 18 : 20,
+                  ),
+                ),
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.textOnPrimary,
+                actions: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.share,
+                      size: isMobile ? 22 : 24,
+                    ),
+                    onPressed: _showShareDialog,
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.cloud_upload,
+                      size: isMobile ? 22 : 24,
+                    ),
+                    onPressed: billProvider.saveBillToCloud,
+                  ),
+                ],
+                bottom: TabBar(
+                  controller: _tabController,
+                  labelColor: AppColors.textOnPrimary,
+                  unselectedLabelColor: AppColors.textOnPrimary.withOpacity(0.7),
+                  indicatorColor: AppColors.textOnPrimary,
+                  labelStyle: TextStyle(
+                    fontSize: isMobile ? 12 : 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  unselectedLabelStyle: TextStyle(
+                    fontSize: isMobile ? 12 : 14,
+                    fontWeight: FontWeight.normal,
+                  ),
+                  tabs: [
+                    Tab(
+                      text: isMobile ? 'Items' : 'Productos',
+                      icon: Icon(Icons.receipt_long, size: isMobile ? 20 : 24),
+                    ),
+                    Tab(
+                      text: isMobile ? 'Gente' : 'Participantes',
+                      icon: Icon(Icons.people, size: isMobile ? 20 : 24),
+                    ),
+                    Tab(
+                      text: 'Resumen',
+                      icon: Icon(Icons.account_balance_wallet, size: isMobile ? 20 : 24),
+                    ),
+                  ],
+                ),
               ),
-              IconButton(
-                icon: const Icon(Icons.cloud_upload),
-                onPressed: billProvider.saveBillToCloud,
+              body: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Products Tab
+                  _buildProductsTab(bill, billProvider, isMobile, isTablet),
+                  // Participants Tab
+                  _buildParticipantsTab(bill, billProvider, isMobile, isTablet),
+                  // Summary Tab
+                  _buildSummaryTab(bill, billProvider, isMobile, isTablet),
+                ],
               ),
-            ],
-            bottom: TabBar(
-              controller: _tabController,
-              labelColor: AppColors.textOnPrimary,
-              unselectedLabelColor: AppColors.textOnPrimary.withOpacity(0.7),
-              indicatorColor: AppColors.textOnPrimary,
-              tabs: const [
-                Tab(text: 'Productos', icon: Icon(Icons.receipt_long)),
-                Tab(text: 'Participantes', icon: Icon(Icons.people)),
-                Tab(text: 'Resumen', icon: Icon(Icons.account_balance_wallet)),
-              ],
-            ),
-          ),
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              // Products Tab
-              _buildProductsTab(bill, billProvider),
-              // Participants Tab
-              _buildParticipantsTab(bill, billProvider),
-              // Summary Tab
-              _buildSummaryTab(bill, billProvider),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildProductsTab(Bill bill, BillProvider billProvider) {
+  Widget _buildProductsTab(Bill bill, BillProvider billProvider, bool isMobile, bool isTablet) {
+    final horizontalPadding = isMobile ? 12.0 : 16.0;
+    final verticalPadding = isMobile ? 12.0 : 16.0;
+    
     return Column(
       children: [
         // Summary header
         Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(16),
+          margin: EdgeInsets.all(isMobile ? 12 : 16),
+          padding: EdgeInsets.all(isMobile ? 12 : 16),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(12),
@@ -325,33 +364,58 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
               ),
             ],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Subtotal', style: AppTextStyles.bodyMedium),
-                  Text('€${bill.subtotal.toStringAsFixed(2)}',
-                      style: AppTextStyles.priceMedium),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Total', style: AppTextStyles.bodyMedium),
-                  Text('€${bill.subtotal.toStringAsFixed(2)}',
-                      style: AppTextStyles.priceLarge),
-                ],
-              ),
-            ],
-          ),
+          child: isMobile
+              ? Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Subtotal', style: AppTextStyles.bodyMedium),
+                        Text('€${bill.subtotal.toStringAsFixed(2)}',
+                            style: AppTextStyles.priceMedium),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Total', 
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              fontWeight: FontWeight.bold,
+                            )),
+                        Text('€${bill.subtotal.toStringAsFixed(2)}',
+                            style: AppTextStyles.priceLarge),
+                      ],
+                    ),
+                  ],
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Subtotal', style: AppTextStyles.bodyMedium),
+                        Text('€${bill.subtotal.toStringAsFixed(2)}',
+                            style: AppTextStyles.priceMedium),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Total', style: AppTextStyles.bodyMedium),
+                        Text('€${bill.subtotal.toStringAsFixed(2)}',
+                            style: AppTextStyles.priceLarge),
+                      ],
+                    ),
+                  ],
+                ),
         ),
 
         // Products list
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
             itemCount: bill.items.length,
             itemBuilder: (context, index) {
               final item = bill.items[index];
@@ -367,19 +431,20 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
 
         // Add item button
         Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(isMobile ? 12 : verticalPadding),
           child: CustomButton(
-            text: 'Agregar Producto',
-            icon: Icons.add,
+            text: isMobile ? 'Agregar Item' : 'Agregar Producto',
+            icon: Icons.add_shopping_cart,
             onPressed: _showAddItemDialog,
             backgroundColor: AppColors.secondary,
+            height: isMobile ? 48 : 56,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildParticipantsTab(Bill bill, BillProvider billProvider) {
+  Widget _buildParticipantsTab(Bill bill, BillProvider billProvider, bool isMobile, bool isTablet) {
     return Column(
       children: [
         // Add participant button
@@ -451,7 +516,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
     );
   }
 
-  Widget _buildSummaryTab(Bill bill, BillProvider billProvider) {
+  Widget _buildSummaryTab(Bill bill, BillProvider billProvider, bool isMobile, bool isTablet) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(

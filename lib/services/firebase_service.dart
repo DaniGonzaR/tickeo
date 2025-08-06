@@ -9,7 +9,6 @@ class FirebaseService {
 
   // Local storage keys
   static const String _billsKey = 'tickeo_bills';
-  static const String _userBillsPrefix = 'tickeo_user_bills_';
 
   // Save bill to local storage (simulating Firestore)
   Future<void> saveBill(Bill bill) async {

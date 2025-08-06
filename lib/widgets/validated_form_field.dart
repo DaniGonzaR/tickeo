@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tickeo/utils/app_colors.dart';
 
-/// A custom form field widget with built-in validation
+/// A custom form field widget with built-in validation optimized for mobile
 class ValidatedFormField extends StatefulWidget {
   final TextEditingController controller;
   final String? Function(String?) validator;
@@ -77,92 +77,90 @@ class _ValidatedFormFieldState extends State<ValidatedFormField> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (widget.labelText != null) ...[
-          Text(
-            widget.labelText!,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-        TextField(
-          controller: widget.controller,
-          keyboardType: widget.keyboardType,
-          autofocus: widget.autofocus,
-          maxLength: widget.maxLength,
-          maxLines: widget.maxLines,
-          obscureText: widget.obscureText,
-          enabled: widget.enabled,
-          decoration: InputDecoration(
-            hintText: widget.hintText,
-            helperText: widget.helperText,
-            errorText: _errorText,
-            prefixIcon: widget.prefixIcon,
-            suffixIcon: widget.suffixIcon,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: AppColors.border,
-                width: 1,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final isMobile = screenWidth < 600;
+        final fontSize = isMobile ? 16.0 : 14.0; // 16px prevents zoom on iOS
+        final contentPadding = EdgeInsets.symmetric(
+          horizontal: isMobile ? 14 : 16,
+          vertical: isMobile ? 18 : 16, // Larger touch target on mobile
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.labelText != null) ...[
+              Text(
+                widget.labelText!,
+                style: TextStyle(
+                  fontSize: isMobile ? 16 : 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
               ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: AppColors.border,
-                width: 1,
+              const SizedBox(height: 8),
+            ],
+            TextFormField(
+              controller: widget.controller,
+              keyboardType: widget.keyboardType,
+              autofocus: widget.autofocus,
+              maxLength: widget.maxLength,
+              maxLines: widget.maxLines,
+              obscureText: widget.obscureText,
+              enabled: widget.enabled,
+              style: TextStyle(fontSize: fontSize),
+              decoration: InputDecoration(
+                hintText: widget.hintText,
+                helperText: widget.helperText,
+                errorText: _hasBeenTouched ? _errorText : null,
+                prefixIcon: widget.prefixIcon,
+                suffixIcon: widget.suffixIcon,
+                hintStyle: TextStyle(
+                  fontSize: fontSize,
+                  color: AppColors.textSecondary,
+                ),
+                helperStyle: TextStyle(
+                  fontSize: isMobile ? 12.0 : 11.0,
+                ),
+                errorStyle: TextStyle(
+                  fontSize: isMobile ? 12.0 : 11.0,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
+                  borderSide: BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
+                  borderSide: BorderSide(color: AppColors.error, width: 2),
+                ),
+                focusedErrorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
+                  borderSide: BorderSide(color: AppColors.error, width: 2),
+                ),
+                filled: true,
+                fillColor: widget.enabled
+                    ? AppColors.surface
+                    : AppColors.surface.withOpacity(0.5),
+                contentPadding: contentPadding,
               ),
+              onChanged: (value) {
+                _onFieldTouched();
+                widget.onChanged?.call(value);
+              },
+              onFieldSubmitted: widget.onSubmitted,
+              onTap: _onFieldTouched,
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: AppColors.primary,
-                width: 2,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: Colors.red.shade400,
-                width: 1,
-              ),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: Colors.red.shade400,
-                width: 2,
-              ),
-            ),
-            filled: true,
-            fillColor: widget.enabled 
-                ? AppColors.surface 
-                : AppColors.surface.withOpacity(0.5),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-          ),
-          style: TextStyle(
-            fontSize: 16,
-            color: widget.enabled 
-                ? AppColors.textPrimary 
-                : AppColors.textSecondary,
-          ),
-          onChanged: (value) {
-            _onFieldTouched();
-            widget.onChanged?.call(value);
-          },
-          onSubmitted: widget.onSubmitted,
-          onTap: _onFieldTouched,
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }
@@ -188,20 +186,26 @@ class PriceFormField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValidatedFormField(
-      controller: controller,
-      validator: validator,
-      hintText: '0.00',
-      helperText: 'Enter price in euros',
-      labelText: labelText,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      autofocus: autofocus,
-      prefixIcon: Icon(
-        Icons.euro,
-        color: AppColors.textSecondary,
-      ),
-      onChanged: onChanged,
-      onSubmitted: onSubmitted,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+
+        return ValidatedFormField(
+          controller: controller,
+          validator: validator,
+          hintText: 'Ej: 15.50',
+          labelText: labelText,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          autofocus: autofocus,
+          onChanged: onChanged,
+          onSubmitted: onSubmitted,
+          prefixIcon: Icon(
+            Icons.euro,
+            color: AppColors.primary,
+            size: isMobile ? 20 : 18,
+          ),
+        );
+      },
     );
   }
 }

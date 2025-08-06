@@ -22,274 +22,382 @@ class PaymentSummaryCard extends StatelessWidget {
     final paidParticipants = bill.payments.where((p) => p.isPaid).length;
     final totalParticipants = bill.participants.length;
 
-    return Card(
-      elevation: 4,
-      shadowColor: AppColors.shadow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [
-              AppColors.primary.withOpacity(0.1),
-              AppColors.secondary.withOpacity(0.1),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final isMobile = screenWidth < 600;
+        final cardPadding = isMobile ? 16.0 : 20.0;
+        final itemSpacing = isMobile ? 12.0 : 16.0;
+        final borderRadius = isMobile ? 12.0 : 16.0;
+        
+        return Card(
+          elevation: 4,
+          shadowColor: AppColors.shadow,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(borderRadius),
           ),
-        ),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Resumen de Pagos',
-                  style: AppTextStyles.headingMedium,
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: bill.isCompleted
-                        ? AppColors.success.withOpacity(0.2)
-                        : AppColors.warning.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    bill.isCompleted ? 'Completado' : 'En Progreso',
-                    style: bill.isCompleted
-                        ? AppTextStyles.statusPaid
-                        : AppTextStyles.statusPending,
-                  ),
-                ),
-              ],
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(borderRadius),
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primary.withOpacity(0.1),
+                  AppColors.secondary.withOpacity(0.1),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
             ),
-
-            const SizedBox(height: 20),
-
-            // Progress indicator
-            Column(
+            padding: EdgeInsets.all(cardPadding),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Progreso de Pagos',
-                      style: AppTextStyles.label,
+                      'Resumen de Pagos',
+                      style: isMobile 
+                        ? AppTextStyles.headingSmall
+                        : AppTextStyles.headingMedium,
                     ),
-                    Text(
-                      '$paidParticipants de $totalParticipants pagaron',
-                      style: AppTextStyles.bodySmall,
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 8 : 12,
+                        vertical: isMobile ? 4 : 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: progressValue >= 1.0 
+                          ? AppColors.success.withOpacity(0.2)
+                          : AppColors.warning.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        progressValue >= 1.0 ? 'Completado' : 'Pendiente',
+                        style: TextStyle(
+                          color: progressValue >= 1.0 ? AppColors.success : AppColors.warning,
+                          fontWeight: FontWeight.w600,
+                          fontSize: isMobile ? 11 : 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: itemSpacing),
+
+                // Progress bar
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Progreso de Pagos',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            fontWeight: FontWeight.w600,
+                            fontSize: isMobile ? 13 : 14,
+                          ),
+                        ),
+                        Text(
+                          '${(progressValue * 100).toInt()}%',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                            fontSize: isMobile ? 13 : 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: isMobile ? 6 : 8),
+                    LinearProgressIndicator(
+                      value: progressValue,
+                      backgroundColor: AppColors.surface,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        progressValue >= 1.0 ? AppColors.success : AppColors.primary,
+                      ),
+                      minHeight: isMobile ? 6 : 8,
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                LinearProgressIndicator(
-                  value: progressValue,
-                  backgroundColor: AppColors.borderLight,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    bill.isCompleted ? AppColors.success : AppColors.primary,
+
+                SizedBox(height: itemSpacing),
+
+                // Amount breakdown
+                Container(
+                  padding: EdgeInsets.all(isMobile ? 12 : 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
                   ),
-                  minHeight: 8,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${(progressValue * 100).toStringAsFixed(1)}% completado',
-                  style: AppTextStyles.caption,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // Amount breakdown
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                children: [
-                  _buildAmountRow('Total de la cuenta:', bill.total,
-                      isTotal: true),
-                  const SizedBox(height: 8),
-                  _buildAmountRow('Monto pagado:', totalPaid,
-                      color: AppColors.success),
-                  const SizedBox(height: 8),
-                  _buildAmountRow('Monto pendiente:', remainingAmount,
-                      color: remainingAmount > 0
-                          ? AppColors.warning
-                          : AppColors.success),
-                  if (bill.participants.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    const Divider(),
-                    const SizedBox(height: 8),
-                    _buildAmountRow(
-                      'Promedio por persona:',
-                      bill.total / bill.participants.length,
-                      color: AppColors.info,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Quick stats
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    'Productos',
-                    bill.items.length.toString(),
-                    Icons.receipt_long,
-                    AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatCard(
-                    'Participantes',
-                    bill.participants.length.toString(),
-                    Icons.people,
-                    AppColors.secondary,
+                  child: Column(
+                    children: [
+                      _buildAmountRow(
+                        'Total de la Cuenta',
+                        '€${bill.total.toStringAsFixed(2)}',
+                        AppTextStyles.bodyMedium,
+                        isMobile,
+                      ),
+                      SizedBox(height: isMobile ? 6 : 8),
+                      _buildAmountRow(
+                        'Total Pagado',
+                        '€${totalPaid.toStringAsFixed(2)}',
+                        AppTextStyles.bodyMedium.copyWith(color: AppColors.success),
+                        isMobile,
+                      ),
+                      SizedBox(height: isMobile ? 6 : 8),
+                      _buildAmountRow(
+                        'Pendiente',
+                        '€${remainingAmount.toStringAsFixed(2)}',
+                        AppTextStyles.bodyMedium.copyWith(
+                          color: remainingAmount > 0 ? AppColors.warning : AppColors.success,
+                        ),
+                        isMobile,
+                      ),
+                      if (remainingAmount <= 0) ...[
+                        SizedBox(height: isMobile ? 8 : 12),
+                        Container(
+                          padding: EdgeInsets.all(isMobile ? 8 : 12),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.success.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.check_circle,
+                                color: AppColors.success,
+                                size: isMobile ? 16 : 20,
+                              ),
+                              SizedBox(width: isMobile ? 6 : 8),
+                              Expanded(
+                                child: Text(
+                                  '¡Todos los pagos completados!',
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                    color: AppColors.success,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: isMobile ? 12 : 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatCard(
-                    'Pagados',
-                    paidParticipants.toString(),
-                    Icons.check_circle,
-                    AppColors.success,
-                  ),
-                ),
-              ],
-            ),
 
-            if (bill.restaurantName != null) ...[
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Icon(
-                    Icons.restaurant,
-                    size: 16,
-                    color: AppColors.textSecondary,
+                SizedBox(height: itemSpacing),
+
+                // Statistics
+                if (isMobile)
+                  // Mobile: Vertical layout
+                  Column(
+                    children: [
+                      _buildStatCard(
+                        'Participantes que Pagaron',
+                        '$paidParticipants de $totalParticipants',
+                        Icons.people,
+                        AppColors.primary,
+                        isMobile,
+                      ),
+                      SizedBox(height: isMobile ? 8 : 12),
+                      _buildStatCard(
+                        'Productos en la Cuenta',
+                        '${bill.items.length}',
+                        Icons.receipt_long,
+                        AppColors.secondary,
+                        isMobile,
+                      ),
+                    ],
+                  )
+                else
+                  // Desktop/Tablet: Horizontal layout
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          'Participantes que Pagaron',
+                          '$paidParticipants de $totalParticipants',
+                          Icons.people,
+                          AppColors.primary,
+                          isMobile,
+                        ),
+                      ),
+                      SizedBox(width: itemSpacing),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Productos en la Cuenta',
+                          '${bill.items.length}',
+                          Icons.receipt_long,
+                          AppColors.secondary,
+                          isMobile,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
+
+                if (bill.payments.isNotEmpty) ...[
+                  SizedBox(height: itemSpacing),
+                  
+                  // Payment details
                   Text(
-                    bill.restaurantName!,
+                    'Detalles de Pagos',
                     style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: isMobile ? 13 : 14,
+                    ),
+                  ),
+                  SizedBox(height: isMobile ? 6 : 8),
+                  
+                  Container(
+                    constraints: BoxConstraints(
+                      maxHeight: isMobile ? 150 : 200,
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: bill.payments.length,
+                      separatorBuilder: (context, index) => SizedBox(height: isMobile ? 4 : 6),
+                      itemBuilder: (context, index) {
+                        final payment = bill.payments[index];
+                        return Container(
+                          padding: EdgeInsets.all(isMobile ? 8 : 12),
+                          decoration: BoxDecoration(
+                            color: payment.isPaid 
+                              ? AppColors.success.withOpacity(0.1)
+                              : AppColors.warning.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: payment.isPaid 
+                                ? AppColors.success.withOpacity(0.3)
+                                : AppColors.warning.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                payment.isPaid ? Icons.check_circle : Icons.schedule,
+                                color: payment.isPaid ? AppColors.success : AppColors.warning,
+                                size: isMobile ? 16 : 18,
+                              ),
+                              SizedBox(width: isMobile ? 6 : 8),
+                              Expanded(
+                                child: Text(
+                                  payment.participantName,
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: isMobile ? 12 : 13,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Text(
+                                '€${payment.amount.toStringAsFixed(2)}',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: payment.isPaid ? AppColors.success : AppColors.warning,
+                                  fontSize: isMobile ? 12 : 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
-              ),
-            ],
-
-            const SizedBox(height: 16),
-
-            // Share code
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.share,
-                    size: 16,
-                    color: AppColors.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Código para compartir: ',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  Text(
-                    bill.shareCode,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildAmountRow(String label, double amount,
-      {Color? color, bool isTotal = false}) {
+  Widget _buildAmountRow(String label, String amount, TextStyle style, bool isMobile) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
-          style: isTotal
-              ? AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600)
-              : AppTextStyles.bodyMedium,
+          style: style.copyWith(fontSize: isMobile ? 13 : 14),
         ),
         Text(
-          '€${amount.toStringAsFixed(2)}',
-          style: isTotal
-              ? AppTextStyles.priceLarge
-              : AppTextStyles.priceMedium.copyWith(
-                  color: color ?? AppColors.textPrimary,
-                ),
+          amount,
+          style: style.copyWith(
+            fontWeight: FontWeight.bold,
+            fontSize: isMobile ? 13 : 14,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildStatCard(
-      String label, String value, IconData icon, Color color) {
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, bool isMobile) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: Column(
-        children: [
-          Icon(
-            icon,
-            size: 20,
-            color: color,
+      child: isMobile
+        ? Column(
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: color, size: 18),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 4),
+              Text(
+                value,
+                style: AppTextStyles.headingSmall.copyWith(
+                  color: color,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          )
+        : Row(
+            children: [
+              Icon(icon, color: color, size: 24),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      value,
+                      style: AppTextStyles.headingSmall.copyWith(color: color),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: AppTextStyles.headingSmall.copyWith(color: color),
-          ),
-          Text(
-            label,
-            style: AppTextStyles.caption.copyWith(color: color),
-          ),
-        ],
-      ),
     );
   }
 }
