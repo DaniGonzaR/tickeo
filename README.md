@@ -1,99 +1,190 @@
-# Tickeo - División Automática de Cuentas
+# Tickeo - Smart Bill Splitting App
 
-Una aplicación móvil intuitiva y visualmente atractiva para dividir automáticamente cuentas grupales a partir del escaneo OCR preciso de tickets utilizando Flutter y Firebase.
+<div align="center">
+  <img src="https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white" alt="Flutter">
+  <img src="https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white" alt="Dart">
+  <img src="https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase">
+  <img src="https://img.shields.io/badge/Material%20Design-757575?style=for-the-badge&logo=material-design&logoColor=white" alt="Material Design">
+</div>
 
-## 🚀 Características Principales
+<div align="center">
+  <h3> The smartest way to split bills with friends</h3>
+  <p>Scan receipts, assign items, and split costs fairly - all in one beautiful app!</p>
+</div>
 
-### ✅ Funcionalidades Implementadas
-- **Escaneo OCR de Tickets**: Extracción automática de productos, precios y totales usando Google ML Kit
-- **Selección Individual**: Cada usuario puede seleccionar qué productos consumió
-- **División Inteligente**: Cálculo automático de montos individuales y división equitativa opcional
-- **Gestión de Pagos**: Marcar pagos y especificar métodos (efectivo, tarjeta, transferencia, etc.)
-- **Sin Registro Obligatorio**: Funciona inmediatamente sin crear cuenta
-- **Compartir Fácil**: Códigos únicos y QR para unirse a cuentas
-- **Almacenamiento Local**: Historial de tickets escaneados
-- **Sincronización Opcional**: Respaldo en Firebase para usuarios registrados
+---
 
-### 🎨 Diseño y UX
-- Interfaz moderna con Material Design 3
-- Colores atractivos y gradientes
-- Animaciones fluidas y transiciones
-- Soporte para modo claro y oscuro
-- Tipografía consistente con fuente Poppins
+## Features
 
-## 📱 Estructura del Proyecto
+### Core Features
+- **OCR Receipt Scanning**: Scan physical receipts with your camera (mobile)
+- **Smart Extraction**: Automatically extract products, prices, and totals
+- **Individual Selection**: Each person picks their own items
+- **Fair Splitting**: Equal split or itemized based on selections
+- **Payment Tracking**: Track payments with multiple methods (cash, card, transfer)
+- **Bill History**: Keep all your bills organized locally
+- **Easy Sharing**: Share via links and QR codes
+- **Cross-Platform**: Works on Android, iOS, and Web
 
-```
-lib/
-├── main.dart                 # Punto de entrada de la aplicación
-├── models/                   # Modelos de datos
-│   ├── bill.dart            # Modelo principal de cuenta
-│   ├── bill_item.dart       # Items individuales de la cuenta
-│   └── payment.dart         # Sistema de pagos
-├── providers/               # Gestión de estado con Provider
-│   ├── app_provider.dart    # Configuración de la app
-│   ├── auth_provider.dart   # Autenticación
-│   └── bill_provider.dart   # Lógica de cuentas
-├── screens/                 # Pantallas principales
-│   ├── home_screen.dart     # Pantalla principal
-│   ├── bill_details_screen.dart # División y gestión de cuentas
-│   └── join_bill_screen.dart    # Unirse a cuentas existentes
-├── services/                # Servicios externos
-│   ├── ocr_service.dart     # Reconocimiento de texto
-│   └── firebase_service.dart   # Backend y almacenamiento
-├── utils/                   # Utilidades y constantes
-│   ├── app_colors.dart      # Esquema de colores
-│   ├── app_text_styles.dart # Estilos de texto
-│   └── theme.dart          # Configuración de tema
-└── widgets/                 # Componentes reutilizables
-    ├── custom_button.dart   # Botón personalizado
-    ├── bill_history_card.dart # Tarjeta de historial
-    ├── bill_item_card.dart  # Tarjeta de producto
-    ├── participant_card.dart # Tarjeta de participante
-    └── payment_summary_card.dart # Resumen de pagos
-```
+### User Experience
+- **Material Design 3**: Beautiful, modern interface
+- **Dark/Light Theme**: Automatic theme switching
+- **Responsive Design**: Perfect on any screen size
+- **Fast & Smooth**: Optimized performance
+- **Privacy First**: Your data stays on your device
 
-## 🛠️ Instalación y Configuración
+## Technology Stack
 
-### Prerrequisitos
-- Flutter SDK (versión 3.0 o superior)
-- Dart SDK
-- Android Studio / VS Code
-- Cuenta de Firebase
+| Category | Technology |
+|----------|------------|
+| **Framework** | Flutter 3.x |
+| **Language** | Dart |
+| **State Management** | Provider Pattern |
+| **OCR Engine** | Google ML Kit |
+| **Backend** | Firebase (Optional) |
+| **Storage** | Local + Cloud Sync |
+| **UI Framework** | Material Design 3 |
+| **Platforms** | Android, iOS, Web |
 
-### 1. Clonar y Configurar el Proyecto
+## Quick Start
+
+### Prerequisites
 ```bash
-# Clonar el repositorio
-git clone <repository-url>
-cd bill_splitter
+# Required
+Flutter SDK 3.0+
+Dart SDK
+Android Studio / VS Code
 
-# Instalar dependencias
+# For mobile development
+Android SDK (Android)
+Xcode (iOS - macOS only)
+```
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/DaniGonzaR/tickeo.git
+   cd tickeo
+   ```
+
+2. **Install dependencies**
+   ```bash
+   flutter pub get
+   ```
+
+3. **Run the app**
+   ```bash
+   # Web (recommended for testing)
+   flutter run -d chrome
+   
+   # Mobile (requires device/emulator)
+   flutter run
+   
+   # Check available devices
+   flutter devices
+   ```
+
+### Detailed Setup
+For comprehensive setup instructions, see [**QUICK_START.md**](QUICK_START.md)
+
+## Project Structure
+
+```
+ticket/
+├── lib/
+│   ├── main.dart                 # App entry point
+│   ├── models/                # Data models
+│   │   ├── bill.dart            # Bill structure
+│   │   ├── bill_item.dart       # Individual items
+│   │   └── payment.dart         # Payment tracking
+│   ├── providers/            # State management
+│   │   ├── app_provider.dart    # Global app state
+│   │   ├── auth_provider.dart   # Authentication
+│   │   └── bill_provider.dart   # Bill management
+│   ├── screens/              # UI screens
+│   │   ├── home_screen.dart     # Main dashboard
+│   │   ├── bill_details_screen.dart # Bill editing
+│   │   └── join_bill_screen.dart # Join shared bills
+│   ├── services/             # Business logic
+│   │   ├── firebase_service.dart # Cloud sync
+│   │   └── ocr_service.dart     # Receipt scanning
+│   ├── utils/                # Themes & utilities
+│   │   ├── app_colors.dart      # Color palette
+│   │   ├── app_text_styles.dart # Typography
+│   │   └── theme.dart           # App theming
+│   └── widgets/              # Reusable components
+│       ├── bill_history_card.dart
+│       ├── bill_item_card.dart
+│       ├── custom_button.dart
+│       ├── participant_card.dart
+│       └── payment_summary_card.dart
+├── Documentation/
+│   ├── QUICK_START.md           # Setup guide
+│   ├── FIREBASE_SETUP.md        # Firebase config
+│   └── MOBILE_SETUP.md          # Mobile-specific setup
+└── Configuration/
+    ├── pubspec.yaml             # Dependencies (web)
+    └── pubspec_firebase.yaml    # Dependencies (mobile)
+```
+
+## How to Use
+
+### Creating a New Bill
+1. **Create**: Tap "Create New Bill" on the home screen
+2. **Name**: Give your bill a memorable name
+3. **Scan**: Add items by scanning receipt or manually
+4. **Invite**: Add participants to the bill
+5. **Assign**: Let each person select their items
+6. **Split**: Review the fair split and share!
+
+### Joining a Shared Bill
+1. **Receive**: Get a bill link or QR code from a friend
+2. **Open**: Click the link or scan the QR code
+3. **Select**: Choose your items from the bill
+4. **Pay**: Mark your payment status when done
+
+## Configuration
+
+### Web Version (Current Default)
+- Runs in any modern web browser
+- Local storage for bills
+- No Firebase dependency
+- Perfect for testing and development
+
+### Mobile Version with Firebase
+To enable full mobile features:
+
+```bash
+# Switch to Firebase configuration
+cp pubspec_firebase.yaml pubspec.yaml
+cp main_firebase.dart main.dart
 flutter pub get
+
+# Follow Firebase setup guide
+# See FIREBASE_SETUP.md for details
 ```
 
-### 2. Configuración de Firebase
-```bash
-# Instalar Firebase CLI
-npm install -g firebase-tools
+## Contributing
 
-# Instalar FlutterFire CLI
-dart pub global activate flutterfire_cli
+We welcome contributions! Here's how:
 
-# Configurar Firebase para el proyecto
-flutterfire configure
-```
-
-### 3. Configuración de Permisos
-
-#### Android (`android/app/src/main/AndroidManifest.xml`)
-```xml
-<uses-permission android:name="android.permission.CAMERA" />
-<uses-permission android:name="android.permission.INTERNET" />
-<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-```
-
-#### iOS (`ios/Runner/Info.plist`)
-```xml
+1. **Fork** the repository
+2. **Branch**: Create your feature branch
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+3. **Code**: Make your changes
+4. **Test**: Ensure everything works
+5. **Commit**: Commit with clear messages
+   ```bash
+   git commit -m 'Add amazing feature'
+   ```
+6. **Push**: Push to your branch
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+7. **PR**: Open a Pull Request
 <key>NSCameraUsageDescription</key>
 <string>Esta app necesita acceso a la cámara para escanear tickets</string>
 <key>NSPhotoLibraryUsageDescription</key>
