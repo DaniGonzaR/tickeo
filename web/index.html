@@ -18,21 +18,93 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Split bills easily with friends. Scan receipts, add participants, and calculate payments automatically.">
 
-  <!-- iOS meta tags & icons -->
+  <!-- PWA meta tags -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="tickeo">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Tickeo">
+  <meta name="theme-color" content="#6366F1">
+  
+  <!-- iOS icons -->
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="shortcut icon" href="favicon.png">
 
-  <title>tickeo</title>
+  <title>Tickeo - Bill Splitter</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- PWA Installation prompt -->
+  <div id="installPrompt" style="display: none; position: fixed; bottom: 20px; left: 20px; right: 20px; background: #6366F1; color: white; padding: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <strong>Install Tickeo</strong>
+        <p style="margin: 4px 0 0 0; font-size: 14px;">Add to your home screen for quick access</p>
+      </div>
+      <div>
+        <button id="installBtn" style="background: white; color: #6366F1; border: none; padding: 8px 16px; border-radius: 4px; margin-right: 8px; cursor: pointer;">Install</button>
+        <button id="dismissBtn" style="background: transparent; color: white; border: 1px solid white; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Later</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('SW registered: ', registration);
+          })
+          .catch((registrationError) => {
+            console.log('SW registration failed: ', registrationError);
+          });
+      });
+    }
+
+    // PWA Install Prompt
+    let deferredPrompt;
+    const installPrompt = document.getElementById('installPrompt');
+    const installBtn = document.getElementById('installBtn');
+    const dismissBtn = document.getElementById('dismissBtn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installPrompt.style.display = 'block';
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        deferredPrompt = null;
+        installPrompt.style.display = 'none';
+      }
+    });
+
+    dismissBtn.addEventListener('click', () => {
+      installPrompt.style.display = 'none';
+      deferredPrompt = null;
+    });
+
+    // Hide install prompt if already installed
+    window.addEventListener('appinstalled', () => {
+      installPrompt.style.display = 'none';
+      deferredPrompt = null;
+      console.log('PWA was installed');
+    });
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
