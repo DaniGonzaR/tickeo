@@ -43,18 +43,41 @@ class BillItemCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      '\$${item.price.toStringAsFixed(2)}',
-                      style: AppTextStyles.priceMedium,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '€${item.price.toStringAsFixed(2)}',
+                          style: AppTextStyles.priceMedium,
+                        ),
+                        if (item.quantity > 1)
+                          Text(
+                            'x${item.quantity}',
+                            style: AppTextStyles.bodySmall,
+                          ),
+                      ],
                     ),
-                    if (item.quantity > 1)
-                      Text(
-                        'x${item.quantity}',
-                        style: AppTextStyles.bodySmall,
+                    // Delete button - only show if no payments have been made
+                    if (!billProvider.hasAnyPaymentBeenMade()) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: Icon(
+                          Icons.delete_outline,
+                          color: AppColors.error,
+                          size: 20,
+                        ),
+                        onPressed: () => _showDeleteConfirmation(context),
+                        tooltip: 'Eliminar producto',
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
+                        padding: const EdgeInsets.all(4),
                       ),
+                    ],
                   ],
                 ),
               ],
@@ -187,6 +210,39 @@ class BillItemCard extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Eliminar Producto',
+          style: AppTextStyles.headingMedium,
+        ),
+        content: Text(
+          '¿Estás seguro de que quieres eliminar "${item.name}"?\n\nEsta acción no se puede deshacer.',
+          style: AppTextStyles.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              billProvider.removeItem(item.id);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Eliminar'),
+          ),
+        ],
       ),
     );
   }

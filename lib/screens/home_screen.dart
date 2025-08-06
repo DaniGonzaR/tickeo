@@ -1,7 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:tickeo/providers/bill_provider.dart';
 import 'package:tickeo/providers/auth_provider.dart';
 import 'package:tickeo/screens/bill_details_screen.dart';
@@ -11,12 +9,10 @@ import 'package:tickeo/screens/profile_screen.dart';
 import 'package:tickeo/screens/auth_screen.dart';
 import 'package:tickeo/widgets/custom_button.dart';
 import 'package:tickeo/widgets/bill_history_card.dart';
-import 'package:tickeo/widgets/loading_state_widget.dart';
 import 'package:tickeo/utils/app_colors.dart';
 import 'package:tickeo/utils/app_text_styles.dart';
 import 'package:tickeo/utils/error_handler.dart';
 import 'package:tickeo/utils/validators.dart';
-import 'package:tickeo/widgets/validated_form_field.dart';
 import 'package:tickeo/services/notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -27,7 +23,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final ImagePicker _imagePicker = ImagePicker();
   final TextEditingController _billNameController = TextEditingController();
 
   @override
@@ -37,57 +32,42 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _scanReceipt() async {
-    final XFile? image = await _imagePicker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 80,
-    );
+    // Web-compatible version: simulate OCR scanning
+    final billName = await _showBillNameDialog();
+    if (billName != null && billName.isNotEmpty) {
+      final billProvider = Provider.of<BillProvider>(context, listen: false);
+      await billProvider.createBillFromMockOCR(billName);
 
-    if (image != null && mounted) {
-      await _showBillNameDialog((billName) async {
-        final billProvider = Provider.of<BillProvider>(context, listen: false);
-        await billProvider.createBillFromImage(
-          File(image.path),
-          billName,
+      if (billProvider.currentBill != null && mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const BillDetailsScreen(),
+          ),
         );
-
-        if (billProvider.currentBill != null && mounted) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const BillDetailsScreen(),
-            ),
-          );
-        }
-      });
+      }
     }
   }
 
   Future<void> _pickImageFromGallery() async {
-    final XFile? image = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
-    );
+    // Web-compatible version: simulate gallery image processing
+    final billName = await _showBillNameDialog();
+    if (billName != null && billName.isNotEmpty) {
+      final billProvider = Provider.of<BillProvider>(context, listen: false);
+      await billProvider.createBillFromMockOCR(billName);
 
-    if (image != null && mounted) {
-      await _showBillNameDialog((billName) async {
-        final billProvider = Provider.of<BillProvider>(context, listen: false);
-        await billProvider.createBillFromImage(
-          File(image.path),
-          billName,
+      if (billProvider.currentBill != null && mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const BillDetailsScreen(),
+          ),
         );
-
-        if (billProvider.currentBill != null && mounted) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const BillDetailsScreen(),
-            ),
-          );
-        }
-      });
+      }
     }
   }
 
   Future<void> _createManualBill() async {
-    await _showBillNameDialog((billName) {
+    final billName = await _showBillNameDialog();
+    if (billName != null && billName.isNotEmpty) {
       final billProvider = Provider.of<BillProvider>(context, listen: false);
       final success = billProvider.createManualBill(billName);
 
@@ -100,13 +80,13 @@ class _HomeScreenState extends State<HomeScreen> {
       } else if (mounted && billProvider.error != null) {
         ErrorHandler.showError(context, billProvider.error!);
       }
-    });
+    }
   }
 
-  Future<void> _showBillNameDialog(Function(String) onConfirm) async {
+  Future<String?> _showBillNameDialog() async {
     String? errorText;
     
-    return showDialog<void>(
+    return showDialog<String?>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
@@ -136,9 +116,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                     onSubmitted: (value) {
                       if (errorText == null && value.trim().isNotEmpty) {
-                        onConfirm(value.trim());
+                        final billName = value.trim();
                         _billNameController.clear();
-                        Navigator.of(context).pop();
+                        Navigator.of(context).pop(billName);
                       }
                     },
                   ),
@@ -149,16 +129,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: const Text('Cancel'),
                   onPressed: () {
                     _billNameController.clear();
-                    Navigator.of(context).pop();
+                    Navigator.of(context).pop(null);
                   },
                 ),
                 ElevatedButton(
                   onPressed: errorText == null && _billNameController.text.trim().isNotEmpty
                       ? () {
                           final billName = _billNameController.text.trim();
-                          onConfirm(billName);
                           _billNameController.clear();
-                          Navigator.of(context).pop();
+                          Navigator.of(context).pop(billName);
                         }
                       : null,
                   style: ElevatedButton.styleFrom(
@@ -304,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Text(
                         '¡Bienvenido!',
-                        style: AppTextStyles.headingLarge,
+                        style: AppTextStyles.heading1,
                       ),
                       const SizedBox(height: 8),
                       Text(

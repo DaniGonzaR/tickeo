@@ -41,7 +41,7 @@ class BillProvider extends ChangeNotifier {
         createdAt: DateTime.now(),
         items: ocrResult['items'] as List<BillItem>,
         subtotal: ocrResult['subtotal'] as double,
-        tax: ocrResult['tax'] as double,
+        tax: 0.0,
         tip: 0.0,
         total: ocrResult['total'] as double,
         participants: [],
@@ -55,6 +55,52 @@ class BillProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _setError('Error procesando la imagen: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Create bill from mock OCR data (web-compatible version)
+  Future<void> createBillFromMockOCR(String billName) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      // Validate bill name
+      final nameValidation = Validators.validateBillName(billName);
+      if (nameValidation != null) {
+        _setError(nameValidation);
+        return;
+      }
+
+      // Use OCR service to get mock data (web-compatible)
+      final ocrService = OCRService();
+      final mockData = ocrService.generateMockReceiptData();
+      
+      final items = mockData['items'] as List<BillItem>;
+      final subtotal = mockData['subtotal'] as double;
+      final tax = mockData['tax'] as double;
+      final total = mockData['total'] as double;
+
+      final bill = Bill(
+        id: _uuid.v4(),
+        name: billName.trim(),
+        createdAt: DateTime.now(),
+        items: items,
+        subtotal: subtotal,
+        tax: tax,
+        tip: 0.0,
+        total: total,
+        participants: [],
+        payments: [],
+        shareCode: _generateShareCode(),
+      );
+
+      _currentBill = bill;
+      await _saveBillLocally(bill);
+      notifyListeners();
+    } catch (e) {
+      _setError('Error creando cuenta desde OCR: $e');
     } finally {
       _setLoading(false);
     }
@@ -87,6 +133,7 @@ class BillProvider extends ChangeNotifier {
       );
 
       _currentBill = bill;
+      _saveBillLocally(bill); // Save to history like OCR bills
       notifyListeners();
       return true;
     } catch (e) {
@@ -147,6 +194,7 @@ class BillProvider extends ChangeNotifier {
       );
 
       _updatePaymentAmounts();
+      _saveBillLocally(_currentBill!); // Sync changes to history
       notifyListeners();
       return true;
     } catch (e) {
@@ -184,9 +232,47 @@ class BillProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Remove item from bill
+  void removeItem(String itemId) {
+    if (_currentBill == null) return;
+
+    // Check if any payment has been made - if so, don't allow deletion
+    if (hasAnyPaymentBeenMade()) {
+      _setError('No se pueden eliminar productos una vez que alguien ha pagado');
+      return;
+    }
+
+    final updatedItems = _currentBill!.items.where((item) => item.id != itemId).toList();
+    
+    // Recalculate subtotal and total after removing the item
+    final newSubtotal = updatedItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+    final newTotal = newSubtotal + _currentBill!.tax + _currentBill!.tip;
+    
+    _currentBill = _currentBill!.copyWith(
+      items: updatedItems,
+      subtotal: newSubtotal,
+      total: newTotal,
+    );
+    
+    _updatePaymentAmounts();
+    notifyListeners();
+  }
+
+  // Check if any payment has been made
+  bool hasAnyPaymentBeenMade() {
+    if (_currentBill == null) return false;
+    return _currentBill!.payments.any((payment) => payment.isPaid);
+  }
+
   // Toggle item selection for participant
   void toggleItemSelection(String itemId, String participantId) {
     if (_currentBill == null) return;
+
+    // Check if any payment has been made - if so, don't allow changes
+    if (hasAnyPaymentBeenMade()) {
+      _setError('No se pueden modificar las selecciones una vez que alguien ha pagado');
+      return;
+    }
 
     final updatedItems = _currentBill!.items.map((item) {
       if (item.id == itemId) {
@@ -268,6 +354,7 @@ class BillProvider extends ChangeNotifier {
       );
 
       _updatePaymentAmounts();
+      _saveBillLocally(_currentBill!); // Sync changes to history
       notifyListeners();
       return true;
     } catch (e) {
@@ -295,6 +382,17 @@ class BillProvider extends ChangeNotifier {
   void splitBillEqually() {
     if (_currentBill == null || _currentBill!.participants.isEmpty) return;
 
+    // Check if any payment has been made - if so, don't allow split equally
+    if (hasAnyPaymentBeenMade()) {
+      _setError('No se puede dividir equitativamente una vez que alguien ha pagado');
+      return;
+    }
+
+    // Assign all products to all participants for equal split
+    final updatedItems = _currentBill!.items.map((item) {
+      return item.copyWith(selectedBy: List.from(_currentBill!.participants));
+    }).toList();
+
     final amountPerPerson =
         _currentBill!.total / _currentBill!.participants.length;
 
@@ -302,7 +400,12 @@ class BillProvider extends ChangeNotifier {
       return payment.copyWith(amount: amountPerPerson);
     }).toList();
 
-    _currentBill = _currentBill!.copyWith(payments: updatedPayments);
+    _currentBill = _currentBill!.copyWith(
+      items: updatedItems,
+      payments: updatedPayments,
+    );
+    
+    _saveBillLocally(_currentBill!); // Sync changes to history
     notifyListeners();
   }
 
@@ -331,6 +434,8 @@ class BillProvider extends ChangeNotifier {
       _currentBill = _currentBill!.copyWith(isCompleted: true);
     }
 
+    // Save changes to history to sync with "Cuentas Recientes"
+    _saveBillLocally(_currentBill!);
     notifyListeners();
   }
 
@@ -476,8 +581,15 @@ class BillProvider extends ChangeNotifier {
   }
 
   Future<void> _saveBillLocally(Bill bill) async {
-    // Implementation for local storage
-    _billHistory.add(bill);
+    // Check if bill already exists in history and update it, otherwise add new
+    final existingIndex = _billHistory.indexWhere((b) => b.id == bill.id);
+    if (existingIndex != -1) {
+      // Update existing bill in history
+      _billHistory[existingIndex] = bill;
+    } else {
+      // Add new bill to history
+      _billHistory.add(bill);
+    }
   }
 
   void _setLoading(bool loading) {

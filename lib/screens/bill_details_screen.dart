@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:tickeo/providers/bill_provider.dart';
-import 'package:tickeo/models/bill_item.dart';
+import 'package:tickeo/models/bill.dart';
+
 import 'package:tickeo/models/payment.dart';
 import 'package:tickeo/widgets/custom_button.dart';
 import 'package:tickeo/widgets/bill_item_card.dart';
@@ -29,7 +29,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
   final TextEditingController _participantController = TextEditingController();
   final TextEditingController _itemNameController = TextEditingController();
   final TextEditingController _itemPriceController = TextEditingController();
-  final TextEditingController _tipController = TextEditingController();
+
 
   @override
   void initState() {
@@ -43,7 +43,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
     _participantController.dispose();
     _itemNameController.dispose();
     _itemPriceController.dispose();
-    _tipController.dispose();
+
     super.dispose();
   }
 
@@ -94,14 +94,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
     }
   }
 
-  void _updateTip() {
-    final tipText = _tipController.text.trim();
-    final tip = double.tryParse(tipText) ?? 0.0;
 
-    final billProvider = Provider.of<BillProvider>(context, listen: false);
-    billProvider.updateTip(tip);
-    Navigator.of(context).pop();
-  }
 
   void _showAddParticipantDialog() {
     showDialog(
@@ -194,69 +187,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
     );
   }
 
-  void _showTipDialog() {
-    final billProvider = Provider.of<BillProvider>(context, listen: false);
-    final currentTip = billProvider.currentBill?.tip ?? 0.0;
-    _tipController.text = currentTip == 0.0 ? '' : currentTip.toString();
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text('Add Tip', style: AppTextStyles.headingMedium),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              PriceFormField(
-                controller: _tipController,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return null; // Tip is optional
-                  }
-                  final price = double.tryParse(value.trim());
-                  if (price == null || price < 0) {
-                    return 'Please enter a valid tip amount';
-                  }
-                  if (price > 999.99) {
-                    return 'Tip amount is too high (max: €999.99)';
-                  }
-                  return null;
-                },
-                labelText: 'Tip Amount (Optional)',
-                autofocus: true,
-                onSubmitted: (_) => _updateTip(),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Leave empty for no tip',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: _updateTip,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Update'),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showShareDialog() {
     final billProvider = Provider.of<BillProvider>(context, listen: false);
@@ -283,7 +214,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
               ),
               child: Text(
                 bill.shareCode,
-                style: AppTextStyles.headingLarge.copyWith(
+                style: AppTextStyles.heading1.copyWith(
                   color: AppColors.primary,
                   letterSpacing: 2,
                 ),
@@ -401,33 +332,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Subtotal', style: AppTextStyles.bodyMedium),
-                  Text('\$${bill.subtotal.toStringAsFixed(2)}',
-                      style: AppTextStyles.priceMedium),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Impuestos', style: AppTextStyles.bodyMedium),
-                  Text('\$${bill.tax.toStringAsFixed(2)}',
-                      style: AppTextStyles.priceMedium),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text('Propina', style: AppTextStyles.bodyMedium),
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 16),
-                        onPressed: _showTipDialog,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
-                  ),
-                  Text('\$${bill.tip.toStringAsFixed(2)}',
+                  Text('€${bill.subtotal.toStringAsFixed(2)}',
                       style: AppTextStyles.priceMedium),
                 ],
               ),
@@ -435,7 +340,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Total', style: AppTextStyles.bodyMedium),
-                  Text('\$${bill.total.toStringAsFixed(2)}',
+                  Text('€${bill.subtotal.toStringAsFixed(2)}',
                       style: AppTextStyles.priceLarge),
                 ],
               ),

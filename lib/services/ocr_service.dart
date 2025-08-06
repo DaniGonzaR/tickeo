@@ -18,13 +18,13 @@ class OCRService {
       
       // Return mock data for demonstration
       // In a real app, this would process the image and extract text
-      return _generateMockReceiptData();
+      return generateMockReceiptData();
     } catch (e) {
       throw Exception('Error procesando imagen: $e');
     }
   }
 
-  Map<String, dynamic> _generateMockReceiptData() {
+  Map<String, dynamic> generateMockReceiptData() {
     // Generate mock receipt data for demonstration
     final items = [
       BillItem(
@@ -47,14 +47,13 @@ class OCRService {
       ),
     ];
 
-    final subtotal = items.fold(0.0, (sum, item) => sum + item.price);
-    final tax = subtotal * 0.21; // 21% IVA
-    final total = subtotal + tax;
+    final subtotal = items.fold<double>(0.0, (sum, item) => sum + item.price);
+    final total = subtotal; // No tax or tip, total equals subtotal
 
     return {
       'items': items,
       'subtotal': subtotal,
-      'tax': tax,
+      'tax': 0.0, // No tax as per user requirements
       'total': total,
       'restaurantName': 'Restaurante Demo',
     };

@@ -47,7 +47,7 @@ class Validators {
     }
     
     // Remove currency symbols and whitespace
-    final cleanValue = value.trim().replaceAll(RegExp(r'[€$£¥,\s]'), '');
+    final cleanValue = value.trim().replaceAll(RegExp(r'[€,\s]'), '');
     
     // Check if it's a valid number
     final double? price = double.tryParse(cleanValue);
@@ -139,6 +139,60 @@ class Validators {
     return null;
   }
 
+  /// Validate email format
+  static String? validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Email is required';
+    }
+    
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value.trim())) {
+      return 'Please enter a valid email address';
+    }
+    
+    return null;
+  }
+
+  /// Validate password strength
+  static String? validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password is required';
+    }
+    
+    if (value.length < 6) {
+      return 'Password must be at least 6 characters';
+    }
+    
+    if (value.length > 128) {
+      return 'Password must be less than 128 characters';
+    }
+    
+    return null;
+  }
+
+  /// Validate name (for user registration)
+  static String? validateName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Name is required';
+    }
+    
+    if (value.trim().length < 2) {
+      return 'Name must be at least 2 characters';
+    }
+    
+    if (value.trim().length > 50) {
+      return 'Name must be less than 50 characters';
+    }
+    
+    // Check for valid characters (letters, spaces, hyphens, apostrophes)
+    final validNameRegex = RegExp(r'^[a-zA-Z\s\-]+$');
+    if (!validNameRegex.hasMatch(value.trim())) {
+      return 'Name can only contain letters, spaces and hyphens';
+    }
+    
+    return null;
+  }
+
   /// Parse and clean price input
   static double parsePrice(String value) {
     final cleanValue = value.trim().replaceAll(RegExp(r'[€$£¥,\s]'), '');
@@ -201,19 +255,7 @@ class Validators {
     );
   }
 
-  /// Validate email format (for future user registration)
-  static String? validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Email is required';
-    }
-    
-    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-    if (!emailRegex.hasMatch(value.trim())) {
-      return 'Please enter a valid email address';
-    }
-    
-    return null;
-  }
+
 
   /// Check if string is numeric
   static bool isNumeric(String? value) {

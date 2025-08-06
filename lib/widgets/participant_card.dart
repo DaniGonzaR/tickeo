@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tickeo/models/bill.dart';
+import 'package:tickeo/models/payment.dart';
 import 'package:tickeo/providers/bill_provider.dart';
 import 'package:tickeo/utils/app_colors.dart';
 import 'package:tickeo/utils/app_text_styles.dart';
@@ -19,8 +20,21 @@ class ParticipantCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final participantName = billProvider.getParticipantName(participantId);
-    final amount = bill.getAmountForParticipant(participantId);
-    final isPaid = bill.isParticipantPaid(participantId);
+    
+    // Get payment for this participant to ensure synchronization with "Dividir Equitativamente"
+    final payment = bill.payments.firstWhere(
+      (p) => p.participantId == participantId,
+      orElse: () => Payment(
+        id: '',
+        participantId: participantId,
+        participantName: participantName,
+        amount: bill.getAmountForParticipant(participantId), // Fallback to calculated amount
+        method: PaymentMethod.cash,
+      ),
+    );
+    
+    final amount = payment.amount;
+    final isPaid = payment.isPaid;
 
     // Get selected items for this participant
     final selectedItems = bill.items
@@ -157,39 +171,11 @@ class ParticipantCard extends StatelessWidget {
                 children: [
                   Text('Subtotal productos:', style: AppTextStyles.bodySmall),
                   Text(
-                    '\$${_getSubtotalForParticipant().toStringAsFixed(2)}',
+                    '€${_getSubtotalForParticipant().toStringAsFixed(2)}',
                     style: AppTextStyles.bodySmall,
                   ),
                 ],
               ),
-
-              if (bill.tax > 0) ...[
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Impuestos:', style: AppTextStyles.bodySmall),
-                    Text(
-                      '\$${_getTaxForParticipant().toStringAsFixed(2)}',
-                      style: AppTextStyles.bodySmall,
-                    ),
-                  ],
-                ),
-              ],
-
-              if (bill.tip > 0) ...[
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Propina:', style: AppTextStyles.bodySmall),
-                    Text(
-                      '\$${_getTipForParticipant().toStringAsFixed(2)}',
-                      style: AppTextStyles.bodySmall,
-                    ),
-                  ],
-                ),
-              ],
             ],
 
             // Actions
@@ -221,6 +207,9 @@ class ParticipantCard extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor:
                           isPaid ? AppColors.success : AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 2,
+                      shadowColor: Colors.black26,
                     ),
                   ),
                 ),
@@ -240,18 +229,6 @@ class ParticipantCard extends StatelessWidget {
       }
     }
     return subtotal;
-  }
-
-  double _getTaxForParticipant() {
-    if (bill.subtotal <= 0) return 0.0;
-    final proportion = _getSubtotalForParticipant() / bill.subtotal;
-    return bill.tax * proportion;
-  }
-
-  double _getTipForParticipant() {
-    if (bill.subtotal <= 0) return 0.0;
-    final proportion = _getSubtotalForParticipant() / bill.subtotal;
-    return bill.tip * proportion;
   }
 
   void _showRemoveDialog(BuildContext context) {
@@ -291,44 +268,99 @@ class ParticipantCard extends StatelessWidget {
 
     if (payment.isPaid) return;
 
+    PaymentMethod selectedPaymentMethod = PaymentMethod.cash; // Default payment method
+    final Map<PaymentMethod, String> paymentMethodLabels = {
+      PaymentMethod.cash: 'Efectivo',
+      PaymentMethod.transfer: 'Transferencia',
+      PaymentMethod.other: 'Otros',
+    };
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Confirmar Pago', style: AppTextStyles.headingMedium),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${payment.participantName} debe pagar:',
-              style: AppTextStyles.bodyMedium,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Confirmar Pago', style: AppTextStyles.headingMedium),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${payment.participantName} debe pagar:',
+                style: AppTextStyles.bodyMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '€${payment.amount.toStringAsFixed(2)}',
+                style: AppTextStyles.priceLarge,
+              ),
+              const SizedBox(height: 16),
+              Text('Método de pago:', style: AppTextStyles.label),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.border),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<PaymentMethod>(
+                    value: selectedPaymentMethod,
+                    isExpanded: true,
+                    items: paymentMethodLabels.entries.map((entry) {
+                      return DropdownMenuItem<PaymentMethod>(
+                        value: entry.key,
+                        child: Row(
+                          children: [
+                            Icon(
+                              entry.key == PaymentMethod.cash
+                                  ? Icons.money
+                                  : entry.key == PaymentMethod.transfer
+                                      ? Icons.account_balance
+                                      : Icons.payment,
+                              size: 20,
+                              color: AppColors.textSecondary,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(entry.value, style: AppTextStyles.bodyMedium),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (PaymentMethod? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          selectedPaymentMethod = newValue;
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
             ),
-            const SizedBox(height: 8),
-            Text(
-              '\$${payment.amount.toStringAsFixed(2)}',
-              style: AppTextStyles.priceLarge,
+            ElevatedButton(
+              onPressed: () {
+                billProvider.markPaymentAsPaid(
+                  participantId,
+                  selectedPaymentMethod,
+                  null,
+                );
+                Navigator.of(context).pop();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Confirmar Pago'),
             ),
-            const SizedBox(height: 16),
-            Text('Método de pago:', style: AppTextStyles.label),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              billProvider.markPaymentAsPaid(
-                participantId,
-                payment.method,
-                null,
-              );
-              Navigator.of(context).pop();
-            },
-            child: const Text('Confirmar Pago'),
-          ),
-        ],
       ),
     );
   }

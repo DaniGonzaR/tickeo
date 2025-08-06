@@ -114,22 +114,22 @@ class BillHistoryCard extends StatelessWidget {
                     ],
                   ),
                   Text(
-                    '\$${bill.total.toStringAsFixed(2)}',
+                    '€${bill.total.toStringAsFixed(2)}',
                     style: AppTextStyles.priceMedium,
                   ),
                 ],
               ),
               const SizedBox(height: 8),
               LinearProgressIndicator(
-                value: bill.total > 0 ? bill.getTotalPaid() / bill.total : 0,
+                value: bill.total > 0 ? _getTotalPaid(bill) / bill.total : 0,
                 backgroundColor: AppColors.borderLight,
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  bill.isCompleted ? AppColors.success : AppColors.primary,
+                  _isFullyPaid(bill) ? AppColors.success : AppColors.primary,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Pagado: \$${bill.getTotalPaid().toStringAsFixed(2)} / \$${bill.total.toStringAsFixed(2)}',
+                'Pagado: €${_getTotalPaid(bill).toStringAsFixed(2)} / €${bill.total.toStringAsFixed(2)}',
                 style: AppTextStyles.caption,
               ),
             ],
@@ -137,5 +137,18 @@ class BillHistoryCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Calculate total amount paid by all participants
+  double _getTotalPaid(Bill bill) {
+    return bill.payments
+        .where((payment) => payment.isPaid)
+        .fold(0.0, (sum, payment) => sum + payment.amount);
+  }
+
+  // Check if all payments are completed
+  bool _isFullyPaid(Bill bill) {
+    if (bill.payments.isEmpty) return false;
+    return bill.payments.every((payment) => payment.isPaid);
   }
 }

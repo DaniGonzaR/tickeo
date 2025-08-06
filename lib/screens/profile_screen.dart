@@ -447,7 +447,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirmed == true) {
       final billProvider = Provider.of<BillProvider>(context, listen: false);
-      await billProvider.clearLocalData();
+      billProvider.clearLocalData();
       
       if (mounted) {
         ErrorHandler.showSuccess(context, 'Datos locales limpiados');

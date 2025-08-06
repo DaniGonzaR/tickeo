@@ -131,7 +131,7 @@ class _JoinBillScreenState extends State<JoinBillScreen> {
                   const SizedBox(height: 16),
                   Text(
                     '¡Únete a una cuenta!',
-                    style: AppTextStyles.headingLarge.copyWith(
+                    style: AppTextStyles.heading1.copyWith(
                       color: AppColors.primary,
                     ),
                   ),
