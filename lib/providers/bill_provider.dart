@@ -5,6 +5,8 @@ import 'package:tickeo/models/bill_item.dart';
 import 'package:tickeo/models/payment.dart';
 import 'package:tickeo/services/ocr_service.dart';
 import 'package:tickeo/services/firebase_service.dart';
+import 'package:tickeo/utils/error_handler.dart';
+import 'package:tickeo/utils/validators.dart';
 import 'package:uuid/uuid.dart';
 
 class BillProvider extends ChangeNotifier {
@@ -56,49 +58,100 @@ class BillProvider extends ChangeNotifier {
     }
   }
 
-  // Create manual bill
-  void createManualBill(String billName) {
-    final bill = Bill(
-      id: _uuid.v4(),
-      name: billName,
-      createdAt: DateTime.now(),
-      items: [],
-      subtotal: 0.0,
-      tax: 0.0,
-      tip: 0.0,
-      total: 0.0,
-      participants: [],
-      payments: [],
-      shareCode: _generateShareCode(),
-    );
+  // Create manual bill with validation
+  bool createManualBill(String billName) {
+    try {
+      _clearError();
+      
+      // Validate bill name
+      final nameValidation = Validators.validateBillName(billName);
+      if (nameValidation != null) {
+        _setError(nameValidation);
+        return false;
+      }
 
-    _currentBill = bill;
-    notifyListeners();
+      final bill = Bill(
+        id: _uuid.v4(),
+        name: billName.trim(),
+        createdAt: DateTime.now(),
+        items: [],
+        subtotal: 0.0,
+        tax: 0.0,
+        tip: 0.0,
+        total: 0.0,
+        participants: [],
+        payments: [],
+        shareCode: _generateShareCode(),
+      );
+
+      _currentBill = bill;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      ErrorHandler.logError('createManualBill', e);
+      _setError(ErrorHandler.getErrorMessage(e));
+      return false;
+    }
   }
 
-  // Add participant
-  void addParticipant(String participantName) {
-    if (_currentBill == null) return;
+  // Add participant with validation
+  bool addParticipant(String participantName) {
+    try {
+      if (_currentBill == null) {
+        _setError('No active bill to add participant to');
+        return false;
+      }
 
-    final participantId = _uuid.v4();
-    final updatedParticipants = [..._currentBill!.participants, participantId];
+      _clearError();
+      
+      // Validate participant name
+      final nameValidation = Validators.validateParticipantName(participantName);
+      if (nameValidation != null) {
+        _setError(nameValidation);
+        return false;
+      }
 
-    // Create payment entry for new participant
-    final payment = Payment(
-      id: _uuid.v4(),
-      participantId: participantId,
-      participantName: participantName,
-      amount: 0.0,
-      method: PaymentMethod.cash,
-    );
+      // Check for duplicate participant names
+      final existingNames = _currentBill!.payments
+          .map((p) => p.participantName.toLowerCase().trim())
+          .toList();
+      
+      if (existingNames.contains(participantName.toLowerCase().trim())) {
+        _setError('A participant with this name already exists');
+        return false;
+      }
 
-    _currentBill = _currentBill!.copyWith(
-      participants: updatedParticipants,
-      payments: [..._currentBill!.payments, payment],
-    );
+      // Check participant limit
+      if (_currentBill!.participants.length >= 20) {
+        _setError('Maximum 20 participants allowed per bill');
+        return false;
+      }
 
-    _updatePaymentAmounts();
-    notifyListeners();
+      final participantId = _uuid.v4();
+      final updatedParticipants = [..._currentBill!.participants, participantId];
+
+      // Create payment entry for new participant
+      final payment = Payment(
+        id: _uuid.v4(),
+        participantId: participantId,
+        participantName: participantName.trim(),
+        amount: 0.0,
+        method: PaymentMethod.cash,
+      );
+
+      _currentBill = _currentBill!.copyWith(
+        participants: updatedParticipants,
+        payments: [..._currentBill!.payments, payment],
+      );
+
+      _updatePaymentAmounts();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      ErrorHandler.logError('addParticipant', e);
+      _setError(ErrorHandler.getErrorMessage(e));
+      return false;
+    }
   }
 
   // Remove participant
@@ -148,31 +201,78 @@ class BillProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Add manual item
-  void addManualItem(String itemName, double price, int quantity) {
-    if (_currentBill == null) return;
+  // Add manual item with validation
+  bool addManualItem(String itemName, double price, {int quantity = 1}) {
+    try {
+      if (_currentBill == null) {
+        _setError('No active bill to add item to');
+        return false;
+      }
 
-    final item = BillItem(
-      id: _uuid.v4(),
-      name: itemName,
-      price: price,
-      quantity: quantity,
-      selectedBy: [],
-    );
+      _clearError();
+      
+      // Validate item name
+      final nameValidation = Validators.validateItemName(itemName);
+      if (nameValidation != null) {
+        _setError(nameValidation);
+        return false;
+      }
 
-    final updatedItems = [..._currentBill!.items, item];
-    final newSubtotal =
-        updatedItems.fold(0.0, (sum, item) => sum + item.totalPrice);
-    final newTotal = newSubtotal + _currentBill!.tax + _currentBill!.tip;
+      // Validate price
+      if (price <= 0) {
+        _setError('Price must be greater than zero');
+        return false;
+      }
 
-    _currentBill = _currentBill!.copyWith(
-      items: updatedItems,
-      subtotal: newSubtotal,
-      total: newTotal,
-    );
+      if (price > 99999.99) {
+        _setError('Price is too high (max: €99,999.99)');
+        return false;
+      }
 
-    _updatePaymentAmounts();
-    notifyListeners();
+      // Validate quantity
+      if (quantity <= 0) {
+        _setError('Quantity must be greater than zero');
+        return false;
+      }
+
+      if (quantity > 100) {
+        _setError('Maximum quantity is 100');
+        return false;
+      }
+
+      // Check item limit
+      if (_currentBill!.items.length >= 50) {
+        _setError('Maximum 50 items allowed per bill');
+        return false;
+      }
+
+      final item = BillItem(
+        id: _uuid.v4(),
+        name: itemName.trim(),
+        price: price,
+        quantity: quantity,
+        selectedBy: [],
+      );
+
+      final updatedItems = [..._currentBill!.items, item];
+      final newSubtotal =
+          updatedItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+      final newTotal = newSubtotal + _currentBill!.tax + _currentBill!.tip;
+
+      _currentBill = _currentBill!.copyWith(
+        items: updatedItems,
+        subtotal: newSubtotal,
+        total: newTotal,
+      );
+
+      _updatePaymentAmounts();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      ErrorHandler.logError('addManualItem', e);
+      _setError(ErrorHandler.getErrorMessage(e));
+      return false;
+    }
   }
 
   // Update tip

@@ -62,7 +62,11 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
       final price = double.tryParse(priceText);
       if (price != null && price > 0) {
         final billProvider = Provider.of<BillProvider>(context, listen: false);
-        billProvider.addManualItem(name, price, 1);
+        final success = billProvider.addManualItem(name, price);
+        if (!success && context.mounted) {
+          // Error handling is done in the provider
+          return;
+        }
         _itemNameController.clear();
         _itemPriceController.clear();
         Navigator.of(context).pop();

@@ -7,8 +7,11 @@ import 'package:tickeo/screens/bill_details_screen.dart';
 import 'package:tickeo/screens/join_bill_screen.dart';
 import 'package:tickeo/widgets/custom_button.dart';
 import 'package:tickeo/widgets/bill_history_card.dart';
+import 'package:tickeo/widgets/loading_state_widget.dart';
 import 'package:tickeo/utils/app_colors.dart';
 import 'package:tickeo/utils/app_text_styles.dart';
+import 'package:tickeo/utils/error_handler.dart';
+import 'package:tickeo/utils/validators.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -80,54 +83,87 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _createManualBill() async {
     await _showBillNameDialog((billName) {
       final billProvider = Provider.of<BillProvider>(context, listen: false);
-      billProvider.createManualBill(billName);
+      final success = billProvider.createManualBill(billName);
 
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => const BillDetailsScreen(),
-        ),
-      );
+      if (success && mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const BillDetailsScreen(),
+          ),
+        );
+      } else if (mounted && billProvider.error != null) {
+        ErrorHandler.showError(context, billProvider.error!);
+      }
     });
   }
 
   Future<void> _showBillNameDialog(Function(String) onConfirm) async {
+    String? errorText;
+    
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'Nombre de la Cuenta',
-            style: AppTextStyles.headingMedium,
-          ),
-          content: TextField(
-            controller: _billNameController,
-            decoration: const InputDecoration(
-              hintText: 'Ej: Cena en restaurante',
-              border: OutlineInputBorder(),
-            ),
-            autofocus: true,
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () {
-                _billNameController.clear();
-                Navigator.of(context).pop();
-              },
-            ),
-            ElevatedButton(
-              child: const Text('Crear'),
-              onPressed: () {
-                final billName = _billNameController.text.trim();
-                if (billName.isNotEmpty) {
-                  onConfirm(billName);
-                  _billNameController.clear();
-                  Navigator.of(context).pop();
-                }
-              },
-            ),
-          ],
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(
+                'Bill Name',
+                style: AppTextStyles.headingMedium,
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _billNameController,
+                    decoration: InputDecoration(
+                      hintText: 'e.g., Dinner at Restaurant',
+                      border: const OutlineInputBorder(),
+                      errorText: errorText,
+                      helperText: 'Enter a name for your bill',
+                    ),
+                    autofocus: true,
+                    onChanged: (value) {
+                      setState(() {
+                        errorText = Validators.validateBillName(value);
+                      });
+                    },
+                    onSubmitted: (value) {
+                      if (errorText == null && value.trim().isNotEmpty) {
+                        onConfirm(value.trim());
+                        _billNameController.clear();
+                        Navigator.of(context).pop();
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () {
+                    _billNameController.clear();
+                    Navigator.of(context).pop();
+                  },
+                ),
+                ElevatedButton(
+                  onPressed: errorText == null && _billNameController.text.trim().isNotEmpty
+                      ? () {
+                          final billName = _billNameController.text.trim();
+                          onConfirm(billName);
+                          _billNameController.clear();
+                          Navigator.of(context).pop();
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Create'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
