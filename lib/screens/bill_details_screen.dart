@@ -12,6 +12,9 @@ import 'package:tickeo/widgets/participant_card.dart';
 import 'package:tickeo/widgets/payment_summary_card.dart';
 import 'package:tickeo/utils/app_colors.dart';
 import 'package:tickeo/utils/app_text_styles.dart';
+import 'package:tickeo/utils/validators.dart';
+import 'package:tickeo/utils/error_handler.dart';
+import 'package:tickeo/widgets/validated_form_field.dart';
 
 class BillDetailsScreen extends StatefulWidget {
   const BillDetailsScreen({super.key});
@@ -46,30 +49,47 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
 
   void _addParticipant() {
     final name = _participantController.text.trim();
-    if (name.isNotEmpty) {
-      final billProvider = Provider.of<BillProvider>(context, listen: false);
-      billProvider.addParticipant(name);
+    final billProvider = Provider.of<BillProvider>(context, listen: false);
+    
+    final success = billProvider.addParticipant(name);
+    if (success) {
       _participantController.clear();
       Navigator.of(context).pop();
+      if (context.mounted) {
+        ErrorHandler.showSuccess(context, 'Participant added successfully');
+      }
+    } else {
+      if (context.mounted && billProvider.error != null) {
+        ErrorHandler.showError(context, billProvider.error!);
+      }
     }
   }
 
   void _addManualItem() {
     final name = _itemNameController.text.trim();
     final priceText = _itemPriceController.text.trim();
+    final billProvider = Provider.of<BillProvider>(context, listen: false);
 
-    if (name.isNotEmpty && priceText.isNotEmpty) {
-      final price = double.tryParse(priceText);
-      if (price != null && price > 0) {
-        final billProvider = Provider.of<BillProvider>(context, listen: false);
-        final success = billProvider.addManualItem(name, price);
-        if (!success && context.mounted) {
-          // Error handling is done in the provider
-          return;
-        }
-        _itemNameController.clear();
-        _itemPriceController.clear();
-        Navigator.of(context).pop();
+    // Parse price
+    final price = double.tryParse(priceText);
+    if (price == null) {
+      if (context.mounted) {
+        ErrorHandler.showError(context, 'Please enter a valid price');
+      }
+      return;
+    }
+
+    final success = billProvider.addManualItem(name, price);
+    if (success) {
+      _itemNameController.clear();
+      _itemPriceController.clear();
+      Navigator.of(context).pop();
+      if (context.mounted) {
+        ErrorHandler.showSuccess(context, 'Item added successfully');
+      }
+    } else {
+      if (context.mounted && billProvider.error != null) {
+        ErrorHandler.showError(context, billProvider.error!);
       }
     }
   }
@@ -86,24 +106,34 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
   void _showAddParticipantDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text('Agregar Participante', style: AppTextStyles.headingMedium),
-        content: TextField(
-          controller: _participantController,
-          decoration: const InputDecoration(
-            hintText: 'Nombre del participante',
-            border: OutlineInputBorder(),
+        title: Text('Add Participant', style: AppTextStyles.headingMedium),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ParticipantNameFormField(
+            controller: _participantController,
+            validator: Validators.validateParticipantName,
+            labelText: 'Participant Name',
+            autofocus: true,
+            onSubmitted: (_) => _addParticipant(),
           ),
-          autofocus: true,
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
+            onPressed: () {
+              _participantController.clear();
+              Navigator.of(context).pop();
+            },
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: _addParticipant,
-            child: const Text('Agregar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Add'),
           ),
         ],
       ),
@@ -113,38 +143,51 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
   void _showAddItemDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text('Agregar Producto', style: AppTextStyles.headingMedium),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _itemNameController,
-              decoration: const InputDecoration(
-                hintText: 'Nombre del producto',
-                border: OutlineInputBorder(),
+        title: Text('Add Item', style: AppTextStyles.headingMedium),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ValidatedFormField(
+                controller: _itemNameController,
+                validator: Validators.validateItemName,
+                hintText: 'Enter item name',
+                labelText: 'Item Name',
+                autofocus: true,
+                prefixIcon: Icon(
+                  Icons.restaurant_menu,
+                  color: AppColors.textSecondary,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _itemPriceController,
-              decoration: const InputDecoration(
-                hintText: 'Precio',
-                border: OutlineInputBorder(),
-                prefixText: '\$',
+              const SizedBox(height: 16),
+              PriceFormField(
+                controller: _itemPriceController,
+                validator: Validators.validatePrice,
+                labelText: 'Price',
+                onSubmitted: (_) => _addManualItem(),
               ),
-              keyboardType: TextInputType.number,
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
+            onPressed: () {
+              _itemNameController.clear();
+              _itemPriceController.clear();
+              Navigator.of(context).pop();
+            },
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: _addManualItem,
-            child: const Text('Agregar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Add'),
           ),
         ],
       ),
@@ -153,29 +196,62 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
 
   void _showTipDialog() {
     final billProvider = Provider.of<BillProvider>(context, listen: false);
-    _tipController.text = billProvider.currentBill?.tip.toString() ?? '0';
+    final currentTip = billProvider.currentBill?.tip ?? 0.0;
+    _tipController.text = currentTip == 0.0 ? '' : currentTip.toString();
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text('Propina', style: AppTextStyles.headingMedium),
-        content: TextField(
-          controller: _tipController,
-          decoration: const InputDecoration(
-            hintText: 'Monto de propina',
-            border: OutlineInputBorder(),
-            prefixText: '\$',
+        title: Text('Add Tip', style: AppTextStyles.headingMedium),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              PriceFormField(
+                controller: _tipController,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return null; // Tip is optional
+                  }
+                  final price = double.tryParse(value.trim());
+                  if (price == null || price < 0) {
+                    return 'Please enter a valid tip amount';
+                  }
+                  if (price > 999.99) {
+                    return 'Tip amount is too high (max: €999.99)';
+                  }
+                  return null;
+                },
+                labelText: 'Tip Amount (Optional)',
+                autofocus: true,
+                onSubmitted: (_) => _updateTip(),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Leave empty for no tip',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
-          keyboardType: TextInputType.number,
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: _updateTip,
-            child: const Text('Actualizar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Update'),
           ),
         ],
       ),
