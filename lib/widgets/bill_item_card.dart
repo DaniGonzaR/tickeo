@@ -112,7 +112,7 @@ class BillItemCard extends StatelessWidget {
               const SizedBox(height: 8),
               if (item.selectedBy.length > 1)
                 Text(
-                  'Precio por persona: \$${item.getPricePerPerson().toStringAsFixed(2)}',
+                  'Precio por persona: €${item.getPricePerPerson().toStringAsFixed(2)}',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,

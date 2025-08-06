@@ -93,7 +93,7 @@ class ParticipantCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '\$${amount.toStringAsFixed(2)}',
+                      '€${amount.toStringAsFixed(2)}',
                       style: AppTextStyles.priceMedium,
                     ),
                     Container(
@@ -151,7 +151,7 @@ class ParticipantCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '\$${itemPrice.toStringAsFixed(2)}',
+                        '€${itemPrice.toStringAsFixed(2)}',
                         style: AppTextStyles.bodySmall.copyWith(
                           fontWeight: FontWeight.w600,
                         ),

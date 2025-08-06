@@ -252,7 +252,7 @@ class PaymentSummaryCard extends StatelessWidget {
               : AppTextStyles.bodyMedium,
         ),
         Text(
-          '\$${amount.toStringAsFixed(2)}',
+          '€${amount.toStringAsFixed(2)}',
           style: isTotal
               ? AppTextStyles.priceLarge
               : AppTextStyles.priceMedium.copyWith(
