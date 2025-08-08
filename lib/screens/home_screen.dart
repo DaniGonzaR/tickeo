@@ -24,10 +24,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _billNameController = TextEditingController();
+  final FocusNode _billNameFocusNode = FocusNode();
 
   @override
   void dispose() {
     _billNameController.dispose();
+    _billNameFocusNode.dispose();
     super.dispose();
   }
 
@@ -117,6 +119,11 @@ class _HomeScreenState extends State<HomeScreen> {
             
             return StatefulBuilder(
               builder: (context, setState) {
+                // Request focus after the dialog is built
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _billNameFocusNode.requestFocus();
+                });
+                
                 return AlertDialog(
                   title: Text(
                     'Nombre de la Cuenta',
@@ -131,6 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                       TextField(
                         controller: _billNameController,
+                        focusNode: _billNameFocusNode,
                         style: TextStyle(fontSize: isMobile ? 16 : 14),
                         decoration: InputDecoration(
                           hintText: 'ej: Cena en Restaurante',
