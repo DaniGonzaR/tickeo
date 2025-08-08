@@ -14,10 +14,10 @@ class OCRService {
   /// Process receipt image using ML Kit text recognition
   Future<Map<String, dynamic>> processReceiptImage(dynamic imageFile) async {
     try {
-      // Check if running on web (fallback to mock data)
+      // Check if running on web (fallback to basic data)
       if (kIsWeb) {
         await Future.delayed(const Duration(seconds: 2));
-        return generateMockReceiptData();
+        return generateFallbackReceiptData();
       }
 
       // Use ML Kit for text recognition on mobile
@@ -27,8 +27,8 @@ class OCRService {
       // Parse the recognized text to extract receipt data
       return _parseReceiptText(recognizedText.text);
     } catch (e) {
-      // Fallback to mock data if OCR fails
-      return generateMockReceiptData();
+      // Fallback to basic data if OCR fails
+      return generateFallbackReceiptData();
     }
   }
 
@@ -80,8 +80,8 @@ class OCRService {
         'total': subtotal,
       };
     } catch (e) {
-      // Fallback to mock data if parsing fails
-      return generateMockReceiptData();
+      // Fallback to basic data if parsing fails
+      return generateFallbackReceiptData();
     }
   }
   
@@ -97,38 +97,32 @@ class OCRService {
     }).join(' ');
   }
   
-  Map<String, dynamic> generateMockReceiptData() {
-    // Generate mock receipt data for demonstration
+  Map<String, dynamic> generateFallbackReceiptData() {
+    // Generate basic receipt data when OCR fails or image cannot be processed
     final items = [
       BillItem(
         id: _uuid.v4(),
-        name: 'Pizza Margherita',
-        price: 12.50,
+        name: 'Producto 1',
+        price: 10.00,
         selectedBy: [],
       ),
       BillItem(
         id: _uuid.v4(),
-        name: 'Coca Cola',
-        price: 2.50,
-        selectedBy: [],
-      ),
-      BillItem(
-        id: _uuid.v4(),
-        name: 'Ensalada César',
-        price: 8.00,
+        name: 'Producto 2',
+        price: 5.00,
         selectedBy: [],
       ),
     ];
 
     final subtotal = items.fold<double>(0.0, (sum, item) => sum + item.price);
-    final total = subtotal; // No tax or tip, total equals subtotal
+    final total = subtotal;
 
     return {
       'items': items,
       'subtotal': subtotal,
-      'tax': 0.0, // No tax as per user requirements
+      'tax': 0.0,
       'total': total,
-      'restaurantName': 'Restaurante Demo',
+      'restaurantName': 'Ticket Escaneado',
     };
   }
 

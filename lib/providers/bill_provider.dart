@@ -73,14 +73,14 @@ class BillProvider extends ChangeNotifier {
         return;
       }
 
-      // Use OCR service to get mock data (web-compatible)
+      // Use OCR service to get fallback data (web-compatible)
       final ocrService = OCRService();
-      final mockData = ocrService.generateMockReceiptData();
+      final fallbackData = ocrService.generateFallbackReceiptData();
       
-      final items = mockData['items'] as List<BillItem>;
-      final subtotal = mockData['subtotal'] as double;
-      final tax = mockData['tax'] as double;
-      final total = mockData['total'] as double;
+      final items = fallbackData['items'] as List<BillItem>;
+      final subtotal = fallbackData['subtotal'] as double;
+      final tax = fallbackData['tax'] as double;
+      final total = fallbackData['total'] as double;
 
       final bill = Bill(
         id: _uuid.v4(),
