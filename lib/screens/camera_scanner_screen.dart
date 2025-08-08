@@ -3,7 +3,6 @@ import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:tickeo/services/notification_service.dart';
 import 'package:tickeo/services/ocr_service.dart';
 import 'package:tickeo/utils/app_colors.dart';
@@ -26,7 +25,7 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Web compatibility: Show message that camera is not supported
+    // Web compatibility: Use file upload for OCR instead of camera
     if (kIsWeb) {
       return Scaffold(
         appBar: AppBar(
@@ -41,13 +40,13 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  Icons.camera_alt_outlined,
+                  widget.scanType == 'ticket' ? Icons.receipt_long : Icons.qr_code,
                   size: 80,
-                  color: AppColors.textSecondary,
+                  color: AppColors.primary,
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Cámara no disponible en web',
+                  widget.scanType == 'ticket' ? 'Subir Imagen de Ticket' : 'Subir Imagen de QR',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -56,7 +55,9 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'La funcionalidad de cámara está disponible en la aplicación móvil (Android/iOS).',
+                  widget.scanType == 'ticket' 
+                    ? 'Selecciona una imagen de tu ticket para extraer los productos y precios automáticamente.'
+                    : 'Selecciona una imagen con el código QR para unirte a la cuenta.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
@@ -64,24 +65,49 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                if (_isProcessing)
+                  Column(
+                    children: [
+                      CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Procesando imagen...',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Column(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _pickFromGallery,
+                        icon: const Icon(Icons.upload_file),
+                        label: const Text('Seleccionar Imagen'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          textStyle: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Cancelar'),
+                      ),
+                    ],
                   ),
-                  child: const Text('Volver'),
-                ),
               ],
             ),
           ),
         ),
       );
     }
-    
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 600;
     
     return Scaffold(
       backgroundColor: Colors.black,
