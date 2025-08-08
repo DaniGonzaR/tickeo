@@ -9,32 +9,46 @@ echo "🚀 Starting Flutter Web Build for Netlify..."
 if ! command -v flutter &> /dev/null; then
     echo "📦 Installing Flutter..."
     
-    # Download and install Flutter
-    git clone https://github.com/flutter/flutter.git -b stable --depth 1 /opt/flutter
-    export PATH="$PATH:/opt/flutter/bin"
+    # Create local flutter directory in build workspace
+    FLUTTER_DIR="$PWD/flutter"
     
-    # Pre-download Dart SDK
-    flutter precache --web
+    # Download and install Flutter in local directory
+    git clone https://github.com/flutter/flutter.git -b stable --depth 1 "$FLUTTER_DIR"
+    export PATH="$PATH:$FLUTTER_DIR/bin"
     
-    echo "✅ Flutter installed successfully"
+    # Verify Flutter is accessible
+    "$FLUTTER_DIR/bin/flutter" --version
+    
+    # Pre-download Dart SDK for web
+    "$FLUTTER_DIR/bin/flutter" precache --web
+    
+    echo "✅ Flutter installed successfully in $FLUTTER_DIR"
 else
     echo "✅ Flutter already installed"
 fi
 
+# Set Flutter path for subsequent commands
+if [ -d "$PWD/flutter" ]; then
+    export PATH="$PATH:$PWD/flutter/bin"
+    FLUTTER_CMD="$PWD/flutter/bin/flutter"
+else
+    FLUTTER_CMD="flutter"
+fi
+
 # Verify Flutter installation
-flutter --version
-flutter doctor --verbose
+$FLUTTER_CMD --version
+$FLUTTER_CMD doctor --verbose
 
 # Enable web support
-flutter config --enable-web
+$FLUTTER_CMD config --enable-web
 
 # Get dependencies
 echo "📦 Getting Flutter dependencies..."
-flutter pub get
+$FLUTTER_CMD pub get
 
 # Build for web
 echo "🏗️ Building Flutter web app..."
-flutter build web --release --web-renderer html
+$FLUTTER_CMD build web --release --web-renderer html
 
 # Copy build output to Netlify's expected directory
 echo "📁 Copying build files..."
