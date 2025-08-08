@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -308,7 +307,7 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
       );
 
       if (photo != null) {
-        await _processImage(File(photo.path));
+        await _processImage(photo);
       }
     } catch (e) {
       if (mounted) {
@@ -341,7 +340,7 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
       );
 
       if (image != null) {
-        await _processImage(File(image.path));
+        await _processImage(image);
       }
     } catch (e) {
       if (mounted) {
@@ -362,7 +361,7 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
     }
   }
 
-  Future<void> _processImage(File imageFile) async {
+  Future<void> _processImage(dynamic imageFile) async {
     try {
       if (widget.scanType == 'ticket') {
         // Process ticket with OCR
