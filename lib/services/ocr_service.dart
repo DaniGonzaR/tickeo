@@ -125,7 +125,7 @@ class OCRService {
       print('=== PARSING COMPLETE ===');
       print('Total items found: ${items.length}');
       
-      // Apply intelligent validation and cleanup
+      // Apply intelligent validation and cleanup (no dictionary interference)
       final validatedItems = _validateAndCleanItems(items);
       print('After validation: ${validatedItems.length} items');
       
@@ -238,14 +238,19 @@ class OCRService {
   
   /// Extract item from a single line using multiple strategies
   BillItem? _extractItemFromLine(String line, int itemIndex) {
-    print('    Trying to extract from: "$line"');
+    final cleanLine = line.trim();
+    if (cleanLine.isEmpty) return null;
+    
+    print('  Analyzing line: "$cleanLine"');
     
     // Strategy 1: Multiple spaces separator "Pizza Margherita      15.50"
-    final multiSpaceMatch = RegExp(r'^(.+?)\s{2,}([€\$]?\s*)(\d+[.,]\d{1,2})([€\$]?)\s*$').firstMatch(line);
+    final multiSpaceMatch = RegExp(r'^(.+?)\s{2,}([€\$]?\s*)(\d+[.,]\d{1,2})([€\$]?)\s*$').firstMatch(cleanLine);
     if (multiSpaceMatch != null) {
       print('    -> Strategy 1 (multi-space) matched');
       return _createItemFromMatch(multiSpaceMatch.group(1)!, multiSpaceMatch.group(3)!, itemIndex);
     }
+    
+
     
     // Strategy 2: Price with currency at end "Hamburguesa Clásica 12.50€" (more flexible)
     final endPriceMatch = RegExp(r'^(.+?)\s+(\d+[.,]\d{1,2})\s*[€€\$]?\s*$').firstMatch(line);
