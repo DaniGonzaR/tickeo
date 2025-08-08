@@ -7,6 +7,7 @@ import 'package:tickeo/utils/validators.dart';
 import 'package:tickeo/utils/error_handler.dart';
 import 'package:tickeo/widgets/validated_form_field.dart';
 import 'package:tickeo/widgets/custom_button.dart';
+import 'package:tickeo/utils/keyboard_utils.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
