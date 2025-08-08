@@ -334,57 +334,120 @@ class OCRService {
       final extractedText = await _callTesseractOCR(processableImage);
       
       if (extractedText != null && extractedText.isNotEmpty) {
-        print('OCR extracted ${extractedText.length} characters of text');
+        print('✅ SUCCESS: OCR extracted ${extractedText.length} characters of text');
+        print('📝 EXTRACTED TEXT: $extractedText');
         // Parse the real extracted text using our robust parsing algorithms
-        return _parseReceiptText(extractedText);
+        final parsedResult = _parseReceiptText(extractedText);
+        print('🎯 PARSED RESULT: $parsedResult');
+        return parsedResult;
       } else {
-        // If OCR returns empty text, use realistic fallback
-        print('OCR returned empty text, using fallback data');
-        return await _generateFallbackWithRealisticData();
+        // NO FALLBACK - Force debugging
+        print('❌ CRITICAL: OCR returned empty text!');
+        print('🔍 DEBUG: extractedText = $extractedText');
+        throw Exception('OCR failed to extract text from image. Check console for details.');
       }
     } catch (e) {
-      print('Web OCR processing failed: $e');
-      print('Stack trace: ${StackTrace.current}');
-      // Fallback to realistic data if Tesseract.js fails
-      return await _generateFallbackWithRealisticData();
+      print('❌ CRITICAL ERROR: Web OCR processing failed: $e');
+      print('📍 Stack trace: ${StackTrace.current}');
+      // NO FALLBACK - Force user to see the real error
+      rethrow;
     }
   }
   
   /// Call Tesseract.js OCR function via JavaScript interop
   Future<String?> _callTesseractOCR(dynamic imageFile) async {
     try {
+      print('🚀 STARTING _callTesseractOCR...');
+      
       if (!kIsWeb) {
-        print('Not on web platform, skipping Tesseract.js');
+        print('❌ Not on web platform, skipping Tesseract.js');
         return null;
       }
       
-      print('Calling Tesseract.js OCR with real image...');
+      print('✅ On web platform, proceeding with Tesseract.js...');
+      print('📷 Image file type: ${imageFile.runtimeType}');
+      print('📷 Image file details: $imageFile');
+      
+      // Check if js.context is available
+      print('🔍 Checking js.context availability...');
+      if (js.context == null) {
+        print('❌ js.context is null!');
+        return null;
+      }
+      print('✅ js.context is available');
       
       // Check if Tesseract.js is available
-      if (js.context['tesseractOCR'] == null) {
-        print('Tesseract.js not available, using fallback');
+      print('🔍 Checking tesseractOCR availability...');
+      final tesseractOCR = js.context['tesseractOCR'];
+      print('🔍 tesseractOCR object: $tesseractOCR');
+      
+      if (tesseractOCR == null) {
+        print('❌ CRITICAL: tesseractOCR is null! JavaScript not loaded properly.');
+        return null;
+      }
+      print('✅ tesseractOCR is available');
+      
+      // Check if processImage method exists
+      print('🔍 Checking processImage method...');
+      try {
+        final processImageMethod = tesseractOCR['processImage'];
+        print('🔍 processImage method: $processImageMethod');
+        if (processImageMethod == null) {
+          print('❌ CRITICAL: processImage method is null!');
+          return null;
+        }
+        print('✅ processImage method is available');
+      } catch (methodError) {
+        print('❌ Error checking processImage method: $methodError');
         return null;
       }
       
       // Call the JavaScript function to process the real image
-      final jsPromise = js.context['tesseractOCR'].callMethod('processImage', [imageFile]);
+      print('🚀 Calling tesseractOCR.processImage...');
+      print('📷 Passing image file: $imageFile');
+      
+      final jsPromise;
+      try {
+        jsPromise = js.context['tesseractOCR'].callMethod('processImage', [imageFile]);
+        print('✅ JavaScript method called successfully');
+        print('🔍 Promise object: $jsPromise');
+      } catch (callError) {
+        print('❌ CRITICAL: Error calling JavaScript method: $callError');
+        return null;
+      }
       
       // Convert JS Promise to Dart Future
+      print('🔄 Converting JS Promise to Dart Future...');
       final completer = Completer<String?>();
       
-      jsPromise.callMethod('then', [
-        js.allowInterop((result) {
-          print('Tesseract.js returned: $result');
-          completer.complete(result?.toString());
-        })
-      ]);
+      try {
+        jsPromise.callMethod('then', [
+          js.allowInterop((result) {
+            print('✅ SUCCESS: Tesseract.js returned result!');
+            print('📝 Result type: ${result.runtimeType}');
+            print('📝 Result content: $result');
+            completer.complete(result?.toString());
+          })
+        ]);
+        print('✅ Promise.then() handler attached');
+      } catch (thenError) {
+        print('❌ Error attaching then handler: $thenError');
+        return null;
+      }
       
-      jsPromise.callMethod('catch', [
-        js.allowInterop((error) {
-          print('Tesseract.js error: $error');
-          completer.completeError(error.toString());
-        })
-      ]);
+      try {
+        jsPromise.callMethod('catch', [
+          js.allowInterop((error) {
+            print('❌ TESSERACT ERROR: $error');
+            print('🔍 Error type: ${error.runtimeType}');
+            completer.completeError(error.toString());
+          })
+        ]);
+        print('✅ Promise.catch() handler attached');
+      } catch (catchError) {
+        print('❌ Error attaching catch handler: $catchError');
+        return null;
+      }
       
       // Wait for the result with timeout
       return await completer.future.timeout(
