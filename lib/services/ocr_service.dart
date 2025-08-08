@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:js' if (dart.library.io) 'dart:js' as js;
+import 'package:http/http.dart' as http;
 
 class OCRService {
   static final OCRService _instance = OCRService._internal();
@@ -299,59 +300,86 @@ class OCRService {
     return items;
   }
   
-  /// Process image on web platform using Tesseract.js OCR
+  /// Process image on web platform using robust multi-strategy OCR
   Future<Map<String, dynamic>> _processImageOnWeb(dynamic imageFile) async {
+    print('🚀 STARTING ROBUST WEB OCR PROCESSING...');
+    print('📷 Image file type: ${imageFile.runtimeType}');
+    
+    // Convert image file to base64 format
+    String? base64Image;
     try {
-      print('Processing image on web platform...');
-      print('Image file type: ${imageFile.runtimeType}');
-      
-      // Convert image file to a format JavaScript can process
-      dynamic processableImage;
-      
       if (imageFile != null) {
-        // If it's an XFile (from image_picker), read as bytes and convert to base64
-        try {
-          if (imageFile.runtimeType.toString().contains('XFile')) {
-            print('Converting XFile to base64...');
-            final bytes = await imageFile.readAsBytes();
-            final base64String = 'data:image/jpeg;base64,' + base64Encode(bytes);
-            processableImage = base64String;
-            print('Converted to base64, length: ${base64String.length}');
-          } else {
-            // Try to use the file directly
-            processableImage = imageFile;
-            print('Using file directly');
-          }
-        } catch (conversionError) {
-          print('File conversion failed: $conversionError');
-          processableImage = imageFile;
+        if (imageFile.runtimeType.toString().contains('XFile')) {
+          print('📸 Converting XFile to base64...');
+          final bytes = await imageFile.readAsBytes();
+          base64Image = 'data:image/jpeg;base64,' + base64Encode(bytes);
+          print('✅ Converted to base64, length: ${base64Image.length}');
+        } else {
+          print('❌ Unsupported image file type: ${imageFile.runtimeType}');
+          throw Exception('Unsupported image file type');
         }
       } else {
         throw Exception('Image file is null');
       }
-      
-      // Call JavaScript Tesseract.js function for real OCR processing
-      final extractedText = await _callTesseractOCR(processableImage);
-      
-      if (extractedText != null && extractedText.isNotEmpty) {
-        print('✅ SUCCESS: OCR extracted ${extractedText.length} characters of text');
-        print('📝 EXTRACTED TEXT: $extractedText');
-        // Parse the real extracted text using our robust parsing algorithms
-        final parsedResult = _parseReceiptText(extractedText);
-        print('🎯 PARSED RESULT: $parsedResult');
-        return parsedResult;
-      } else {
-        // NO FALLBACK - Force debugging
-        print('❌ CRITICAL: OCR returned empty text!');
-        print('🔍 DEBUG: extractedText = $extractedText');
-        throw Exception('OCR failed to extract text from image. Check console for details.');
+    } catch (e) {
+      print('❌ Image conversion failed: $e');
+      throw Exception('Failed to convert image: $e');
+    }
+    
+    // Strategy 1: Try Tesseract.js
+    print('🎯 STRATEGY 1: Attempting Tesseract.js OCR...');
+    try {
+      final tesseractResult = await _callTesseractOCR(base64Image);
+      if (tesseractResult != null && tesseractResult.trim().isNotEmpty) {
+        print('✅ SUCCESS: Tesseract.js extracted text!');
+        print('📝 EXTRACTED TEXT: $tesseractResult');
+        final parsedResult = _parseReceiptText(tesseractResult);
+        if (parsedResult['items'] != null && (parsedResult['items'] as List).isNotEmpty) {
+          print('🎯 SUCCESS: Parsed ${(parsedResult['items'] as List).length} items from Tesseract.js');
+          return parsedResult;
+        }
       }
     } catch (e) {
-      print('❌ CRITICAL ERROR: Web OCR processing failed: $e');
-      print('📍 Stack trace: ${StackTrace.current}');
-      // NO FALLBACK - Force user to see the real error
-      rethrow;
+      print('❌ Tesseract.js failed: $e');
     }
+    
+    // Strategy 2: Try OCR.space API (free tier)
+    print('🎯 STRATEGY 2: Attempting OCR.space API...');
+    try {
+      final ocrSpaceResult = await _callOCRSpaceAPI(base64Image);
+      if (ocrSpaceResult != null && ocrSpaceResult.trim().isNotEmpty) {
+        print('✅ SUCCESS: OCR.space extracted text!');
+        print('📝 EXTRACTED TEXT: $ocrSpaceResult');
+        final parsedResult = _parseReceiptText(ocrSpaceResult);
+        if (parsedResult['items'] != null && (parsedResult['items'] as List).isNotEmpty) {
+          print('🎯 SUCCESS: Parsed ${(parsedResult['items'] as List).length} items from OCR.space');
+          return parsedResult;
+        }
+      }
+    } catch (e) {
+      print('❌ OCR.space API failed: $e');
+    }
+    
+    // Strategy 3: Simplified Tesseract.js with basic settings
+    print('🎯 STRATEGY 3: Attempting simplified Tesseract.js...');
+    try {
+      final simplifiedResult = await _callSimplifiedTesseract(base64Image);
+      if (simplifiedResult != null && simplifiedResult.trim().isNotEmpty) {
+        print('✅ SUCCESS: Simplified Tesseract extracted text!');
+        print('📝 EXTRACTED TEXT: $simplifiedResult');
+        final parsedResult = _parseReceiptText(simplifiedResult);
+        if (parsedResult['items'] != null && (parsedResult['items'] as List).isNotEmpty) {
+          print('🎯 SUCCESS: Parsed ${(parsedResult['items'] as List).length} items from simplified Tesseract');
+          return parsedResult;
+        }
+      }
+    } catch (e) {
+      print('❌ Simplified Tesseract failed: $e');
+    }
+    
+    // Strategy 4: Manual text extraction prompt
+    print('🎯 STRATEGY 4: Manual text extraction fallback...');
+    return await _promptManualTextExtraction();
   }
   
   /// Call Tesseract.js OCR function via JavaScript interop
@@ -461,6 +489,134 @@ class OCRService {
       print('Tesseract.js call failed: $e');
       return null;
     }
+  }
+  
+  /// Call OCR.space API as backup OCR strategy
+  Future<String?> _callOCRSpaceAPI(String base64Image) async {
+    try {
+      print('🌐 Calling OCR.space API...');
+      
+      // Remove data URL prefix for API
+      final imageData = base64Image.replaceFirst('data:image/jpeg;base64,', '');
+      
+      final response = await http.post(
+        Uri.parse('https://api.ocr.space/parse/image'),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: {
+          'apikey': 'helloworld', // Free tier API key
+          'base64Image': 'data:image/jpeg;base64,$imageData',
+          'language': 'spa',
+          'isOverlayRequired': 'false',
+          'detectOrientation': 'true',
+          'scale': 'true',
+          'OCREngine': '2',
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        if (jsonResponse['ParsedResults'] != null && 
+            jsonResponse['ParsedResults'].isNotEmpty) {
+          final extractedText = jsonResponse['ParsedResults'][0]['ParsedText'] as String?;
+          print('✅ OCR.space returned: $extractedText');
+          return extractedText;
+        }
+      }
+      
+      print('❌ OCR.space API failed: ${response.statusCode}');
+      return null;
+    } catch (e) {
+      print('❌ OCR.space API error: $e');
+      return null;
+    }
+  }
+  
+  /// Call simplified Tesseract.js with basic settings
+  Future<String?> _callSimplifiedTesseract(String base64Image) async {
+    try {
+      print('🔧 Calling simplified Tesseract.js...');
+      
+      if (!kIsWeb || js.context['Tesseract'] == null) {
+        print('❌ Tesseract.js not available');
+        return null;
+      }
+      
+      // Direct Tesseract.js call with minimal configuration
+      final completer = Completer<String?>();
+      
+      js.context.callMethod('eval', [
+        '''
+        (async function() {
+          try {
+            const worker = await Tesseract.createWorker();
+            await worker.loadLanguage('spa');
+            await worker.initialize('spa');
+            const { data: { text } } = await worker.recognize('$base64Image');
+            await worker.terminate();
+            return text;
+          } catch (error) {
+            throw error;
+          }
+        })()
+        .then(result => window.dartSimplifiedOCRResult = result)
+        .catch(error => window.dartSimplifiedOCRError = error.toString());
+        '''
+      ]);
+      
+      // Wait for result
+      for (int i = 0; i < 60; i++) {
+        await Future.delayed(const Duration(seconds: 1));
+        
+        final result = js.context['dartSimplifiedOCRResult'];
+        final error = js.context['dartSimplifiedOCRError'];
+        
+        if (result != null) {
+          js.context['dartSimplifiedOCRResult'] = null;
+          print('✅ Simplified Tesseract returned: $result');
+          return result.toString();
+        }
+        
+        if (error != null) {
+          js.context['dartSimplifiedOCRError'] = null;
+          print('❌ Simplified Tesseract error: $error');
+          return null;
+        }
+      }
+      
+      print('❌ Simplified Tesseract timeout');
+      return null;
+    } catch (e) {
+      print('❌ Simplified Tesseract failed: $e');
+      return null;
+    }
+  }
+  
+  /// Prompt user for manual text extraction as last resort
+  Future<Map<String, dynamic>> _promptManualTextExtraction() async {
+    print('📝 MANUAL EXTRACTION: Prompting user for manual text input...');
+    
+    // Return a basic structure that will trigger the manual review dialog
+    // The user can then manually add the products they see in the image
+    final items = [
+      BillItem(
+        id: _uuid.v4(),
+        name: 'Producto del ticket',
+        price: 0.00,
+        selectedBy: [],
+      ),
+    ];
+    
+    return {
+      'items': items,
+      'subtotal': 0.00,
+      'tax': 0.0,
+      'tip': 0.0,
+      'total': 0.00,
+      'restaurantName': 'Ticket Escaneado - Editar Manualmente',
+      'manualExtraction': true, // Flag to indicate manual extraction needed
+    };
   }
   
   /// Generate fallback data with realistic receipt items

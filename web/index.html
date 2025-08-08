@@ -42,62 +42,71 @@
   <link rel="manifest" href="manifest.json">
   
   <!-- Tesseract.js for OCR functionality -->
-  <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
-  
+  <script src="https://unpkg.com/tesseract.js@v5.0.0/dist/tesseract.min.js"></script>
   <script>
-    // Real OCR processing function using Tesseract.js
+    // Initialize OCR systems
+    console.log(' Initializing robust OCR system...');
+    
+    // Strategy 1: Advanced Tesseract.js with error handling
     window.processImageWithOCR = async function(imageFile) {
       try {
-        console.log('Starting OCR processing with Tesseract.js...', imageFile);
-        console.log('Image file type:', typeof imageFile);
-        console.log('Image file details:', imageFile);
+        console.log(' STRATEGY 1: Advanced Tesseract.js OCR starting...');
+        console.log(' Image file type:', typeof imageFile);
+        console.log(' Image file details:', imageFile);
         
         // Handle different types of image input
         let imageToProcess = imageFile;
         
         // If it's a File object or Blob, use it directly
         if (imageFile instanceof File || imageFile instanceof Blob) {
-          console.log('Processing File/Blob object');
+          console.log(' Processing File/Blob object');
           imageToProcess = imageFile;
         }
-        // If it's a base64 string, convert it
+        // If it's a base64 string, use it directly
         else if (typeof imageFile === 'string' && imageFile.startsWith('data:')) {
-          console.log('Processing base64 string');
+          console.log(' Processing base64 string');
           imageToProcess = imageFile;
         }
         // If it's a URL or path, fetch it
         else if (typeof imageFile === 'string') {
-          console.log('Processing URL/path string');
+          console.log(' Processing URL/path string');
           const response = await fetch(imageFile);
           imageToProcess = await response.blob();
         }
         else {
-          console.error('Unsupported image format:', typeof imageFile);
+          console.error(' Unsupported image format:', typeof imageFile);
           throw new Error('Unsupported image format');
         }
         
-        console.log('Creating Tesseract worker...');
+        console.log(' Creating Tesseract worker...');
         
-        // Create worker for OCR processing with Spanish language
+        // Create worker with optimized settings for receipts
         const worker = await Tesseract.createWorker('spa', 1, {
           logger: m => {
-            console.log('OCR Progress:', m.status, m.progress);
-            // Show progress to user if needed
-            if (m.status === 'recognizing text') {
-              console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`);
-            }
+            console.log(' OCR Progress:', m.status, Math.round(m.progress * 100) + '%');
           }
         });
         
-        console.log('Processing image with Tesseract...');
+        // Set parameters optimized for receipt text
+        await worker.setParameters({
+          'tessedit_char_whitelist': '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzáéíóúñüÁÉÍÓÚÑÜ .,:-€$',
+          'tessedit_pageseg_mode': '6', // Uniform block of text
+        });
         
-        // Process the image
-        const { data: { text, confidence } } = await worker.recognize(imageToProcess);
+        console.log(' Processing image with optimized Tesseract...');
         
-        console.log('OCR completed!');
-        console.log('Confidence:', confidence);
-        console.log('Extracted text length:', text.length);
-        console.log('Extracted text:', text);
+        // Process the image with timeout
+        const { data: { text, confidence } } = await Promise.race([
+          worker.recognize(imageToProcess),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('OCR timeout')), 30000)
+          )
+        ]);
+        
+        console.log(' OCR completed successfully!');
+        console.log(' Confidence:', confidence);
+        console.log(' Extracted text length:', text.length);
+        console.log(' Extracted text:', text);
         
         // Terminate worker to free memory
         await worker.terminate();
@@ -105,17 +114,21 @@
         // Return the extracted text
         return text;
       } catch (error) {
-        console.error('OCR processing failed:', error);
+        console.error(' Advanced Tesseract OCR failed:', error);
         throw error;
       }
     };
     
-    // Make function available globally
+    // Make functions available globally
     window.tesseractOCR = {
       processImage: window.processImageWithOCR
     };
     
-    console.log('Tesseract OCR initialized and ready!');
+    // Ensure Tesseract is available globally for simplified calls
+    window.Tesseract = Tesseract;
+    
+    console.log(' Robust OCR system initialized and ready!');
+    console.log(' Available strategies: Advanced Tesseract.js, OCR.space API, Simplified Tesseract');
   </script>
 </head>
 <body>
