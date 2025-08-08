@@ -1,6 +1,6 @@
 [build]
   publish = "dist"
-  # No build command - using pre-built static files
+  command = "chmod +x build.sh && ./build.sh"
 
 [[redirects]]
   from = "/*"
