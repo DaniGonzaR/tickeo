@@ -33,8 +33,8 @@ class OCRService {
       
       // Check if we got meaningful text
       if (recognizedText.text.trim().isEmpty) {
-        print('ML Kit returned empty text, using fallback');
-        return await _generateFallbackWithRealisticData();
+        print('ML Kit returned empty text, prompting for manual extraction');
+        return await _promptManualTextExtraction();
       }
       
       // Parse the recognized text to extract receipt data
@@ -84,6 +84,13 @@ class OCRService {
         print('No items found with standard parsing, trying alternative strategies...');
         final alternativeItems = _tryAlternativeParsing(lines);
         items.addAll(alternativeItems);
+      }
+      
+      // If still no items after alternative parsing, try to extract any numbers as potential prices
+      if (items.isEmpty) {
+        print('Trying to extract any price-like patterns from text...');
+        final priceItems = _extractPricesFromText(text);
+        items.addAll(priceItems);
       }
       
       print('=== PARSING COMPLETE ===');
@@ -260,8 +267,8 @@ class OCRService {
   BillItem? _createItemFromMatch(String name, String priceStr, int itemIndex) {
     final price = double.tryParse(priceStr.replaceAll(',', '.')) ?? 0.0;
     
-    // Validate price range (between 0.10 and 999.99)
-    if (price < 0.10 || price > 999.99) return null;
+    // Validate price range (between 0.50 and 200.00 for typical food items)
+    if (price < 0.50 || price > 200.00) return null;
     
     final cleanName = _cleanItemName(name);
     
@@ -287,8 +294,8 @@ class OCRService {
       // Skip obvious non-product lines
       if (_isHeaderOrFooterLine(line)) continue;
       
-      // Find any price in the line
-      final priceMatches = RegExp(r'([€\$]?)(\d+[.,]\d{2})([€\$]?)').allMatches(line);
+      // Find any price in the line (more flexible pattern)
+      final priceMatches = RegExp(r'([€\$]?\s*)(\d{1,3}[.,]\d{1,2})(\s*[€\$]?)').allMatches(line);
       
       for (final match in priceMatches) {
         final priceStr = match.group(2)?.replaceAll(',', '.') ?? '0.00';
@@ -639,60 +646,79 @@ class OCRService {
     };
   }
   
-  /// Generate fallback data with realistic receipt items
-  Future<Map<String, dynamic>> _generateFallbackWithRealisticData() async {
-    final items = await _generateRealisticReceiptData();
-    final subtotal = items.fold<double>(0.0, (sum, item) => sum + item.price);
+  /// Extract prices from text when standard parsing fails
+  List<BillItem> _extractPricesFromText(String text) {
+    print('Extracting prices from raw text...');
+    final items = <BillItem>[];
     
-    return {
-      'items': items,
-      'subtotal': subtotal,
-      'tax': 0.0,
-      'tip': 0.0,
-      'total': subtotal,
-      'restaurantName': 'Ticket Escaneado',
-    };
-  }
-  
-  /// Generate realistic receipt data that simulates real OCR results
-  Future<List<BillItem>> _generateRealisticReceiptData() async {
-    // Simulate different types of realistic receipt items
-    final possibleItems = [
-      {'name': 'Hamburguesa Clásica', 'price': 12.50},
-      {'name': 'Pizza Margherita', 'price': 15.00},
-      {'name': 'Ensalada César', 'price': 9.75},
-      {'name': 'Pasta Carbonara', 'price': 13.25},
-      {'name': 'Coca Cola', 'price': 2.50},
-      {'name': 'Agua Mineral', 'price': 1.80},
-      {'name': 'Café Americano', 'price': 2.20},
-      {'name': 'Tarta de Chocolate', 'price': 6.50},
-      {'name': 'Sopa del Día', 'price': 7.00},
-      {'name': 'Sandwich Mixto', 'price': 8.75},
-      {'name': 'Cerveza Estrella', 'price': 3.20},
-      {'name': 'Patatas Bravas', 'price': 5.50},
-      {'name': 'Croquetas Jamón', 'price': 7.80},
-      {'name': 'Tortilla Española', 'price': 6.25},
-      {'name': 'Gazpacho', 'price': 4.50},
-    ];
+    // Look for price patterns in the text (€X.XX, X,XX€, X.XX, etc.)
+    final priceRegex = RegExp(r'(€?\s*)(\d{1,3}(?:[.,]\d{2})?)\s*(€?)', caseSensitive: false);
+    final matches = priceRegex.allMatches(text);
     
-    // Randomly select 2-5 items to simulate a real receipt
-    final random = DateTime.now().millisecondsSinceEpoch;
-    final numItems = 2 + (random % 4); // 2-5 items
-    final selectedIndices = <int>{};
+    final lines = text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList();
     
-    while (selectedIndices.length < numItems) {
-      selectedIndices.add((random + selectedIndices.length * 7) % possibleItems.length);
+    for (final match in matches) {
+      final priceStr = match.group(2);
+      if (priceStr != null) {
+        try {
+          // Convert price string to double (handle both . and , as decimal separator)
+          final price = double.parse(priceStr.replaceAll(',', '.'));
+          
+          // Skip very small prices (likely not products) and very large prices (likely totals)
+          if (price < 0.50 || price > 100.0) continue;
+          
+          // Try to find the product name near this price
+          String productName = 'Producto';
+          
+          // Find which line contains this price
+          for (final line in lines) {
+            if (line.contains(priceStr)) {
+              // Extract text before the price as potential product name
+              final beforePrice = line.substring(0, line.indexOf(priceStr)).trim();
+              if (beforePrice.isNotEmpty && beforePrice.length > 2) {
+                productName = _cleanExtractedName(beforePrice);
+              }
+              break;
+            }
+          }
+          
+          items.add(BillItem(
+            id: _uuid.v4(),
+            name: productName,
+            price: price,
+            selectedBy: [],
+          ));
+          
+          print('  -> Extracted: $productName - €${price.toStringAsFixed(2)}');
+        } catch (e) {
+          print('  -> Failed to parse price: $priceStr');
+        }
+      }
     }
     
-    return selectedIndices.map((index) {
-      final item = possibleItems[index];
-      return BillItem(
-        id: _uuid.v4(),
-        name: item['name'] as String,
-        price: item['price'] as double,
-        selectedBy: [],
-      );
-    }).toList();
+    return items;
+  }
+  
+  /// Clean extracted product names
+  String _cleanExtractedName(String name) {
+    // Remove common prefixes/suffixes and clean up
+    String cleaned = name
+        .replaceAll(RegExp(r'^\d+[\s\-\.]*'), '') // Remove leading numbers
+        .replaceAll(RegExp(r'[\*\-\.]+$'), '') // Remove trailing symbols
+        .replaceAll(RegExp(r'\s+'), ' ') // Normalize spaces
+        .trim();
+    
+    // If still empty or too short, use generic name
+    if (cleaned.isEmpty || cleaned.length < 3) {
+      cleaned = 'Producto del ticket';
+    }
+    
+    // Capitalize first letter
+    if (cleaned.isNotEmpty) {
+      cleaned = cleaned[0].toUpperCase() + cleaned.substring(1).toLowerCase();
+    }
+    
+    return cleaned;
   }
   
   /// Clean and format item names
