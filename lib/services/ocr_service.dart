@@ -1,6 +1,5 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart' if (dart.library.html) 'package:tickeo/utils/web_stubs.dart';
 import 'package:tickeo/models/bill_item.dart';
 import 'package:uuid/uuid.dart';
 
@@ -13,7 +12,7 @@ class OCRService {
   final TextRecognizer _textRecognizer = TextRecognizer();
 
   /// Process receipt image using ML Kit text recognition
-  Future<Map<String, dynamic>> processReceiptImage(File imageFile) async {
+  Future<Map<String, dynamic>> processReceiptImage(dynamic imageFile) async {
     try {
       // Check if running on web (fallback to mock data)
       if (kIsWeb) {

@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:tickeo/utils/app_colors.dart';
-import 'package:tickeo/services/ocr_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:tickeo/services/notification_service.dart';
+import 'package:tickeo/services/ocr_service.dart';
+import 'package:tickeo/utils/app_colors.dart';
 
 class CameraScannerScreen extends StatefulWidget {
   final String scanType; // 'ticket' or 'qr'
@@ -23,6 +26,63 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Web compatibility: Show message that camera is not supported
+    if (kIsWeb) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(widget.scanType == 'ticket' ? 'Escanear Ticket' : 'Escanear QR'),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.camera_alt_outlined,
+                  size: 80,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Cámara no disponible en web',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'La funcionalidad de cámara está disponible en la aplicación móvil (Android/iOS).',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  ),
+                  child: const Text('Volver'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+    
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
