@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:tickeo/providers/bill_provider.dart';
 import 'package:tickeo/providers/auth_provider.dart';
 import 'package:tickeo/screens/bill_details_screen.dart';
+import 'package:tickeo/screens/camera_scanner_screen.dart';
 import 'package:tickeo/screens/join_bill_screen.dart';
 import 'package:tickeo/screens/analytics_screen.dart';
 import 'package:tickeo/screens/profile_screen.dart';
@@ -31,17 +32,40 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _scanReceipt() async {
-    // Web-compatible version: simulate OCR scanning
-    final billName = await _showBillNameDialog();
-    if (billName != null && billName.isNotEmpty) {
-      final billProvider = Provider.of<BillProvider>(context, listen: false);
-      await billProvider.createBillFromMockOCR(billName);
+    try {
+      // Show camera scanner screen for ticket scanning
+      final result = await Navigator.of(context).push<Map<String, dynamic>>(
+        MaterialPageRoute(
+          builder: (context) => const CameraScannerScreen(scanType: 'ticket'),
+        ),
+      );
 
-      if (billProvider.currentBill != null && mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => const BillDetailsScreen(),
-          ),
+      if (result != null && mounted) {
+        // Ask for bill name
+        final billName = await _showBillNameDialog();
+        if (billName != null && billName.isNotEmpty) {
+          final billProvider = Provider.of<BillProvider>(context, listen: false);
+          
+          // Create bill from OCR result
+          await billProvider.createBillFromOCRResult(billName, result);
+
+          if (billProvider.currentBill != null && mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const BillDetailsScreen(),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        await NotificationService.showConfirmationDialog(
+          context: context,
+          title: 'Error de Escaneo',
+          message: 'No se pudo escanear el ticket. Intenta de nuevo.',
+          confirmText: 'OK',
+          cancelText: '',
         );
       }
     }

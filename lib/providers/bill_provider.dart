@@ -106,6 +106,49 @@ class BillProvider extends ChangeNotifier {
     }
   }
 
+  // Create bill from OCR result (camera scanner integration)
+  Future<void> createBillFromOCRResult(String billName, Map<String, dynamic> ocrResult) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      // Validate bill name
+      final nameValidation = Validators.validateBillName(billName);
+      if (nameValidation != null) {
+        _setError(nameValidation);
+        return;
+      }
+
+      final items = ocrResult['items'] as List<BillItem>;
+      final subtotal = ocrResult['subtotal'] as double;
+      final total = ocrResult['total'] as double;
+      final restaurantName = ocrResult['restaurantName'] as String?;
+
+      final bill = Bill(
+        id: _uuid.v4(),
+        name: billName.trim(),
+        createdAt: DateTime.now(),
+        items: items,
+        subtotal: subtotal,
+        tax: 0.0, // No tax as per requirements
+        tip: 0.0, // No tip as per requirements
+        total: total,
+        participants: [],
+        payments: [],
+        restaurantName: restaurantName,
+        shareCode: _generateShareCode(),
+      );
+
+      _currentBill = bill;
+      await _saveBillLocally(bill);
+      notifyListeners();
+    } catch (e) {
+      _setError('Error procesando el resultado OCR: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   // Create manual bill with validation
   bool createManualBill(String billName) {
     try {

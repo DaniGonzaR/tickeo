@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tickeo/providers/bill_provider.dart';
 import 'package:tickeo/screens/bill_details_screen.dart';
-import 'package:tickeo/widgets/custom_button.dart';
+import 'package:tickeo/screens/camera_scanner_screen.dart';
+import 'package:tickeo/services/notification_service.dart';
 import 'package:tickeo/utils/app_colors.dart';
 import 'package:tickeo/utils/app_text_styles.dart';
+import 'package:tickeo/widgets/custom_button.dart';
 
 class JoinBillScreen extends StatefulWidget {
   const JoinBillScreen({super.key});
@@ -163,14 +165,7 @@ class _JoinBillScreenState extends State<JoinBillScreen> {
                 prefixIcon: const Icon(Icons.qr_code),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.qr_code_scanner),
-                  onPressed: () {
-                    // TODO: Implement QR code scanner
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Escáner QR próximamente'),
-                      ),
-                    );
-                  },
+                  onPressed: _scanQRCode,
                 ),
               ),
               textCapitalization: TextCapitalization.characters,
@@ -269,14 +264,7 @@ class _JoinBillScreenState extends State<JoinBillScreen> {
             CustomButton(
               text: 'Escanear Código QR',
               icon: Icons.qr_code_scanner,
-              onPressed: () {
-                // TODO: Implement QR code scanner
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Escáner QR próximamente'),
-                  ),
-                );
-              },
+              onPressed: _scanQRCode,
               backgroundColor: AppColors.secondary,
               isOutlined: true,
             ),
@@ -296,5 +284,53 @@ class _JoinBillScreenState extends State<JoinBillScreen> {
         ),
       ),
     );
+  }
+
+  // Scan QR code using camera scanner
+  Future<void> _scanQRCode() async {
+    try {
+      // Show camera scanner screen for QR scanning
+      final result = await Navigator.of(context).push<Map<String, dynamic>>(
+        MaterialPageRoute(
+          builder: (context) => const CameraScannerScreen(scanType: 'qr'),
+        ),
+      );
+
+      if (result != null && mounted) {
+        // Extract QR code data
+        final qrData = result['qrData'] as String?;
+        if (qrData != null && qrData.isNotEmpty) {
+          // Auto-fill the share code field
+          _shareCodeController.text = qrData.toUpperCase();
+          
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Código QR escaneado: $qrData'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        } else {
+          // Show error if no QR data found
+          await NotificationService.showConfirmationDialog(
+            context: context,
+            title: 'Error de Escaneo',
+            message: 'No se pudo leer el código QR. Intenta de nuevo.',
+            confirmText: 'OK',
+            cancelText: '',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        await NotificationService.showConfirmationDialog(
+          context: context,
+          title: 'Error de Escaneo',
+          message: 'No se pudo escanear el código QR. Intenta de nuevo.',
+          confirmText: 'OK',
+          cancelText: '',
+        );
+      }
+    }
   }
 }
