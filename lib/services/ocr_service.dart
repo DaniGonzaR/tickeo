@@ -425,19 +425,58 @@ class OCRService {
     print('🚀 STARTING ROBUST WEB OCR PROCESSING...');
     print('📷 Image file type: ${imageFile.runtimeType}');
     
-    // Convert image file to base64 format
+    // Convert image file to base64 format with better compatibility
     String? base64Image;
     try {
       if (imageFile != null) {
+        print('📸 Processing image file: ${imageFile.runtimeType}');
+        
+        // Handle different types of image files
+        List<int> bytes;
+        String mimeType = 'image/jpeg'; // Default
+        
         if (imageFile.runtimeType.toString().contains('XFile')) {
           print('📸 Converting XFile to base64...');
-          final bytes = await imageFile.readAsBytes();
-          base64Image = 'data:image/jpeg;base64,' + base64Encode(bytes);
-          print('✅ Converted to base64, length: ${base64Image.length}');
+          bytes = await imageFile.readAsBytes();
+          
+          // Try to detect MIME type from file extension or content
+          final fileName = imageFile.name?.toLowerCase() ?? '';
+          if (fileName.endsWith('.png')) {
+            mimeType = 'image/png';
+          } else if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
+            mimeType = 'image/jpeg';
+          } else if (fileName.endsWith('.webp')) {
+            mimeType = 'image/webp';
+          }
+        } else if (imageFile is List<int>) {
+          print('📸 Processing byte array...');
+          bytes = imageFile;
         } else {
-          print('❌ Unsupported image file type: ${imageFile.runtimeType}');
-          throw Exception('Unsupported image file type');
+          // Try to handle other file types more gracefully
+          print('📸 Attempting to read bytes from unknown type...');
+          try {
+            // Try different methods to get bytes
+            if (imageFile.readAsBytes != null) {
+              bytes = await imageFile.readAsBytes();
+            } else if (imageFile.bytes != null) {
+              bytes = imageFile.bytes;
+            } else {
+              print('❌ No readable bytes method found');
+              throw Exception('Cannot extract bytes from image file');
+            }
+          } catch (e) {
+            print('❌ Could not read bytes from image file: $e');
+            print('📸 File properties: ${imageFile.runtimeType}');
+            
+            // Try one more fallback - manual extraction
+            return await _promptManualTextExtraction();
+          }
         }
+        
+        // Convert to base64
+        base64Image = 'data:$mimeType;base64,' + base64Encode(bytes);
+        print('✅ Converted to base64 ($mimeType), length: ${base64Image.length}');
+        
       } else {
         throw Exception('Image file is null');
       }
