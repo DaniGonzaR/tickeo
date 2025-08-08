@@ -50,8 +50,12 @@ class OCRService {
         return await _promptManualTextExtraction();
       }
       
+      // Preprocess and normalize the text for better parsing
+      final preprocessedText = _preprocessOCRText(recognizedText.text);
+      print('Preprocessed text: "$preprocessedText"');
+      
       // Parse the recognized text to extract receipt data
-      final parseResult = _parseReceiptText(recognizedText.text);
+      final parseResult = _parseReceiptText(preprocessedText);
       print('Parse result: ${parseResult['items']?.length ?? 0} items found');
       
       return parseResult;
@@ -117,16 +121,23 @@ class OCRService {
       print('=== PARSING COMPLETE ===');
       print('Total items found: ${items.length}');
       
+      // Apply intelligent validation and cleanup
+      final validatedItems = _validateAndCleanItems(items);
+      print('After validation: ${validatedItems.length} items');
+      
       // If still no items found, return basic structure for manual editing
-      if (items.isEmpty) {
+      if (validatedItems.isEmpty) {
         print('No items could be parsed from text, returning basic structure');
-        items.add(BillItem(
+        validatedItems.add(BillItem(
           id: _uuid.v4(),
           name: 'Producto del ticket',
           price: 0.00,
           selectedBy: [],
         ));
       }
+      
+      items.clear();
+      items.addAll(validatedItems);
       
       final subtotal = items.fold<double>(0.0, (sum, item) => sum + item.price);
       
@@ -295,6 +306,30 @@ class OCRService {
       if (itemName.length >= 2) {
         print('    -> Strategy 7 (anywhere) matched: "$itemName" - $priceStr');
         return _createItemFromMatch(itemName, priceStr, itemIndex);
+      }
+    }
+    
+    // Strategy 8: Advanced Spanish receipt patterns
+    final spanishPatterns = [
+      // "COCA COLA 1,50"
+      RegExp(r'^([A-Z\s]{3,})\s+(\d+[.,]\d{1,2})\s*€?$'),
+      // "Pizza 4 quesos    12.50"
+      RegExp(r'^([a-zA-Z\s]{4,})\s{2,}(\d+[.,]\d{1,2})\s*€?$'),
+      // "1 x Hamburguesa 8.50"
+      RegExp(r'^\d+\s*x\s*([a-zA-Z\s]{3,})\s+(\d+[.,]\d{1,2})\s*€?$'),
+      // "Cerveza (33cl) 2.80"
+      RegExp(r'^([a-zA-Z\s\(\)\d]{3,})\s+(\d+[.,]\d{1,2})\s*€?$'),
+    ];
+    
+    for (final pattern in spanishPatterns) {
+      final match = pattern.firstMatch(line);
+      if (match != null) {
+        final name = match.group(1)?.trim() ?? '';
+        final price = match.group(2) ?? '';
+        if (name.length >= 3) {
+          print('    -> Spanish pattern matched: "$name" - $price');
+          return _createItemFromMatch(name, price, itemIndex);
+        }
       }
     }
     
@@ -851,6 +886,177 @@ class OCRService {
     }
     
     return cleaned;
+  }
+  
+  /// Preprocess OCR text to improve parsing accuracy
+  String _preprocessOCRText(String rawText) {
+    print('=== PREPROCESSING OCR TEXT ===');
+    print('Raw text: "$rawText"');
+    
+    String processed = rawText;
+    
+    // 1. Fix common OCR character recognition errors in price contexts
+    // Fix "1O.50" -> "10.50", "I5.50" -> "15.50", etc.
+    
+    // 2. Normalize whitespace and line breaks
+    processed = processed
+        .replaceAll(RegExp(r'\s+'), ' ') // Multiple spaces to single space
+        .replaceAll(RegExp(r'\n\s*\n'), '\n') // Multiple newlines to single
+        .trim();
+    
+    // 3. Fix price patterns specifically
+    // Fix common price OCR errors like "1O.50" -> "10.50"
+    processed = processed.replaceAllMapped(
+      RegExp(r'(\d+)[Oo]([\.\,]\d{1,2})'), 
+      (match) => '${match.group(1)}0${match.group(2)}'
+    );
+    
+    // Fix "I5.50" -> "15.50"
+    processed = processed.replaceAllMapped(
+      RegExp(r'[Il](\d[\.\,]\d{1,2})'), 
+      (match) => '1${match.group(1)}'
+    );
+    
+    // 4. Normalize decimal separators (comma to dot for consistency)
+    processed = processed.replaceAllMapped(
+      RegExp(r'(\d+),(\d{1,2})(?!\d)'), 
+      (match) => '${match.group(1)}.${match.group(2)}'
+    );
+    
+    // 5. Fix spacing around prices
+    processed = processed.replaceAllMapped(
+      RegExp(r'(\d+\.\d{1,2})\s*€'), 
+      (match) => '${match.group(1)}€'
+    );
+    
+    // 6. Remove excessive punctuation and clean up
+    processed = processed
+        .replaceAll(RegExp(r'[\*\-]{3,}'), '---') // Multiple dashes/stars
+        .replaceAll(RegExp(r'\.{3,}'), '...') // Multiple dots
+        .replaceAll(RegExp(r'_{3,}'), '___'); // Multiple underscores
+    
+    // 7. Fix common Spanish OCR errors
+    final spanishFixes = {
+      'ñ': 'ñ', // Normalize ñ
+      'á': 'á', 'é': 'é', 'í': 'í', 'ó': 'ó', 'ú': 'ú', // Normalize accents
+      'Á': 'Á', 'É': 'É', 'Í': 'Í', 'Ó': 'Ó', 'Ú': 'Ú',
+      'ü': 'ü', 'Ü': 'Ü',
+    };
+    
+    // Apply Spanish character fixes
+    spanishFixes.forEach((wrong, correct) {
+      processed = processed.replaceAll(wrong, correct);
+    });
+    
+    print('Processed text: "$processed"');
+    print('==============================');
+    
+    return processed;
+  }
+  
+  /// Validate and clean extracted items for maximum accuracy
+  List<BillItem> _validateAndCleanItems(List<BillItem> items) {
+    print('=== VALIDATING AND CLEANING ITEMS ===');
+    
+    final validItems = <BillItem>[];
+    final seenNames = <String>{};
+    final seenPrices = <double>{};
+    
+    for (final item in items) {
+      print('Validating: ${item.name} - €${item.price.toStringAsFixed(2)}');
+      
+      // 1. Clean and normalize the name
+      String cleanName = item.name
+          .trim()
+          .replaceAll(RegExp(r'^\d+\s*[x\*]\s*'), '') // Remove quantity prefixes
+          .replaceAll(RegExp(r'\s+'), ' ') // Normalize spaces
+          .replaceAll(RegExp(r'[\-\.\*]+$'), '') // Remove trailing symbols
+          .trim();
+      
+      // Capitalize first letter of each word
+      cleanName = cleanName.split(' ').map((word) {
+        if (word.isEmpty) return word;
+        return word[0].toUpperCase() + word.substring(1).toLowerCase();
+      }).join(' ');
+      
+      // 2. Validate name quality
+      if (cleanName.length < 2) {
+        print('  -> Rejected: Name too short');
+        continue;
+      }
+      
+      // Skip generic/meaningless names
+      final genericNames = ['producto', 'item', 'articulo', 'cosa', 'total', 'suma'];
+      if (genericNames.any((generic) => cleanName.toLowerCase().contains(generic))) {
+        print('  -> Rejected: Generic name');
+        continue;
+      }
+      
+      // 3. Validate price
+      if (item.price < 0.10 || item.price > 500.0) {
+        print('  -> Rejected: Price out of range');
+        continue;
+      }
+      
+      // 4. Check for duplicates (similar names or same prices)
+      bool isDuplicate = false;
+      
+      // Check for similar names (Levenshtein distance)
+      for (final seenName in seenNames) {
+        if (_calculateSimilarity(cleanName.toLowerCase(), seenName.toLowerCase()) > 0.8) {
+          print('  -> Rejected: Duplicate name (similar to "$seenName")');
+          isDuplicate = true;
+          break;
+        }
+      }
+      
+      if (isDuplicate) continue;
+      
+      // Check for exact price duplicates (might be the same item)
+      if (seenPrices.contains(item.price)) {
+        print('  -> Warning: Duplicate price €${item.price.toStringAsFixed(2)}');
+        // Allow it but with a note
+      }
+      
+      // 5. Create validated item
+      final validItem = BillItem(
+        id: item.id,
+        name: cleanName,
+        price: item.price,
+        selectedBy: item.selectedBy,
+      );
+      
+      validItems.add(validItem);
+      seenNames.add(cleanName.toLowerCase());
+      seenPrices.add(item.price);
+      
+      print('  -> Accepted: "$cleanName" - €${item.price.toStringAsFixed(2)}');
+    }
+    
+    // 6. Sort items by price (descending) for better UX
+    validItems.sort((a, b) => b.price.compareTo(a.price));
+    
+    print('Validation complete: ${validItems.length} valid items');
+    return validItems;
+  }
+  
+  /// Calculate similarity between two strings (simple version)
+  double _calculateSimilarity(String a, String b) {
+    if (a == b) return 1.0;
+    if (a.isEmpty || b.isEmpty) return 0.0;
+    
+    // Simple similarity based on common characters and length
+    final shorter = a.length < b.length ? a : b;
+    final longer = a.length >= b.length ? a : b;
+    
+    int commonChars = 0;
+    for (int i = 0; i < shorter.length; i++) {
+      if (i < longer.length && shorter[i] == longer[i]) {
+        commonChars++;
+      }
+    }
+    
+    return commonChars / longer.length;
   }
   
   /// Clean and format item names
