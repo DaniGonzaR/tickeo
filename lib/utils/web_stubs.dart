@@ -4,6 +4,11 @@ import 'dart:typed_data';
 // Stub classes for web compatibility
 class TextRecognizer {
   void close() {}
+  
+  Future<RecognizedText> processImage(InputImage inputImage) async {
+    // Return empty recognized text for web compatibility
+    return const RecognizedText(text: '', blocks: []);
+  }
 }
 
 class InputImage {

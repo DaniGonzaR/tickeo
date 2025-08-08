@@ -623,6 +623,26 @@ class BillProvider extends ChangeNotifier {
     return _uuid.v4().substring(0, 8).toUpperCase();
   }
 
+  // Toggle participant for item (alias for toggleItemSelection)
+  void toggleParticipantForItem(String itemId, String participantId) {
+    toggleItemSelection(itemId, participantId);
+  }
+
+  // Toggle payment status for a payment
+  void togglePaymentStatus(String paymentId) {
+    if (_currentBill == null) return;
+
+    final updatedPayments = _currentBill!.payments.map((payment) {
+      if (payment.id == paymentId) {
+        return payment.copyWith(isPaid: !payment.isPaid);
+      }
+      return payment;
+    }).toList();
+
+    _currentBill = _currentBill!.copyWith(payments: updatedPayments);
+    notifyListeners();
+  }
+
   Future<void> _saveBillLocally(Bill bill) async {
     // Check if bill already exists in history and update it, otherwise add new
     final existingIndex = _billHistory.indexWhere((b) => b.id == bill.id);
