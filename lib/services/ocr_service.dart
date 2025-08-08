@@ -111,22 +111,53 @@ class OCRService {
   bool _isHeaderOrFooterLine(String line) {
     final lowerLine = line.toLowerCase();
     
-    // Common header/footer patterns
+    // Enhanced header/footer patterns for Spanish receipts
     final skipPatterns = [
-      'restaurante', 'restaurant', 'bar', 'café', 'cafeteria',
-      'total', 'subtotal', 'iva', 'tax', 'propina', 'tip',
-      'fecha', 'date', 'hora', 'time', 'mesa', 'table',
-      'camarero', 'waiter', 'cajero', 'cashier',
-      'gracias', 'thank', 'vuelva', 'visit', 'again',
+      // Restaurant info
+      'restaurante', 'restaurant', 'bar', 'café', 'cafeteria', 'pizzeria', 'taberna',
+      'cocina', 'kitchen', 'comida', 'food', 'menú', 'menu',
+      
+      // Totals and calculations
+      'total', 'subtotal', 'suma', 'importe', 'precio', 'coste',
+      'iva', 'tax', 'impuesto', 'propina', 'tip', 'servicio',
+      'descuento', 'discount', 'oferta', 'promoción',
+      
+      // Date/time/location
+      'fecha', 'date', 'hora', 'time', 'día', 'day',
+      'mesa', 'table', 'sala', 'terraza', 'barra',
+      
+      // Staff and service
+      'camarero', 'waiter', 'cajero', 'cashier', 'chef',
+      'atendido', 'served', 'servido',
+      
+      // Footer messages
+      'gracias', 'thank', 'vuelva', 'visit', 'again', 'pronto',
+      'buen', 'good', 'día', 'noche', 'tarde',
+      
+      // Document types
       'ticket', 'factura', 'invoice', 'recibo', 'receipt',
-      '***', '---', '===', '___', '...',
+      'comprobante', 'nota', 'cuenta',
+      
+      // Decorative elements
+      '***', '---', '===', '___', '...', '***', '###',
+      
+      // Payment info
+      'efectivo', 'cash', 'tarjeta', 'card', 'visa', 'mastercard',
+      'pago', 'payment', 'cobro', 'charge',
+      
+      // Address/contact
+      'calle', 'street', 'avenida', 'plaza', 'teléfono', 'tel',
+      'email', 'web', 'www', '.com', '.es',
     ];
     
-    // Skip lines that are too short or too long
-    if (line.length < 3 || line.length > 50) return true;
+    // Skip lines that are too short (less than 2 chars) or too long (more than 60 chars)
+    if (line.length < 2 || line.length > 60) return true;
     
-    // Skip lines with only numbers, symbols, or dates
-    if (RegExp(r'^[\d\s\-\/\.:\*#@]+$').hasMatch(line)) return true;
+    // Skip lines with only numbers, symbols, dates, or times
+    if (RegExp(r'^[\d\s\-\/\.:\*#@\(\)]+$').hasMatch(line)) return true;
+    
+    // Skip lines that are mostly numbers (like phone numbers, dates)
+    if (RegExp(r'^[\d\s\-\/\.:\(\)]{5,}$').hasMatch(line)) return true;
     
     // Skip lines containing skip patterns
     return skipPatterns.any((pattern) => lowerLine.contains(pattern));
@@ -134,38 +165,70 @@ class OCRService {
   
   /// Extract item from a single line using multiple strategies
   BillItem? _extractItemFromLine(String line, int itemIndex) {
-    // Strategy 1: Standard format "Item Name    12.50"
-    final standardMatch = RegExp(r'^(.+?)\s{2,}([€\$]?)(\d+[.,]\d{2})([€\$]?)\s*$').firstMatch(line);
-    if (standardMatch != null) {
-      return _createItemFromMatch(standardMatch.group(1)!, standardMatch.group(3)!, itemIndex);
+    print('    Trying to extract from: "$line"');
+    
+    // Strategy 1: Multiple spaces separator "Pizza Margherita      15.50"
+    final multiSpaceMatch = RegExp(r'^(.+?)\s{3,}([€\$]?)(\d+[.,]\d{1,2})([€\$]?)\s*$').firstMatch(line);
+    if (multiSpaceMatch != null) {
+      print('    -> Strategy 1 (multi-space) matched');
+      return _createItemFromMatch(multiSpaceMatch.group(1)!, multiSpaceMatch.group(3)!, itemIndex);
     }
     
-    // Strategy 2: Price at end "Item Name 12.50€"
-    final endPriceMatch = RegExp(r'^(.+?)\s+([€\$]?)(\d+[.,]\d{2})([€\$]?)\s*$').firstMatch(line);
+    // Strategy 2: Price with currency at end "Hamburguesa Clásica 12.50€"
+    final endPriceMatch = RegExp(r'^(.+?)\s+(\d+[.,]\d{1,2})\s*[€€\$]?\s*$').firstMatch(line);
     if (endPriceMatch != null) {
-      return _createItemFromMatch(endPriceMatch.group(1)!, endPriceMatch.group(3)!, itemIndex);
+      print('    -> Strategy 2 (end price) matched');
+      return _createItemFromMatch(endPriceMatch.group(1)!, endPriceMatch.group(2)!, itemIndex);
     }
     
-    // Strategy 3: Price in middle "Item 12.50 Description"
-    final middlePriceMatch = RegExp(r'^(.+?)\s+([€\$]?)(\d+[.,]\d{2})([€\$]?)\s+(.+)$').firstMatch(line);
-    if (middlePriceMatch != null) {
-      final name1 = middlePriceMatch.group(1)?.trim() ?? '';
-      final name2 = middlePriceMatch.group(5)?.trim() ?? '';
-      final fullName = '$name1 $name2'.trim();
-      return _createItemFromMatch(fullName, middlePriceMatch.group(3)!, itemIndex);
+    // Strategy 3: Price with currency at start "€15.00 Pizza Margherita"
+    final startPriceMatch = RegExp(r'^[€\$]?\s*(\d+[.,]\d{1,2})\s+(.+?)\s*$').firstMatch(line);
+    if (startPriceMatch != null) {
+      print('    -> Strategy 3 (start price) matched');
+      return _createItemFromMatch(startPriceMatch.group(2)!, startPriceMatch.group(1)!, itemIndex);
     }
     
-    // Strategy 4: Quantity and price "2x Item Name 25.00"
-    final quantityMatch = RegExp(r'^(\d+)x?\s+(.+?)\s+([€\$]?)(\d+[.,]\d{2})([€\$]?)\s*$').firstMatch(line);
+    // Strategy 4: Dots or dashes separator "Pizza Margherita.....15.50"
+    final dotSeparatorMatch = RegExp(r'^(.+?)[\.\.\-\-]{2,}\s*(\d+[.,]\d{1,2})\s*[€\$]?\s*$').firstMatch(line);
+    if (dotSeparatorMatch != null) {
+      print('    -> Strategy 4 (dot separator) matched');
+      return _createItemFromMatch(dotSeparatorMatch.group(1)!, dotSeparatorMatch.group(2)!, itemIndex);
+    }
+    
+    // Strategy 5: Quantity format "2 x Pizza 25.00" or "2x Pizza 25.00"
+    final quantityMatch = RegExp(r'^(\d+)\s*x?\s+(.+?)\s+(\d+[.,]\d{1,2})\s*[€\$]?\s*$').firstMatch(line);
     if (quantityMatch != null) {
+      print('    -> Strategy 5 (quantity) matched');
       final quantity = int.tryParse(quantityMatch.group(1)!) ?? 1;
       final itemName = quantityMatch.group(2)!;
-      final totalPrice = double.tryParse(quantityMatch.group(4)!.replaceAll(',', '.')) ?? 0.0;
+      final totalPrice = double.tryParse(quantityMatch.group(3)!.replaceAll(',', '.')) ?? 0.0;
       final unitPrice = quantity > 0 ? totalPrice / quantity : totalPrice;
       
       return _createItemFromMatch('$quantity x $itemName', unitPrice.toStringAsFixed(2), itemIndex);
     }
     
+    // Strategy 6: Tab separator (common in receipts)
+    final tabMatch = RegExp(r'^(.+?)\t+(\d+[.,]\d{1,2})\s*[€\$]?\s*$').firstMatch(line);
+    if (tabMatch != null) {
+      print('    -> Strategy 6 (tab separator) matched');
+      return _createItemFromMatch(tabMatch.group(1)!, tabMatch.group(2)!, itemIndex);
+    }
+    
+    // Strategy 7: Price anywhere in line with word boundaries
+    final anywhereMatch = RegExp(r'^(.+?)\b(\d+[.,]\d{1,2})\b(.*)$').firstMatch(line);
+    if (anywhereMatch != null) {
+      final beforePrice = anywhereMatch.group(1)?.trim() ?? '';
+      final afterPrice = anywhereMatch.group(3)?.trim() ?? '';
+      
+      // Prefer text before price, but use after if before is too short
+      String itemName = beforePrice.length >= 3 ? beforePrice : afterPrice;
+      if (itemName.length >= 3) {
+        print('    -> Strategy 7 (anywhere) matched');
+        return _createItemFromMatch(itemName, anywhereMatch.group(2)!, itemIndex);
+      }
+    }
+    
+    print('    -> No strategy matched');
     return null;
   }
   
@@ -331,14 +394,65 @@ class OCRService {
   
   /// Clean and format item names
   String _cleanItemName(String name) {
-    // Remove common receipt artifacts
-    name = name.replaceAll(RegExp(r'[*#@]+'), '').trim();
+    print('    Cleaning name: "$name"');
     
-    // Capitalize first letter of each word
-    return name.split(' ').map((word) {
-      if (word.isEmpty) return word;
-      return word[0].toUpperCase() + word.substring(1).toLowerCase();
-    }).join(' ');
+    // Remove common OCR artifacts and receipt symbols
+    name = name.replaceAll(RegExp(r'[*#@\|\\\/_]+'), '').trim();
+    
+    // Remove extra whitespace and normalize
+    name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
+    
+    // Remove leading/trailing dots, dashes, or other separators
+    name = name.replaceAll(RegExp(r'^[\.\.\-\-\s]+|[\.\.\-\-\s]+$'), '').trim();
+    
+    // Remove price-like patterns that might have been included
+    name = name.replaceAll(RegExp(r'\b\d+[.,]\d{1,2}\b'), '').trim();
+    
+    // Remove currency symbols
+    name = name.replaceAll(RegExp(r'[€\$]'), '').trim();
+    
+    // Remove quantity indicators at the start
+    name = name.replaceAll(RegExp(r'^\d+\s*x\s*', caseSensitive: false), '').trim();
+    
+    // Remove common OCR misreads
+    name = name.replaceAll(RegExp(r'[\[\]\{\}\(\)]+'), '').trim();
+    
+    // Fix common Spanish OCR errors
+    final corrections = {
+      'ñ': ['n~', 'n-', 'fi'],
+      'á': ['a´', 'a`', 'a\''],
+      'é': ['e´', 'e`', 'e\''],
+      'í': ['i´', 'i`', 'i\''],
+      'ó': ['o´', 'o`', 'o\''],
+      'ú': ['u´', 'u`', 'u\''],
+      'ü': ['u¨', 'ue'],
+      'ç': ['c,'],
+    };
+    
+    corrections.forEach((correct, errors) {
+      for (final error in errors) {
+        name = name.replaceAll(error, correct);
+      }
+    });
+    
+    // Capitalize properly for Spanish
+    if (name.isNotEmpty) {
+      final words = name.toLowerCase().split(' ');
+      name = words.map((word) {
+        if (word.isEmpty) return word;
+        
+        // Don't capitalize common Spanish articles and prepositions
+        final lowercaseWords = {'de', 'del', 'la', 'el', 'con', 'en', 'a', 'al', 'y', 'o', 'u'};
+        if (lowercaseWords.contains(word) && words.indexOf(word) != 0) {
+          return word;
+        }
+        
+        return word[0].toUpperCase() + word.substring(1);
+      }).join(' ');
+    }
+    
+    print('    Cleaned name: "$name"');
+    return name;
   }
   
   Map<String, dynamic> generateFallbackReceiptData() {

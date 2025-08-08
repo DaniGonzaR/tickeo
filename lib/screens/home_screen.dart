@@ -14,6 +14,7 @@ import 'package:tickeo/utils/app_colors.dart';
 import 'package:tickeo/utils/app_text_styles.dart';
 import 'package:tickeo/utils/validators.dart';
 import 'package:tickeo/services/notification_service.dart';
+import 'package:tickeo/models/bill_item.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,20 +44,25 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       if (result != null && mounted) {
-        // Ask for bill name
-        final billName = await _showBillNameDialog();
-        if (billName != null && billName.isNotEmpty) {
-          final billProvider = Provider.of<BillProvider>(context, listen: false);
-          
-          // Create bill from OCR result
-          await billProvider.createBillFromOCRResult(billName, result);
+        // Show OCR review dialog to let user verify/edit extracted items
+        final reviewedResult = await _showOCRReviewDialog(result);
+        
+        if (reviewedResult != null && mounted) {
+          // Ask for bill name
+          final billName = await _showBillNameDialog();
+          if (billName != null && billName.isNotEmpty) {
+            final billProvider = Provider.of<BillProvider>(context, listen: false);
+            
+            // Create bill from reviewed OCR result
+            await billProvider.createBillFromOCRResult(billName, reviewedResult);
 
-          if (billProvider.currentBill != null && mounted) {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const BillDetailsScreen(),
-              ),
-            );
+            if (billProvider.currentBill != null && mounted) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const BillDetailsScreen(),
+                ),
+              );
+            }
           }
         }
       }
@@ -241,6 +247,195 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: Text(
                         'Crear',
+                        style: TextStyle(fontSize: isMobile ? 16 : 14),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>?> _showOCRReviewDialog(Map<String, dynamic> ocrResult) async {
+    final items = List<BillItem>.from(ocrResult['items'] ?? []);
+    final editableItems = List<BillItem>.from(items);
+    
+    return showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < 600;
+            
+            return StatefulBuilder(
+              builder: (context, setState) {
+                return AlertDialog(
+                  title: Text(
+                    'Revisar Productos Extraídos',
+                    style: TextStyle(
+                      fontSize: isMobile ? 18 : 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  content: SizedBox(
+                    width: isMobile ? double.maxFinite : 400,
+                    height: isMobile ? 400 : 300,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'El OCR extrajo ${editableItems.length} productos. Puedes editarlos antes de crear la cuenta:',
+                          style: TextStyle(
+                            fontSize: isMobile ? 14 : 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: editableItems.length,
+                            itemBuilder: (context, index) {
+                              final item = editableItems[index];
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 2,
+                                        child: TextFormField(
+                                          initialValue: item.name,
+                                          style: TextStyle(fontSize: isMobile ? 14 : 12),
+                                          decoration: InputDecoration(
+                                            labelText: 'Producto',
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            contentPadding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 8,
+                                            ),
+                                          ),
+                                          onChanged: (value) {
+                                            editableItems[index] = BillItem(
+                                              id: item.id,
+                                              name: value,
+                                              price: item.price,
+                                              selectedBy: item.selectedBy,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        flex: 1,
+                                        child: TextFormField(
+                                          initialValue: item.price.toStringAsFixed(2),
+                                          style: TextStyle(fontSize: isMobile ? 14 : 12),
+                                          decoration: InputDecoration(
+                                            labelText: 'Precio (€)',
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            contentPadding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 8,
+                                            ),
+                                          ),
+                                          keyboardType: TextInputType.number,
+                                          onChanged: (value) {
+                                            final price = double.tryParse(value) ?? item.price;
+                                            editableItems[index] = BillItem(
+                                              id: item.id,
+                                              name: item.name,
+                                              price: price,
+                                              selectedBy: item.selectedBy,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.delete,
+                                          color: AppColors.error,
+                                          size: isMobile ? 20 : 18,
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            editableItems.removeAt(index);
+                                          });
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              editableItems.add(BillItem(
+                                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                name: 'Nuevo Producto',
+                                price: 0.0,
+                                selectedBy: [],
+                              ));
+                            });
+                          },
+                          icon: Icon(Icons.add, size: isMobile ? 18 : 16),
+                          label: Text(
+                            'Añadir Producto',
+                            style: TextStyle(fontSize: isMobile ? 14 : 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(null);
+                      },
+                      child: Text(
+                        'Cancelar',
+                        style: TextStyle(fontSize: isMobile ? 16 : 14),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: editableItems.isNotEmpty
+                          ? () {
+                              final subtotal = editableItems.fold<double>(
+                                0.0,
+                                (sum, item) => sum + item.price,
+                              );
+                              
+                              final reviewedResult = {
+                                'items': editableItems,
+                                'subtotal': subtotal,
+                                'tax': 0.0,
+                                'tip': 0.0,
+                                'total': subtotal,
+                                'restaurantName': ocrResult['restaurantName'] ?? 'Ticket Escaneado',
+                              };
+                              
+                              Navigator.of(context).pop(reviewedResult);
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text(
+                        'Confirmar',
                         style: TextStyle(fontSize: isMobile ? 16 : 14),
                       ),
                     ),
