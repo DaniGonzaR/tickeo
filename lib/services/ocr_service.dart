@@ -6,6 +6,197 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:js' if (dart.library.io) 'dart:js' as js;
 import 'package:http/http.dart' as http;
+import 'dart:math' as math;
+
+// Phase 2: Product Information Data Class
+class ProductInfo {
+  final String category;
+  final List<double> priceRange; // [min, max]
+  final List<String> variations;
+  final double confidence;
+  
+  const ProductInfo({
+    required this.category,
+    required this.priceRange,
+    required this.variations,
+    this.confidence = 1.0,
+  });
+}
+
+// Phase 2: Spanish Product Dictionary
+class SpanishProductDictionary {
+  static const Map<String, ProductInfo> products = {
+    // === COMIDAS PRINCIPALES ===
+    'hamburguesa': ProductInfo(
+      category: 'comida',
+      priceRange: [6.0, 15.0],
+      variations: ['hamburguesa', 'burger', 'hamburgesa', 'hamb0rguesa', 'hamburguesa completa'],
+    ),
+    'pizza': ProductInfo(
+      category: 'comida',
+      priceRange: [8.0, 18.0],
+      variations: ['pizza', 'pizza margherita', 'pizza pepperoni', 'pizza 4 quesos'],
+    ),
+    'bocadillo': ProductInfo(
+      category: 'comida',
+      priceRange: [4.0, 12.0],
+      variations: ['bocadillo', 'bocata', 'sandwich', 'sandw1ch'],
+    ),
+    'tortilla': ProductInfo(
+      category: 'comida',
+      priceRange: [3.0, 8.0],
+      variations: ['tortilla', 'tortilla española', 'tortilla patatas'],
+    ),
+    'paella': ProductInfo(
+      category: 'comida',
+      priceRange: [12.0, 25.0],
+      variations: ['paella', 'paella valenciana', 'paella mixta'],
+    ),
+    
+    // === ACOMPAÑAMIENTOS ===
+    'patatas_fritas': ProductInfo(
+      category: 'acompañamiento',
+      priceRange: [3.0, 8.0],
+      variations: ['patatas fritas', 'papas fritas', 'patatas', 'patatas fn', 'papas'],
+    ),
+    'ensalada': ProductInfo(
+      category: 'acompañamiento',
+      priceRange: [4.0, 10.0],
+      variations: ['ensalada', 'ensalada mixta', 'ensalada cesar'],
+    ),
+    'pan': ProductInfo(
+      category: 'acompañamiento',
+      priceRange: [1.0, 4.0],
+      variations: ['pan', 'pan tostado', 'tostadas'],
+    ),
+    
+    // === BEBIDAS ===
+    'cerveza': ProductInfo(
+      category: 'bebida',
+      priceRange: [2.0, 6.0],
+      variations: ['cerveza', 'birra', 'caña', 'cerv3za', 'cerveza mahou', 'estrella'],
+    ),
+    'coca_cola': ProductInfo(
+      category: 'bebida',
+      priceRange: [2.0, 4.0],
+      variations: ['coca cola', 'cocacola', 'coca-cola', 'c0ca c0la', 'coca c0la'],
+    ),
+    'agua': ProductInfo(
+      category: 'bebida',
+      priceRange: [1.5, 3.5],
+      variations: ['agua', 'agua mineral', 'agua con gas', 'agua sin gas'],
+    ),
+    'cafe': ProductInfo(
+      category: 'bebida',
+      priceRange: [1.5, 4.0],
+      variations: ['cafe', 'café', 'coffee', 'cortado', 'cafe con leche'],
+    ),
+    'vino': ProductInfo(
+      category: 'bebida',
+      priceRange: [3.0, 12.0],
+      variations: ['vino', 'vino tinto', 'vino blanco', 'copa vino'],
+    ),
+    
+    // === POSTRES ===
+    'flan': ProductInfo(
+      category: 'postre',
+      priceRange: [3.0, 6.0],
+      variations: ['flan', 'flan casero', 'flan caramelo'],
+    ),
+    'helado': ProductInfo(
+      category: 'postre',
+      priceRange: [3.0, 8.0],
+      variations: ['helado', 'helado vainilla', 'helado chocolate'],
+    ),
+    'tarta': ProductInfo(
+      category: 'postre',
+      priceRange: [4.0, 10.0],
+      variations: ['tarta', 'tarta queso', 'tarta chocolate', 'pastel'],
+    ),
+  };
+  
+  // Find product by name or variation
+  static ProductInfo? findProduct(String name) {
+    final cleanName = name.toLowerCase().trim();
+    
+    // Direct match
+    if (products.containsKey(cleanName)) {
+      return products[cleanName];
+    }
+    
+    // Search in variations
+    for (final entry in products.entries) {
+      if (entry.value.variations.any((variation) => 
+          variation.toLowerCase() == cleanName)) {
+        return entry.value;
+      }
+    }
+    
+    return null;
+  }
+  
+  // Find best match using similarity
+  static MapEntry<String, ProductInfo>? findBestMatch(String name) {
+    final cleanName = name.toLowerCase().trim();
+    double bestSimilarity = 0.0;
+    MapEntry<String, ProductInfo>? bestMatch;
+    
+    for (final entry in products.entries) {
+      // Check main product name
+      final similarity = _calculateSimilarity(cleanName, entry.key);
+      if (similarity > bestSimilarity && similarity > 0.7) {
+        bestSimilarity = similarity;
+        bestMatch = entry;
+      }
+      
+      // Check variations
+      for (final variation in entry.value.variations) {
+        final varSimilarity = _calculateSimilarity(cleanName, variation.toLowerCase());
+        if (varSimilarity > bestSimilarity && varSimilarity > 0.7) {
+          bestSimilarity = varSimilarity;
+          bestMatch = entry;
+        }
+      }
+    }
+    
+    return bestMatch;
+  }
+  
+  // Calculate string similarity (simplified Levenshtein)
+  static double _calculateSimilarity(String a, String b) {
+    if (a == b) return 1.0;
+    if (a.isEmpty || b.isEmpty) return 0.0;
+    
+    final maxLength = math.max(a.length, b.length);
+    final distance = _levenshteinDistance(a, b);
+    return 1.0 - (distance / maxLength);
+  }
+  
+  // Levenshtein distance calculation
+  static int _levenshteinDistance(String a, String b) {
+    final matrix = List.generate(a.length + 1, 
+        (i) => List.generate(b.length + 1, (j) => 0));
+    
+    for (int i = 0; i <= a.length; i++) {
+      matrix[i][0] = i;
+    }
+    for (int j = 0; j <= b.length; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (int i = 1; i <= a.length; i++) {
+      for (int j = 1; j <= b.length; j++) {
+        final cost = a[i - 1] == b[j - 1] ? 0 : 1;
+        matrix[i][j] = math.min(
+          math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1),
+          matrix[i - 1][j - 1] + cost,
+        );
+      }
+    }
+    
+    return matrix[a.length][b.length];
+  }
+}
 
 class OCRService {
   static final OCRService _instance = OCRService._internal();
@@ -125,9 +316,13 @@ class OCRService {
       print('=== PARSING COMPLETE ===');
       print('Total items found: ${items.length}');
       
-      // Apply intelligent validation and cleanup
-      final validatedItems = _validateAndCleanItems(items);
-      print('After validation: ${validatedItems.length} items');
+      // PHASE 2: Apply intelligent corrections, validation, and confidence scoring
+      final enhancedItems = _applyPhase2Enhancements(items);
+      print('After Phase 2 enhancements: ${enhancedItems.length} items');
+      
+      // Apply additional cleanup and validation
+      final validatedItems = _validateAndCleanItems(enhancedItems);
+      print('After final validation: ${validatedItems.length} items');
       
       // If still no items found, return basic structure for manual editing
       if (validatedItems.isEmpty) {
@@ -172,6 +367,308 @@ class OCRService {
         'manualExtraction': true,
       };
     }
+  }
+  
+  // ===== PHASE 2: INTELLIGENT CORRECTION AND VALIDATION =====
+  
+  /// Apply Phase 2 enhancements: spell correction, price validation, confidence scoring
+  List<BillItem> _applyPhase2Enhancements(List<BillItem> rawItems) {
+    print('\n🧠 PHASE 2: Applying intelligent corrections...');
+    
+    final enhancedItems = <BillItem>[];
+    
+    for (int i = 0; i < rawItems.length; i++) {
+      final rawItem = rawItems[i];
+      print('\n--- Processing item ${i + 1}: "${rawItem.name}" - €${rawItem.price.toStringAsFixed(2)} ---');
+      
+      // Step 1: Correct product name using dictionary
+      final correctedName = _correctProductName(rawItem.name);
+      print('✏️ Name correction: "${rawItem.name}" → "$correctedName"');
+      
+      // Step 2: Validate and correct price
+      final validatedPrice = _validateAndCorrectPrice(correctedName, rawItem.price);
+      print('💰 Price validation: €${rawItem.price.toStringAsFixed(2)} → €${validatedPrice.toStringAsFixed(2)}');
+      
+      // Step 3: Calculate confidence score
+      final confidence = _calculateItemConfidence(correctedName, validatedPrice, rawItem.name, rawItem.price);
+      print('📊 Confidence score: ${(confidence * 100).toStringAsFixed(1)}%');
+      
+      // Create enhanced item
+      final enhancedItem = BillItem(
+        id: rawItem.id,
+        name: correctedName,
+        price: validatedPrice,
+        quantity: rawItem.quantity,
+        selectedBy: rawItem.selectedBy,
+      );
+      
+      enhancedItems.add(enhancedItem);
+      print('✅ Enhanced item: "${enhancedItem.name}" - €${enhancedItem.price.toStringAsFixed(2)} (${(confidence * 100).toStringAsFixed(1)}% confidence)');
+    }
+    
+    print('\n🎯 Phase 2 complete: ${enhancedItems.length} items enhanced');
+    return enhancedItems;
+  }
+  
+  /// Correct product name using Spanish dictionary and OCR error patterns
+  String _correctProductName(String rawName) {
+    final originalName = rawName.trim();
+    print('🔍 Correcting name: "$originalName"');
+    
+    // Step 1: Apply common OCR character corrections
+    String corrected = _applyOCRCharacterCorrections(originalName);
+    print('  → After character corrections: "$corrected"');
+    
+    // Step 2: Try direct dictionary lookup
+    final directMatch = SpanishProductDictionary.findProduct(corrected);
+    if (directMatch != null) {
+      final productName = _getProductDisplayName(corrected);
+      print('  → Direct dictionary match found: "$productName"');
+      return productName;
+    }
+    
+    // Step 3: Try similarity-based matching
+    final bestMatch = SpanishProductDictionary.findBestMatch(corrected);
+    if (bestMatch != null) {
+      final productName = _getProductDisplayName(bestMatch.key);
+      print('  → Similarity match found: "$productName" (similarity: ${(SpanishProductDictionary._calculateSimilarity(corrected.toLowerCase(), bestMatch.key) * 100).toStringAsFixed(1)}%)');
+      return productName;
+    }
+    
+    // Step 4: Apply additional cleaning if no match found
+    final cleaned = _cleanProductNameFallback(corrected);
+    print('  → No dictionary match, using cleaned name: "$cleaned"');
+    return cleaned;
+  }
+  
+  /// Apply common OCR character correction patterns
+  String _applyOCRCharacterCorrections(String text) {
+    return text
+        // Numbers often confused with letters
+        .replaceAll('0', 'o')
+        .replaceAll('1', 'l')
+        .replaceAll('3', 'e')
+        .replaceAll('5', 's')
+        .replaceAll('6', 'g')
+        .replaceAll('8', 'B')
+        // Common letter confusions
+        .replaceAll('rn', 'm')
+        .replaceAll('cl', 'd')
+        .replaceAll('vv', 'w')
+        .replaceAll('ii', 'u')
+        // Spanish specific corrections
+        .replaceAll('ñ', 'n')
+        .replaceAll('ü', 'u')
+        .replaceAll('ç', 'c')
+        // Remove extra spaces and normalize
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+  
+  /// Get proper display name for a product key
+  String _getProductDisplayName(String productKey) {
+    final displayNames = {
+      'hamburguesa': 'Hamburguesa',
+      'pizza': 'Pizza',
+      'bocadillo': 'Bocadillo',
+      'tortilla': 'Tortilla Española',
+      'paella': 'Paella',
+      'patatas_fritas': 'Patatas Fritas',
+      'ensalada': 'Ensalada',
+      'pan': 'Pan',
+      'cerveza': 'Cerveza',
+      'coca_cola': 'Coca-Cola',
+      'agua': 'Agua',
+      'cafe': 'Café',
+      'vino': 'Vino',
+      'flan': 'Flan',
+      'helado': 'Helado',
+      'tarta': 'Tarta',
+    };
+    
+    return displayNames[productKey] ?? _capitalizeWords(productKey.replaceAll('_', ' '));
+  }
+  
+  /// Clean product name as fallback when no dictionary match
+  String _cleanProductNameFallback(String name) {
+    return _capitalizeWords(name
+        .replaceAll(RegExp(r'[^a-zA-ZáéíóúñüÁÉÍÓÚÑÜ\s]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim());
+  }
+  
+  /// Validate and correct price based on product context
+  double _validateAndCorrectPrice(String productName, double rawPrice) {
+    print('💰 Validating price €${rawPrice.toStringAsFixed(2)} for "$productName"');
+    
+    // Find product info for price validation
+    final productInfo = SpanishProductDictionary.findProduct(productName.toLowerCase());
+    
+    if (productInfo != null) {
+      final minPrice = productInfo.priceRange[0];
+      final maxPrice = productInfo.priceRange[1];
+      
+      print('  → Expected price range: €${minPrice.toStringAsFixed(2)} - €${maxPrice.toStringAsFixed(2)}');
+      
+      // Price is within expected range
+      if (rawPrice >= minPrice && rawPrice <= maxPrice) {
+        print('  → Price is within expected range ✅');
+        return rawPrice;
+      }
+      
+      // Price is too high - try corrections
+      if (rawPrice > maxPrice) {
+        print('  → Price too high, trying corrections...');
+        
+        // Common OCR errors: missing decimal point
+        if (rawPrice > maxPrice * 10 && rawPrice < maxPrice * 100) {
+          final corrected = rawPrice / 100;
+          if (corrected >= minPrice && corrected <= maxPrice) {
+            print('  → Corrected by dividing by 100: €${corrected.toStringAsFixed(2)} ✅');
+            return corrected;
+          }
+        }
+        
+        // Decimal point misplaced
+        if (rawPrice > maxPrice * 5) {
+          final corrected = rawPrice / 10;
+          if (corrected >= minPrice && corrected <= maxPrice) {
+            print('  → Corrected by dividing by 10: €${corrected.toStringAsFixed(2)} ✅');
+            return corrected;
+          }
+        }
+      }
+      
+      // Price is too low - might be missing digits
+      if (rawPrice < minPrice && rawPrice > 0) {
+        print('  → Price too low, might be missing digits');
+        // For now, keep the original price but flag it
+      }
+      
+      print('  → Could not correct price, keeping original');
+    } else {
+      print('  → No product info found, accepting price as-is');
+    }
+    
+    return rawPrice;
+  }
+  
+  /// Calculate confidence score for an item based on corrections applied
+  double _calculateItemConfidence(String finalName, double finalPrice, String originalName, double originalPrice) {
+    double confidence = 1.0;
+    
+    // Reduce confidence if name was heavily corrected
+    if (finalName.toLowerCase() != originalName.toLowerCase()) {
+      final similarity = SpanishProductDictionary._calculateSimilarity(
+          finalName.toLowerCase(), originalName.toLowerCase());
+      confidence *= (0.7 + 0.3 * similarity); // Reduce by up to 30%
+    }
+    
+    // Reduce confidence if price was corrected
+    if ((finalPrice - originalPrice).abs() > 0.01) {
+      confidence *= 0.8; // Reduce by 20%
+    }
+    
+    // Boost confidence if product is in dictionary
+    final productInfo = SpanishProductDictionary.findProduct(finalName.toLowerCase());
+    if (productInfo != null) {
+      confidence *= 1.1; // Boost by 10%
+      
+      // Additional boost if price is in expected range
+      final minPrice = productInfo.priceRange[0];
+      final maxPrice = productInfo.priceRange[1];
+      if (finalPrice >= minPrice && finalPrice <= maxPrice) {
+        confidence *= 1.1; // Additional 10% boost
+      }
+    }
+    
+    // Ensure confidence stays within bounds
+    return math.min(1.0, math.max(0.1, confidence));
+  }
+  
+  /// Validate and clean extracted items to improve accuracy
+  List<BillItem> _validateAndCleanItems(List<BillItem> items) {
+    print('\n🧹 FINAL VALIDATION: Cleaning ${items.length} items...');
+    
+    final validItems = <BillItem>[];
+    final seenItems = <String>{};
+    
+    for (final item in items) {
+      // Clean and normalize the name
+      String cleanName = item.name.trim()
+          .replaceAll(RegExp(r'[^a-zA-ZáéíóúñüÁÉÍÓÚÑÜ\s\-]'), '')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+      
+      if (cleanName.isEmpty) continue;
+      
+      // Skip generic or meaningless names
+      final genericNames = ['producto', 'item', 'articulo', 'cosa', 'elemento'];
+      if (genericNames.any((generic) => cleanName.toLowerCase().contains(generic))) {
+        continue;
+      }
+      
+      // Validate price range (reasonable for food items)
+      final price = item.price;
+      if (price < 0.10 || price > 500.00) {
+        print('⚠️ Skipping item with unrealistic price: $cleanName - €${price.toStringAsFixed(2)}');
+        continue;
+      }
+      
+      // Check for duplicates (similar names)
+      bool isDuplicate = false;
+      for (final seenName in seenItems) {
+        if (_areItemsSimilar(cleanName, seenName)) {
+          print('⚠️ Skipping duplicate item: $cleanName (similar to $seenName)');
+          isDuplicate = true;
+          break;
+        }
+      }
+      
+      if (!isDuplicate) {
+        seenItems.add(cleanName);
+        
+        final validItem = BillItem(
+          id: item.id,
+          name: _capitalizeWords(cleanName),
+          price: price,
+          quantity: item.quantity,
+          selectedBy: item.selectedBy,
+        );
+        
+        validItems.add(validItem);
+        print('✅ Valid item: ${validItem.name} - €${validItem.price.toStringAsFixed(2)}');
+      }
+    }
+    
+    // Sort by price for better organization
+    validItems.sort((a, b) => a.price.compareTo(b.price));
+    
+    print('🎯 Final validation complete: ${validItems.length} valid items');
+    return validItems;
+  }
+  
+  /// Helper method to capitalize words properly
+  String _capitalizeWords(String text) {
+    if (text.isEmpty) return text;
+    
+    return text.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+  
+  /// Check if two item names are similar (for duplicate detection)
+  bool _areItemsSimilar(String name1, String name2) {
+    final cleanName1 = name1.toLowerCase().trim();
+    final cleanName2 = name2.toLowerCase().trim();
+    
+    // Exact match
+    if (cleanName1 == cleanName2) return true;
+    
+    // Check similarity using Levenshtein distance
+    final similarity = SpanishProductDictionary._calculateSimilarity(cleanName1, cleanName2);
+    return similarity > 0.85; // 85% similarity threshold
   }
   
   /// Check if line is likely a header or footer (not a product line)
@@ -1051,111 +1548,6 @@ class OCRService {
       print('❌ Mobile preprocessing failed: $e');
       return imageFile;
     }
-  }
-  
-  /// Validate and clean extracted items for maximum accuracy
-  List<BillItem> _validateAndCleanItems(List<BillItem> items) {
-    print('=== VALIDATING AND CLEANING ITEMS ===');
-    
-    final validItems = <BillItem>[];
-    final seenNames = <String>{};
-    final seenPrices = <double>{};
-    
-    for (final item in items) {
-      print('Validating: ${item.name} - €${item.price.toStringAsFixed(2)}');
-      
-      // 1. Clean and normalize the name
-      String cleanName = item.name
-          .trim()
-          .replaceAll(RegExp(r'^\d+\s*[x\*]\s*'), '') // Remove quantity prefixes
-          .replaceAll(RegExp(r'\s+'), ' ') // Normalize spaces
-          .replaceAll(RegExp(r'[\-\.\*]+$'), '') // Remove trailing symbols
-          .trim();
-      
-      // Capitalize first letter of each word
-      cleanName = cleanName.split(' ').map((word) {
-        if (word.isEmpty) return word;
-        return word[0].toUpperCase() + word.substring(1).toLowerCase();
-      }).join(' ');
-      
-      // 2. Validate name quality
-      if (cleanName.length < 2) {
-        print('  -> Rejected: Name too short');
-        continue;
-      }
-      
-      // Skip generic/meaningless names
-      final genericNames = ['producto', 'item', 'articulo', 'cosa', 'total', 'suma'];
-      if (genericNames.any((generic) => cleanName.toLowerCase().contains(generic))) {
-        print('  -> Rejected: Generic name');
-        continue;
-      }
-      
-      // 3. Validate price
-      if (item.price < 0.10 || item.price > 500.0) {
-        print('  -> Rejected: Price out of range');
-        continue;
-      }
-      
-      // 4. Check for duplicates (similar names or same prices)
-      bool isDuplicate = false;
-      
-      // Check for similar names (Levenshtein distance)
-      for (final seenName in seenNames) {
-        if (_calculateSimilarity(cleanName.toLowerCase(), seenName.toLowerCase()) > 0.8) {
-          print('  -> Rejected: Duplicate name (similar to "$seenName")');
-          isDuplicate = true;
-          break;
-        }
-      }
-      
-      if (isDuplicate) continue;
-      
-      // Check for exact price duplicates (might be the same item)
-      if (seenPrices.contains(item.price)) {
-        print('  -> Warning: Duplicate price €${item.price.toStringAsFixed(2)}');
-        // Allow it but with a note
-      }
-      
-      // 5. Create validated item
-      final validItem = BillItem(
-        id: item.id,
-        name: cleanName,
-        price: item.price,
-        selectedBy: item.selectedBy,
-      );
-      
-      validItems.add(validItem);
-      seenNames.add(cleanName.toLowerCase());
-      seenPrices.add(item.price);
-      
-      print('  -> Accepted: "$cleanName" - €${item.price.toStringAsFixed(2)}');
-    }
-    
-    // 6. Sort items by price (descending) for better UX
-    validItems.sort((a, b) => b.price.compareTo(a.price));
-    
-    print('Validation complete: ${validItems.length} valid items');
-    return validItems;
-  }
-  
-  /// Calculate similarity between two strings (simple version)
-  double _calculateSimilarity(String a, String b) {
-    if (a == b) return 1.0;
-    if (a.isEmpty || b.isEmpty) return 0.0;
-    
-    // Simple similarity based on common characters and length
-    final shorter = a.length < b.length ? a : b;
-    final longer = a.length >= b.length ? a : b;
-    
-    int commonChars = 0;
-    for (int i = 0; i < shorter.length; i++) {
-      if (i < longer.length && shorter[i] == longer[i]) {
-        commonChars++;
-      }
-    }
-    
-    return commonChars / longer.length;
   }
   
   /// Clean and format item names
