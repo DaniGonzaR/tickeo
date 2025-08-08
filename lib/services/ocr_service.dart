@@ -65,9 +65,9 @@ class OCRService {
         }
       }
       
-      // If no items found, return mock data
+      // If no items found, return fallback data
       if (items.isEmpty) {
-        return generateMockReceiptData();
+        return generateFallbackReceiptData();
       }
       
       final subtotal = items.fold<double>(0.0, (sum, item) => sum + item.price);
