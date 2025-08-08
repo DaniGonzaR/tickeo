@@ -4,10 +4,24 @@
 set -e  # Exit on any error
 set -x  # Print commands as they are executed
 
+# Function to handle errors
+handle_error() {
+    echo "❌ Build failed at line $1"
+    echo "❌ Last command: $2"
+    echo "❌ Error code: $3"
+    exit 1
+}
+
+# Trap errors
+trap 'handle_error $LINENO "$BASH_COMMAND" $?' ERR
+
 echo "🚀 Starting Flutter Web Build for Netlify..."
 echo "📍 Current directory: $(pwd)"
-echo "📍 Available space: $(df -h . | tail -1 | awk '{print $4}')"
-echo "📍 Git status: $(git log --oneline -1 || echo 'No git info available')"
+echo "📍 Available space: $(df -h . | tail -1 | awk '{print $4}' || echo 'Unknown')"
+echo "📍 Git status: $(git log --oneline -1 2>/dev/null || echo 'No git info available')"
+echo "📍 Environment: $(uname -a)"
+echo "📍 Node version: $(node --version 2>/dev/null || echo 'Node not found')"
+echo "📍 Git version: $(git --version 2>/dev/null || echo 'Git not found')"
 
 # Install Flutter if not already installed
 if ! command -v flutter &> /dev/null; then
@@ -15,16 +29,43 @@ if ! command -v flutter &> /dev/null; then
     
     # Create local flutter directory in build workspace
     FLUTTER_DIR="$PWD/flutter"
+    echo "📍 Flutter will be installed in: $FLUTTER_DIR"
     
-    # Download and install Flutter in local directory
-    git clone https://github.com/flutter/flutter.git -b stable --depth 1 "$FLUTTER_DIR"
+    # Clean any existing flutter directory
+    if [ -d "$FLUTTER_DIR" ]; then
+        echo "🧹 Cleaning existing Flutter directory..."
+        rm -rf "$FLUTTER_DIR"
+    fi
+    
+    # Download and install Flutter in local directory with timeout
+    echo "⬇️ Cloning Flutter repository..."
+    timeout 300 git clone https://github.com/flutter/flutter.git -b stable --depth 1 "$FLUTTER_DIR" || {
+        echo "❌ Flutter clone timed out or failed"
+        exit 1
+    }
+    
+    # Verify directory was created
+    if [ ! -d "$FLUTTER_DIR" ]; then
+        echo "❌ Flutter directory was not created"
+        exit 1
+    fi
+    
     export PATH="$PATH:$FLUTTER_DIR/bin"
+    echo "📍 Updated PATH: $PATH"
     
     # Verify Flutter is accessible
-    "$FLUTTER_DIR/bin/flutter" --version
+    echo "🔍 Verifying Flutter installation..."
+    "$FLUTTER_DIR/bin/flutter" --version || {
+        echo "❌ Flutter version check failed"
+        exit 1
+    }
     
-    # Pre-download Dart SDK for web
-    "$FLUTTER_DIR/bin/flutter" precache --web
+    # Pre-download Dart SDK for web with timeout
+    echo "⬇️ Pre-downloading Dart SDK for web..."
+    timeout 300 "$FLUTTER_DIR/bin/flutter" precache --web || {
+        echo "❌ Flutter precache failed or timed out"
+        exit 1
+    }
     
     echo "✅ Flutter installed successfully in $FLUTTER_DIR"
 else
