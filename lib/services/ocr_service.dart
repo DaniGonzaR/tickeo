@@ -25,7 +25,11 @@ class OCRService {
 
       // Use ML Kit for text recognition on mobile
       print('Processing image with ML Kit on mobile...');
-      final inputImage = InputImage.fromFile(imageFile);
+      
+      // Preprocess image for better OCR accuracy
+      final preprocessedImageFile = await _preprocessImageForOCR(imageFile);
+      
+      final inputImage = InputImage.fromFile(preprocessedImageFile ?? imageFile);
       final recognizedText = await _textRecognizer.processImage(inputImage);
       
       print('=== ML KIT OCR RESULTS ===');
@@ -952,6 +956,101 @@ class OCRService {
     print('==============================');
     
     return processed;
+  }
+  
+  /// Preprocess image for optimal OCR accuracy
+  Future<dynamic> _preprocessImageForOCR(dynamic imageFile) async {
+    try {
+      print('=== PREPROCESSING IMAGE FOR OCR ===');
+      
+      // For now, we'll implement basic preprocessing that works across platforms
+      // In a production environment, you'd use image processing libraries like:
+      // - image package for Dart
+      // - OpenCV for advanced processing
+      // - Platform-specific native processing
+      
+      if (kIsWeb) {
+        // Web-based image preprocessing
+        return await _preprocessImageWeb(imageFile);
+      } else {
+        // Mobile image preprocessing
+        return await _preprocessImageMobile(imageFile);
+      }
+    } catch (e) {
+      print('❌ Image preprocessing failed: $e');
+      // Return original image if preprocessing fails
+      return imageFile;
+    }
+  }
+  
+  /// Preprocess image on web platform
+  Future<dynamic> _preprocessImageWeb(dynamic imageFile) async {
+    print('🌐 Web image preprocessing...');
+    
+    try {
+      // For web, we'll use JavaScript-based image processing
+      // This is a simplified version - in production you'd use Canvas API
+      
+      // Read image bytes
+      List<int> imageBytes;
+      if (imageFile.readAsBytes != null) {
+        imageBytes = await imageFile.readAsBytes();
+      } else {
+        print('⚠️ Cannot read image bytes, using original');
+        return imageFile;
+      }
+      
+      // Apply basic preprocessing via JavaScript if available
+      if (js.context['preprocessImageForOCR'] != null) {
+        print('📸 Applying JavaScript image preprocessing...');
+        
+        final base64Image = 'data:image/jpeg;base64,' + base64Encode(imageBytes);
+        final processedBase64 = await js.context['preprocessImageForOCR']
+            .callMethod('call', [null, base64Image]);
+        
+        if (processedBase64 != null && processedBase64.toString().isNotEmpty) {
+          print('✅ Image preprocessing completed via JavaScript');
+          // Return the processed base64 image
+          return processedBase64;
+        }
+      }
+      
+      print('⚠️ JavaScript preprocessing not available, using original');
+      return imageFile;
+      
+    } catch (e) {
+      print('❌ Web preprocessing failed: $e');
+      return imageFile;
+    }
+  }
+  
+  /// Preprocess image on mobile platform
+  Future<dynamic> _preprocessImageMobile(dynamic imageFile) async {
+    print('📱 Mobile image preprocessing...');
+    
+    try {
+      // For mobile, we can implement more sophisticated preprocessing
+      // Using the image package or native processing
+      
+      // Basic preprocessing steps:
+      // 1. Enhance contrast
+      // 2. Convert to grayscale
+      // 3. Apply noise reduction
+      // 4. Optimize for text recognition
+      
+      print('📸 Applying mobile image enhancements...');
+      
+      // For now, return original image
+      // In production, you'd implement actual image processing here
+      // using packages like 'image' or native platform channels
+      
+      print('✅ Mobile preprocessing completed (placeholder)');
+      return imageFile;
+      
+    } catch (e) {
+      print('❌ Mobile preprocessing failed: $e');
+      return imageFile;
+    }
   }
   
   /// Validate and clean extracted items for maximum accuracy
