@@ -109,6 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
     
     return showDialog<String>(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -124,9 +125,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                       TextField(
                         controller: _billNameController,
                         style: TextStyle(fontSize: isMobile ? 16 : 14),
@@ -178,7 +180,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           }
                         },
                       ),
-                    ],
+                      ],
+                    ),
                   ),
                   contentPadding: EdgeInsets.fromLTRB(
                     isMobile ? 20 : 24,
