@@ -2,6 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart' if (dart.library.html) 'package:tickeo/utils/web_stubs.dart';
 import 'package:tickeo/models/bill_item.dart';
 import 'package:uuid/uuid.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'dart:js' if (dart.library.io) 'dart:js' as js;
 
 class OCRService {
   static final OCRService _instance = OCRService._internal();
@@ -299,10 +302,39 @@ class OCRService {
   /// Process image on web platform using Tesseract.js OCR
   Future<Map<String, dynamic>> _processImageOnWeb(dynamic imageFile) async {
     try {
+      print('Processing image on web platform...');
+      print('Image file type: ${imageFile.runtimeType}');
+      
+      // Convert image file to a format JavaScript can process
+      dynamic processableImage;
+      
+      if (imageFile != null) {
+        // If it's an XFile (from image_picker), read as bytes and convert to base64
+        try {
+          if (imageFile.runtimeType.toString().contains('XFile')) {
+            print('Converting XFile to base64...');
+            final bytes = await imageFile.readAsBytes();
+            final base64String = 'data:image/jpeg;base64,' + base64Encode(bytes);
+            processableImage = base64String;
+            print('Converted to base64, length: ${base64String.length}');
+          } else {
+            // Try to use the file directly
+            processableImage = imageFile;
+            print('Using file directly');
+          }
+        } catch (conversionError) {
+          print('File conversion failed: $conversionError');
+          processableImage = imageFile;
+        }
+      } else {
+        throw Exception('Image file is null');
+      }
+      
       // Call JavaScript Tesseract.js function for real OCR processing
-      final extractedText = await _callTesseractOCR(imageFile);
+      final extractedText = await _callTesseractOCR(processableImage);
       
       if (extractedText != null && extractedText.isNotEmpty) {
+        print('OCR extracted ${extractedText.length} characters of text');
         // Parse the real extracted text using our robust parsing algorithms
         return _parseReceiptText(extractedText);
       } else {
@@ -312,6 +344,7 @@ class OCRService {
       }
     } catch (e) {
       print('Web OCR processing failed: $e');
+      print('Stack trace: ${StackTrace.current}');
       // Fallback to realistic data if Tesseract.js fails
       return await _generateFallbackWithRealisticData();
     }
@@ -320,16 +353,47 @@ class OCRService {
   /// Call Tesseract.js OCR function via JavaScript interop
   Future<String?> _callTesseractOCR(dynamic imageFile) async {
     try {
-      // This would be implemented using dart:js or js_interop
-      // For now, we'll simulate the call and return realistic fallback
-      // In a real implementation, you would use:
-      // final result = await js.context.callMethod('processImageWithOCR', [imageFile]);
+      if (!kIsWeb) {
+        print('Not on web platform, skipping Tesseract.js');
+        return null;
+      }
       
-      print('Calling Tesseract.js OCR...');
-      await Future.delayed(const Duration(seconds: 2)); // Simulate processing time
+      print('Calling Tesseract.js OCR with real image...');
       
-      // Return null to trigger fallback (until JS interop is properly implemented)
-      return null;
+      // Check if Tesseract.js is available
+      if (js.context['tesseractOCR'] == null) {
+        print('Tesseract.js not available, using fallback');
+        return null;
+      }
+      
+      // Call the JavaScript function to process the real image
+      final jsPromise = js.context['tesseractOCR'].callMethod('processImage', [imageFile]);
+      
+      // Convert JS Promise to Dart Future
+      final completer = Completer<String?>();
+      
+      jsPromise.callMethod('then', [
+        js.allowInterop((result) {
+          print('Tesseract.js returned: $result');
+          completer.complete(result?.toString());
+        })
+      ]);
+      
+      jsPromise.callMethod('catch', [
+        js.allowInterop((error) {
+          print('Tesseract.js error: $error');
+          completer.completeError(error.toString());
+        })
+      ]);
+      
+      // Wait for the result with timeout
+      return await completer.future.timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          print('Tesseract.js timeout');
+          return null as String?;
+        },
+      );
     } catch (e) {
       print('Tesseract.js call failed: $e');
       return null;
