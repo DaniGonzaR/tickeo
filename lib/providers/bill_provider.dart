@@ -73,14 +73,17 @@ class BillProvider extends ChangeNotifier {
         return;
       }
 
-      // Use OCR service to get fallback data (web-compatible)
-      final ocrService = OCRService();
-      final fallbackData = ocrService.generateFallbackReceiptData();
+      // Create basic structure for manual editing (web-compatible)
+      final items = [BillItem(
+        id: const Uuid().v4(),
+        name: 'Producto del ticket',
+        price: 0.00,
+        selectedBy: [],
+      )];
       
-      final items = fallbackData['items'] as List<BillItem>;
-      final subtotal = fallbackData['subtotal'] as double;
-      final tax = fallbackData['tax'] as double;
-      final total = fallbackData['total'] as double;
+      final subtotal = 0.00;
+      final tax = 0.0;
+      final total = 0.00;
 
       final bill = Bill(
         id: _uuid.v4(),

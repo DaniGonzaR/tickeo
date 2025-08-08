@@ -43,8 +43,9 @@ class OCRService {
       
       return parseResult;
     } catch (e) {
-      // Fallback to basic data if OCR fails
-      return generateFallbackReceiptData();
+      // Use manual extraction as last resort
+      print('❌ Mobile OCR failed: $e');
+      return await _promptManualTextExtraction();
     }
   }
 
@@ -55,45 +56,48 @@ class OCRService {
       print('Input text: "$text"');
       
       final lines = text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList();
-      print('Total lines after cleaning: ${lines.length}');
+      print('Processing ${lines.length} lines');
       
       final items = <BillItem>[];
       
-      // Enhanced parsing logic for various receipt formats
+      // Try to extract items from each line
       for (int i = 0; i < lines.length; i++) {
         final line = lines[i];
         print('Processing line $i: "$line"');
         
-        // Skip common header/footer patterns
+        // Skip header/footer lines
         if (_isHeaderOrFooterLine(line)) {
           print('  -> Skipped (header/footer)');
           continue;
         }
         
-        // Multiple price pattern matching strategies
-        final parsedItem = _extractItemFromLine(line, items.length);
-        if (parsedItem != null) {
-          print('  -> Found item: ${parsedItem.name} - €${parsedItem.price}');
-          items.add(parsedItem);
-        } else {
-          print('  -> No item found in this line');
+        // Try to extract item from this line
+        final item = _extractItemFromLine(line, items.length);
+        if (item != null) {
+          items.add(item);
+          print('  -> Found item: ${item.name} - €${item.price.toStringAsFixed(2)}');
         }
       }
       
-      print('Items found after primary parsing: ${items.length}');
-      
-      // Try alternative parsing if no items found
+      // If no items found with standard parsing, try alternative strategies
       if (items.isEmpty) {
-        print('No items found, trying alternative parsing...');
+        print('No items found with standard parsing, trying alternative strategies...');
         final alternativeItems = _tryAlternativeParsing(lines);
         items.addAll(alternativeItems);
-        print('Items found after alternative parsing: ${alternativeItems.length}');
       }
       
-      // If no items found, return fallback data
+      print('=== PARSING COMPLETE ===');
+      print('Total items found: ${items.length}');
+      
+      // If still no items found, return basic structure for manual editing
       if (items.isEmpty) {
-        print('No items found at all, using fallback data');
-        return generateFallbackReceiptData();
+        print('No items could be parsed from text, returning basic structure');
+        items.add(BillItem(
+          id: _uuid.v4(),
+          name: 'Producto del ticket',
+          price: 0.00,
+          selectedBy: [],
+        ));
       }
       
       final subtotal = items.fold<double>(0.0, (sum, item) => sum + item.price);
@@ -102,12 +106,28 @@ class OCRService {
         'items': items,
         'subtotal': subtotal,
         'tax': 0.0, // No tax calculation as per previous requirements
-        'tip': 0.0, // No tip calculation as per previous requirements
+        'tip': 0.0, // No tax calculation as per previous requirements
         'total': subtotal,
+        'restaurantName': 'Ticket Escaneado',
+        'manualExtraction': items.length == 1 && items.first.price == 0.00,
       };
     } catch (e) {
-      // Fallback to basic data if parsing fails
-      return generateFallbackReceiptData();
+      // Return basic structure for manual editing if parsing fails
+      print('❌ Text parsing failed: $e');
+      return {
+        'items': [BillItem(
+          id: _uuid.v4(),
+          name: 'Producto del ticket',
+          price: 0.00,
+          selectedBy: [],
+        )],
+        'subtotal': 0.00,
+        'tax': 0.0,
+        'tip': 0.0,
+        'total': 0.00,
+        'restaurantName': 'Ticket Escaneado - Editar Manualmente',
+        'manualExtraction': true,
+      };
     }
   }
   
@@ -738,34 +758,7 @@ class OCRService {
     return name;
   }
   
-  Map<String, dynamic> generateFallbackReceiptData() {
-    // Generate basic receipt data when OCR fails or image cannot be processed
-    final items = [
-      BillItem(
-        id: _uuid.v4(),
-        name: 'Producto 1',
-        price: 10.00,
-        selectedBy: [],
-      ),
-      BillItem(
-        id: _uuid.v4(),
-        name: 'Producto 2',
-        price: 5.00,
-        selectedBy: [],
-      ),
-    ];
 
-    final subtotal = items.fold<double>(0.0, (sum, item) => sum + item.price);
-    final total = subtotal;
-
-    return {
-      'items': items,
-      'subtotal': subtotal,
-      'tax': 0.0,
-      'total': total,
-      'restaurantName': 'Ticket Escaneado',
-    };
-  }
 
   /// Dispose of resources
   void dispose() {
