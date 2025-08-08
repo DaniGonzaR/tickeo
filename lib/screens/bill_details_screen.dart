@@ -270,6 +270,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
             final isMobile = screenWidth < 600;
             
             return Scaffold(
+              resizeToAvoidBottomInset: false,
               backgroundColor: AppColors.background,
               appBar: AppBar(
                 title: Text(

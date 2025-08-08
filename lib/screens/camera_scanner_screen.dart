@@ -110,6 +110,7 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
     }
     
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,

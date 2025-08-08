@@ -97,6 +97,7 @@ class _JoinBillScreenState extends State<JoinBillScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Unirse a Cuenta'),
