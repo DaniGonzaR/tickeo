@@ -28,8 +28,21 @@ class OCRService {
       final inputImage = InputImage.fromFile(imageFile);
       final recognizedText = await _textRecognizer.processImage(inputImage);
       
-      print('ML Kit extracted text: "${recognizedText.text}"');
+      print('=== ML KIT OCR RESULTS ===');
+      print('Raw text extracted: "${recognizedText.text}"');
       print('Text length: ${recognizedText.text.length} characters');
+      print('Text blocks found: ${recognizedText.blocks.length}');
+      
+      // Log each text block for debugging
+      for (int i = 0; i < recognizedText.blocks.length; i++) {
+        final block = recognizedText.blocks[i];
+        print('Block $i: "${block.text}"');
+        for (int j = 0; j < block.lines.length; j++) {
+          final line = block.lines[j];
+          print('  Line $j: "${line.text}"');
+        }
+      }
+      print('===========================');
       
       // Check if we got meaningful text
       if (recognizedText.text.trim().isEmpty) {
@@ -52,8 +65,16 @@ class OCRService {
   /// Parse recognized text to extract receipt information
   Map<String, dynamic> _parseReceiptText(String text) {
     try {
-      print('=== PARSING RECEIPT TEXT ===');
-      print('Input text: "$text"');
+      print('\n=== PARSING RECEIPT TEXT ===');
+      print('Input text length: ${text.length} characters');
+      print('Raw input text: "$text"');
+      
+      // Show text in a more readable format
+      final rawLines = text.split('\n');
+      print('Text broken into ${rawLines.length} lines:');
+      for (int i = 0; i < rawLines.length; i++) {
+        print('  Line $i: "${rawLines[i]}"');
+      }
       
       final lines = text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList();
       print('Processing ${lines.length} lines');
@@ -140,21 +161,27 @@ class OCRService {
   
   /// Check if line is likely a header or footer (not a product line)
   bool _isHeaderOrFooterLine(String line) {
-    final lowerLine = line.toLowerCase();
+    final lowerLine = line.toLowerCase().trim();
+    
+    // Skip very short lines (likely not products)
+    if (lowerLine.length < 3) return true;
+    
+    // Skip lines that are only numbers, symbols, or very short
+    if (RegExp(r'^[\d\s\-\.\*]{1,5}$').hasMatch(lowerLine)) return true;
     
     // Enhanced header/footer patterns for Spanish receipts
     final skipPatterns = [
       // Restaurant info
       'restaurante', 'restaurant', 'bar', 'café', 'cafeteria', 'pizzeria', 'taberna',
-      'cocina', 'kitchen', 'comida', 'food', 'menú', 'menu',
+      'cocina', 'kitchen', 'comida', 'food', 'menú', 'menu', 'bienvenido', 'welcome',
       
-      // Totals and calculations
-      'total', 'subtotal', 'suma', 'importe', 'precio', 'coste',
-      'iva', 'tax', 'impuesto', 'propina', 'tip', 'servicio',
-      'descuento', 'discount', 'oferta', 'promoción',
+      // Totals and calculations (be more specific to avoid false positives)
+      'total:', 'subtotal:', 'suma:', 'importe total', 'precio total',
+      'iva:', 'tax:', 'impuesto:', 'propina:', 'tip:', 'servicio:',
+      'descuento:', 'discount:', 'oferta:', 'promoción:', 'cambio:', 'change:',
       
       // Date/time/location
-      'fecha', 'date', 'hora', 'time', 'día', 'day',
+      'fecha:', 'date:', 'hora:', 'time:', 'día:', 'day:',
       'mesa', 'table', 'sala', 'terraza', 'barra',
       
       // Staff and service
@@ -199,15 +226,15 @@ class OCRService {
     print('    Trying to extract from: "$line"');
     
     // Strategy 1: Multiple spaces separator "Pizza Margherita      15.50"
-    final multiSpaceMatch = RegExp(r'^(.+?)\s{3,}([€\$]?)(\d+[.,]\d{1,2})([€\$]?)\s*$').firstMatch(line);
+    final multiSpaceMatch = RegExp(r'^(.+?)\s{2,}([€\$]?\s*)(\d+[.,]\d{1,2})([€\$]?)\s*$').firstMatch(line);
     if (multiSpaceMatch != null) {
       print('    -> Strategy 1 (multi-space) matched');
       return _createItemFromMatch(multiSpaceMatch.group(1)!, multiSpaceMatch.group(3)!, itemIndex);
     }
     
-    // Strategy 2: Price with currency at end "Hamburguesa Clásica 12.50€"
+    // Strategy 2: Price with currency at end "Hamburguesa Clásica 12.50€" (more flexible)
     final endPriceMatch = RegExp(r'^(.+?)\s+(\d+[.,]\d{1,2})\s*[€€\$]?\s*$').firstMatch(line);
-    if (endPriceMatch != null) {
+    if (endPriceMatch != null && endPriceMatch.group(1)!.trim().length > 2) {
       print('    -> Strategy 2 (end price) matched');
       return _createItemFromMatch(endPriceMatch.group(1)!, endPriceMatch.group(2)!, itemIndex);
     }
@@ -245,17 +272,29 @@ class OCRService {
       return _createItemFromMatch(tabMatch.group(1)!, tabMatch.group(2)!, itemIndex);
     }
     
-    // Strategy 7: Price anywhere in line with word boundaries
-    final anywhereMatch = RegExp(r'^(.+?)\b(\d+[.,]\d{1,2})\b(.*)$').firstMatch(line);
+    // Strategy 7: Price anywhere in line with word boundaries (more aggressive)
+    final anywhereMatch = RegExp(r'(\d+[.,]\d{1,2})').firstMatch(line);
     if (anywhereMatch != null) {
-      final beforePrice = anywhereMatch.group(1)?.trim() ?? '';
-      final afterPrice = anywhereMatch.group(3)?.trim() ?? '';
+      final priceStr = anywhereMatch.group(1)!;
+      final priceIndex = line.indexOf(priceStr);
       
-      // Prefer text before price, but use after if before is too short
-      String itemName = beforePrice.length >= 3 ? beforePrice : afterPrice;
-      if (itemName.length >= 3) {
-        print('    -> Strategy 7 (anywhere) matched');
-        return _createItemFromMatch(itemName, anywhereMatch.group(2)!, itemIndex);
+      // Get text before and after price
+      final beforePrice = line.substring(0, priceIndex).trim();
+      final afterPrice = line.substring(priceIndex + priceStr.length).trim();
+      
+      // Choose the longer, more meaningful text
+      String itemName = '';
+      if (beforePrice.length >= 2 && beforePrice.length >= afterPrice.length) {
+        itemName = beforePrice;
+      } else if (afterPrice.length >= 2) {
+        itemName = afterPrice;
+      }
+      
+      // Clean up the name and validate
+      itemName = itemName.replaceAll(RegExp(r'[€\$\*\-\.]+$'), '').trim();
+      if (itemName.length >= 2) {
+        print('    -> Strategy 7 (anywhere) matched: "$itemName" - $priceStr');
+        return _createItemFromMatch(itemName, priceStr, itemIndex);
       }
     }
     
@@ -267,8 +306,8 @@ class OCRService {
   BillItem? _createItemFromMatch(String name, String priceStr, int itemIndex) {
     final price = double.tryParse(priceStr.replaceAll(',', '.')) ?? 0.0;
     
-    // Validate price range (between 0.50 and 200.00 for typical food items)
-    if (price < 0.50 || price > 200.00) return null;
+    // Validate price range (more flexible range for various items)
+    if (price < 0.10 || price > 500.00) return null;
     
     final cleanName = _cleanItemName(name);
     
@@ -286,13 +325,18 @@ class OCRService {
   /// Try alternative parsing strategies when standard parsing fails
   List<BillItem> _tryAlternativeParsing(List<String> lines) {
     final items = <BillItem>[];
+    print('=== ALTERNATIVE PARSING STRATEGIES ===');
     
-    // Strategy: Look for any line with a price, regardless of format
+    // Strategy 1: Look for any line with a price, regardless of format
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i];
+      print('Alt parsing line $i: "$line"');
       
       // Skip obvious non-product lines
-      if (_isHeaderOrFooterLine(line)) continue;
+      if (_isHeaderOrFooterLine(line)) {
+        print('  -> Skipped (header/footer)');
+        continue;
+      }
       
       // Find any price in the line (more flexible pattern)
       final priceMatches = RegExp(r'([€\$]?\s*)(\d{1,3}[.,]\d{1,2})(\s*[€\$]?)').allMatches(line);
@@ -319,6 +363,55 @@ class OCRService {
               selectedBy: [],
             ));
             break; // Only take first valid price per line
+          }
+        }
+      }
+    }
+    
+    // Strategy 2: Super aggressive - any line with text and numbers
+    if (items.isEmpty) {
+      print('=== SUPER AGGRESSIVE PARSING ===');
+      for (int i = 0; i < lines.length; i++) {
+        final line = lines[i].trim();
+        print('Super aggressive line $i: "$line"');
+        
+        // Skip very short lines or obvious non-products
+        if (line.length < 3 || _isHeaderOrFooterLine(line)) {
+          print('  -> Skipped (too short or header/footer)');
+          continue;
+        }
+        
+        // Look for any numbers that could be prices (even without decimals)
+        final numberMatches = RegExp(r'(\d+(?:[.,]\d{1,2})?)');
+        final match = numberMatches.firstMatch(line);
+        
+        if (match != null) {
+          final numberStr = match.group(1)!;
+          var potentialPrice = double.tryParse(numberStr.replaceAll(',', '.')) ?? 0.0;
+          
+          // If it's a whole number, assume it might be missing decimals
+          if (!numberStr.contains('.') && !numberStr.contains(',') && potentialPrice > 10) {
+            potentialPrice = potentialPrice / 100; // Convert 1250 to 12.50
+          }
+          
+          // Check if this could be a reasonable price
+          if (potentialPrice >= 0.50 && potentialPrice <= 100.0) {
+            // Extract text that could be a product name
+            String productText = line.replaceAll(numberStr, '').trim();
+            productText = productText.replaceAll(RegExp(r'[€\$\*\-\.]+'), '').trim();
+            
+            if (productText.length >= 2) {
+              print('  -> Super aggressive match: "$productText" - €${potentialPrice.toStringAsFixed(2)}');
+              
+              final item = BillItem(
+                id: _uuid.v4(),
+                name: _cleanExtractedName(productText),
+                price: potentialPrice,
+                selectedBy: [],
+              );
+              
+              items.add(item);
+            }
           }
         }
       }
@@ -665,7 +758,7 @@ class OCRService {
           final price = double.parse(priceStr.replaceAll(',', '.'));
           
           // Skip very small prices (likely not products) and very large prices (likely totals)
-          if (price < 0.50 || price > 100.0) continue;
+          if (price < 0.30 || price > 300.0) continue;
           
           // Try to find the product name near this price
           String productName = 'Producto';
