@@ -40,6 +40,40 @@
 
   <title>Tickeo - Bill Splitter</title>
   <link rel="manifest" href="manifest.json">
+  
+  <!-- Tesseract.js for OCR functionality -->
+  <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
+  
+  <script>
+    // Real OCR processing function using Tesseract.js
+    window.processImageWithOCR = async function(imageFile) {
+      try {
+        console.log('Starting OCR processing with Tesseract.js...');
+        
+        // Create worker for OCR processing
+        const worker = await Tesseract.createWorker('spa', 1, {
+          logger: m => console.log('OCR Progress:', m)
+        });
+        
+        // Process the image
+        const { data: { text } } = await worker.recognize(imageFile);
+        
+        // Terminate worker to free memory
+        await worker.terminate();
+        
+        console.log('OCR Text extracted:', text);
+        return text;
+      } catch (error) {
+        console.error('OCR processing failed:', error);
+        throw error;
+      }
+    };
+    
+    // Make function available globally
+    window.tesseractOCR = {
+      processImage: window.processImageWithOCR
+    };
+  </script>
 </head>
 <body>
   <!-- PWA Installation prompt -->
