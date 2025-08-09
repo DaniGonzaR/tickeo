@@ -53,21 +53,17 @@ class IntelligentExtractor {
   Future<List<BillItem>> _correctOCRErrors(List<BillItem> items, MultiEngineOCRResult ocrResult) async {
     print('🔧 Corrigiendo errores OCR...');
     
-    // Diccionario de correcciones comunes en OCR español
-    final ocrCorrections = {
-      // Números por letras
-      '0': 'o', '1': 'l', '3': 'e', '5': 's', '8': 'b',
-      
-      // Letras por números
-      'o': '0', 'l': '1', 'i': '1', 's': '5',
-      
-      // Caracteres especiales
-      'rn': 'm', 'cl': 'd', 'ri': 'n',
-      
+    // Solo correcciones específicas de palabras completas para evitar sobre-corrección
+    final specificCorrections = {
       // Palabras comunes mal reconocidas
       'c0ca': 'coca', 'c0la': 'cola', 'cerv3za': 'cerveza',
       'hamb0rguesa': 'hamburguesa', 'p0llo': 'pollo',
       'qu3so': 'queso', 'l3che': 'leche', 'ag0a': 'agua',
+      'f0nt': 'font', 've11a': 'vella', 'zer0': 'zero',
+      'beb1da': 'bebida', 'ene': 'ene', 'green': 'green',
+      'empanada': 'empanada', 'came': 'carne',
+      'pr0tect0r': 'protector', '501ar': 'solar',
+      'me10c0t0n': 'melocoton', 'r0j0': 'rojo',
     };
     
     final correctedItems = <BillItem>[];
@@ -75,8 +71,8 @@ class IntelligentExtractor {
     for (final item in items) {
       String correctedName = item.name.toLowerCase();
       
-      // Aplicar correcciones
-      for (final correction in ocrCorrections.entries) {
+      // Solo aplicar correcciones específicas de palabras completas
+      for (final correction in specificCorrections.entries) {
         correctedName = correctedName.replaceAll(correction.key, correction.value);
       }
       

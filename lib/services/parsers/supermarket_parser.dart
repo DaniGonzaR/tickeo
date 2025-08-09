@@ -52,45 +52,88 @@ class SupermarketParser extends BaseParser {
   Future<List<BillItem>> _parseSupermarketFormat(List<String> lines) async {
     final items = <BillItem>[];
     
+    print('🔍 DEBUG: Analizando ${lines.length} líneas del ticket:');
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i].trim();
+      print('📝 Línea $i: "$line"');
       
-      if (isHeaderOrFooter(line)) continue;
+      if (isHeaderOrFooter(line)) {
+        print('   ⏭️ Saltando header/footer');
+        continue;
+      }
       
-      // Patrón típico de supermercado: PRODUCTO + PRECIO al final
-      // Ej: "LECHE PASCUAL DESNATADA 1L    2,45"
-      final supermarketPattern = RegExp(r'^([A-Za-záéíóúñü\s\d]+?)\s+(\d+[.,]\d{2})\s*[ABC]?\s*$');
-      final match = supermarketPattern.firstMatch(line);
+      // Patrón para formato PRECIO + LETRA + PRODUCTO (formato real del ticket)
+      // Ej: "2,45 C	MELOCOTON ROJO	AP" o "16,95 A	*PROTECTOR SOLAR"
+      final priceFirstPattern = RegExp(r'^(\d*[.,]\d{2})\s*([ABC])?\s+([*]?[A-Za-záéíóúñü\s\d\.-]+?)(?:\s+[A-Z]{2,})?$');
+      final priceMatch = priceFirstPattern.firstMatch(line);
       
-      if (match != null) {
-        final productName = match.group(1)!.trim();
-        final priceStr = match.group(2)!.replaceAll(',', '.');
-        final price = double.tryParse(priceStr) ?? 0.0;
+      if (priceMatch != null) {
+        print('   ✅ PRICE-FIRST MATCH: "${priceMatch.group(1)}" - "${priceMatch.group(3)}"');
+        final priceStr = priceMatch.group(1)!.replaceAll(',', '.');
+        String productName = priceMatch.group(3)!.trim();
+        
+        // Limpiar asteriscos y caracteres especiales del nombre
+        productName = productName.replaceAll('*', '').trim();
+        
+        double price = double.tryParse(priceStr) ?? 0.0;
+        
+        // Si el precio empieza con coma (ej: ",73"), agregar 0 al inicio
+        if (priceMatch.group(1)!.startsWith(',')) {
+          price = double.tryParse('0${priceMatch.group(1)!.replaceAll(',', '.')}') ?? 0.0;
+        }
         
         if (isValidPrice(price) && productName.length >= 3) {
           final cleanName = _improveSupermarketProductName(productName);
           items.add(createBillItem(cleanName, price));
         }
-      } else {
-        // Patrón alternativo: cantidad x precio unitario = total
-        // Ej: "2 x 1,25 YOGUR DANONE = 2,50"
-        final quantityPattern = RegExp(r'(\d+)\s*x\s*(\d+[.,]\d{2})\s*([A-Za-záéíóúñü\s]+?)\s*=?\s*(\d+[.,]\d{2})');
-        final qMatch = quantityPattern.firstMatch(line);
+        continue;
+      }
+      
+      // Patrón alternativo para formato PRODUCTO + PRECIO (formato tradicional)
+      // Ej: "AGUA FONT-VELLA          2,19" 
+      final productFirstPattern = RegExp(r'^([*]?[A-Za-záéíóúñü\s\d\.-]+?)\s{2,}(\d*[.,]\d{2})\s*[ABC]?\s*$');
+      final productMatch = productFirstPattern.firstMatch(line);
+      
+      if (productMatch != null) {
+        print('   ✅ PRODUCT-FIRST MATCH: "${productMatch.group(1)}" - "${productMatch.group(2)}"');
+        String productName = productMatch.group(1)!.trim();
+        final priceStr = productMatch.group(2)!.replaceAll(',', '.');
         
-        if (qMatch != null) {
-          final quantity = int.tryParse(qMatch.group(1)!) ?? 1;
-          final unitPriceStr = qMatch.group(2)!.replaceAll(',', '.');
-          final productName = qMatch.group(3)!.trim();
+        // Limpiar asteriscos y caracteres especiales del nombre
+        productName = productName.replaceAll('*', '').trim();
+        
+        double price = double.tryParse(priceStr) ?? 0.0;
+        
+        // Si el precio empieza con coma (ej: ",73"), agregar 0 al inicio
+        if (productMatch.group(2)!.startsWith(',')) {
+          price = double.tryParse('0${productMatch.group(2)!.replaceAll(',', '.')}') ?? 0.0;
+        }
+        
+        if (isValidPrice(price) && productName.length >= 3) {
+          final cleanName = _improveSupermarketProductName(productName);
+          items.add(createBillItem(cleanName, price));
+        }
+        continue;
+      }
+      
+      // Patrón alternativo: cantidad x precio unitario = total
+      // Ej: "2 x 1,25 YOGUR DANONE = 2,50"
+      final quantityPattern = RegExp(r'(\d+)\s*x\s*(\d+[.,]\d{2})\s*([A-Za-záéíóúñü\s]+?)\s*=?\s*(\d+[.,]\d{2})');
+      final qMatch = quantityPattern.firstMatch(line);
+      
+      if (qMatch != null) {
+        final quantity = int.tryParse(qMatch.group(1)!) ?? 1;
+        final unitPriceStr = qMatch.group(2)!.replaceAll(',', '.');
+        final productName = qMatch.group(3)!.trim();
+        
+        final unitPrice = double.tryParse(unitPriceStr) ?? 0.0;
+        
+        if (isValidPrice(unitPrice) && productName.length >= 3) {
+          final cleanName = _improveSupermarketProductName(productName);
           
-          final unitPrice = double.tryParse(unitPriceStr) ?? 0.0;
-          
-          if (isValidPrice(unitPrice) && productName.length >= 3) {
-            final cleanName = _improveSupermarketProductName(productName);
-            
-            // Crear items individuales si hay cantidad > 1
-            for (int j = 0; j < quantity; j++) {
-              items.add(createBillItem(cleanName, unitPrice));
-            }
+          // Crear items individuales si hay cantidad > 1
+          for (int j = 0; j < quantity; j++) {
+            items.add(createBillItem(cleanName, unitPrice));
           }
         }
       }
@@ -141,13 +184,16 @@ class SupermarketParser extends BaseParser {
     for (final line in lines) {
       if (isHeaderOrFooter(line)) continue;
       
-      // Buscar patrón: texto + espacios múltiples + precio
-      final columnPattern = RegExp(r'^([A-Za-záéíóúñü\s\d]+?)\s{3,}(\d+[.,]\d{2})\s*$');
+      // Buscar patrón mejorado: texto + espacios múltiples + precio + opcional [ABC]
+      final columnPattern = RegExp(r'^([*]?[A-Za-záéíóúñü\s\d\.-]+?)\s{2,}(\d*[.,]\d{2})\s*[ABC]?\s*$');
       final match = columnPattern.firstMatch(line);
       
       if (match != null) {
-        final productName = match.group(1)!.trim();
+        String productName = match.group(1)!.trim();
         final priceStr = match.group(2)!.replaceAll(',', '.');
+        
+        // Limpiar asteriscos del nombre
+        productName = productName.replaceAll('*', '').trim();
         final price = double.tryParse(priceStr) ?? 0.0;
         
         if (isValidPrice(price) && productName.length >= 3) {

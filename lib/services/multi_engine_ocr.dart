@@ -224,7 +224,15 @@ class MultiEngineOCR {
     }
     
     // Bonus por tiempo de procesamiento razonable
-    final processingTime = data['ProcessingTimeInMilliseconds'] ?? 0;
+    final processingTimeRaw = data['ProcessingTimeInMilliseconds'];
+    int processingTime = 0;
+    if (processingTimeRaw != null) {
+      if (processingTimeRaw is int) {
+        processingTime = processingTimeRaw;
+      } else if (processingTimeRaw is String) {
+        processingTime = int.tryParse(processingTimeRaw) ?? 0;
+      }
+    }
     if (processingTime > 0 && processingTime < 10000) {
       confidence += 0.1;
     }
