@@ -116,18 +116,18 @@ class OCRService {
         }
       }
       
-      // If no items found with standard parsing, try alternative strategies
+      // If no items found with standard parsing, try intelligent Spanish parsing FIRST
       if (items.isEmpty) {
-        print('No items found with standard parsing, trying alternative strategies...');
-        final alternativeItems = _tryAlternativeParsing(lines);
-        items.addAll(alternativeItems);
-      }
-      
-      // If still no items after alternative parsing, try intelligent Spanish parsing
-      if (items.isEmpty) {
-        print('Trying intelligent Spanish product-price association...');
+        print('No items found with standard parsing, trying intelligent Spanish parsing...');
         final spanishItems = _parseSpanishTicketFormat(lines);
         items.addAll(spanishItems);
+      }
+      
+      // If still no items after Spanish parsing, try alternative strategies
+      if (items.isEmpty) {
+        print('No items found with Spanish parsing, trying alternative strategies...');
+        final alternativeItems = _tryAlternativeParsing(lines);
+        items.addAll(alternativeItems);
       }
       
       // If still no items, try to extract any numbers as potential prices
