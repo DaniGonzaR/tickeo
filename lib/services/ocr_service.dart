@@ -675,6 +675,7 @@ class OCRService {
         List<int> bytes;
         String mimeType = 'image/jpeg'; // Default
         
+        // Handle XFile (standard case)
         if (imageFile.runtimeType.toString().contains('XFile')) {
           print('📸 Converting XFile to base64...');
           bytes = await imageFile.readAsBytes();
@@ -688,12 +689,49 @@ class OCRService {
           } else if (fileName.endsWith('.webp')) {
             mimeType = 'image/webp';
           }
-        } else if (imageFile is List<int>) {
+        } 
+        // Handle List<int> (byte array)
+        else if (imageFile is List<int>) {
           print('📸 Processing byte array...');
           bytes = imageFile;
-        } else {
-          print('❌ Unsupported image file type: ${imageFile.runtimeType}');
-          return await _promptManualTextExtraction();
+        } 
+        // Handle Flutter Web minified types (minified:xx)
+        else if (imageFile.runtimeType.toString().startsWith('minified:')) {
+          print('📸 Processing Flutter Web minified file type...');
+          try {
+            // Try to call readAsBytes() method if available
+            bytes = await imageFile.readAsBytes();
+            print('✅ Successfully read bytes from minified file');
+            
+            // Try to get file name for MIME type detection
+            try {
+              final fileName = imageFile.name?.toLowerCase() ?? '';
+              if (fileName.endsWith('.png')) {
+                mimeType = 'image/png';
+              } else if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
+                mimeType = 'image/jpeg';
+              } else if (fileName.endsWith('.webp')) {
+                mimeType = 'image/webp';
+              }
+            } catch (e) {
+              print('⚠️ Could not detect file extension, using default JPEG');
+            }
+          } catch (e) {
+            print('❌ Failed to read bytes from minified file: $e');
+            return await _promptManualTextExtraction();
+          }
+        } 
+        // Handle any other type that might have readAsBytes() method
+        else {
+          print('📸 Attempting to process unknown file type: ${imageFile.runtimeType}');
+          try {
+            bytes = await imageFile.readAsBytes();
+            print('✅ Successfully read bytes from unknown file type');
+          } catch (e) {
+            print('❌ Unsupported image file type: ${imageFile.runtimeType}');
+            print('❌ Error: $e');
+            return await _promptManualTextExtraction();
+          }
         }
         
         // Convert to base64
