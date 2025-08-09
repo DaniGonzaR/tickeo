@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import 'dart:js' if (dart.library.io) 'dart:js' as js;
 import 'package:http/http.dart' as http;
 
+
 class OCRService {
   static final OCRService _instance = OCRService._internal();
   factory OCRService() => _instance;
@@ -16,13 +17,211 @@ class OCRService {
 
   final Uuid _uuid = const Uuid();
   final TextRecognizer _textRecognizer = TextRecognizer();
+  
+  // Advanced OCR correction tables
+  static const Map<String, String> _ocrCorrections = {
+    // Common OCR character mistakes
+    '0': 'o', 'O': '0', '1': 'l', 'l': '1', 'I': '1',
+    '5': 'S', 'S': '5', '6': 'G', 'G': '6', '8': 'B',
+    'B': '8', '3': 'E', 'E': '3', '2': 'Z', 'Z': '2',
+    // Spanish specific
+    'ñ': 'n', 'Ñ': 'N', 'ç': 'c', 'Ç': 'C',
+  };
+  
+  // Extended Spanish product dictionary with price ranges
+  static const Map<String, Map<String, dynamic>> _spanishProducts = {
+    // Bebidas
+    'coca cola': {'category': 'bebida', 'minPrice': 1.0, 'maxPrice': 4.0, 'variations': ['coca', 'cola', 'c0ca', 'c0la']},
+    'agua': {'category': 'bebida', 'minPrice': 0.5, 'maxPrice': 3.0, 'variations': ['agua', 'h2o', 'mineral']},
+    'cerveza': {'category': 'bebida', 'minPrice': 1.5, 'maxPrice': 6.0, 'variations': ['cerv3za', 'beer', 'birra']},
+    'vino': {'category': 'bebida', 'minPrice': 2.0, 'maxPrice': 15.0, 'variations': ['wine', 'tinto', 'blanco']},
+    'café': {'category': 'bebida', 'minPrice': 1.0, 'maxPrice': 3.5, 'variations': ['coffee', 'espresso', 'cortado']},
+    'zumo': {'category': 'bebida', 'minPrice': 1.5, 'maxPrice': 4.0, 'variations': ['juice', 'naranja', 'manzana']},
+    
+    // Comida principal
+    'hamburguesa': {'category': 'comida', 'minPrice': 6.0, 'maxPrice': 18.0, 'variations': ['hamb0rguesa', 'burger', 'hamburgesa']},
+    'pizza': {'category': 'comida', 'minPrice': 8.0, 'maxPrice': 25.0, 'variations': ['pizz4', 'margherita', 'quattro']},
+    'paella': {'category': 'comida', 'minPrice': 12.0, 'maxPrice': 30.0, 'variations': ['pa3lla', 'arroz', 'valenciana']},
+    'tortilla': {'category': 'comida', 'minPrice': 4.0, 'maxPrice': 12.0, 'variations': ['t0rtilla', 'española', 'patatas']},
+    'bocadillo': {'category': 'comida', 'minPrice': 3.0, 'maxPrice': 10.0, 'variations': ['b0cadillo', 'sandwich', 'jamón']},
+    'ensalada': {'category': 'comida', 'minPrice': 4.0, 'maxPrice': 15.0, 'variations': ['3nsalada', 'salad', 'mixta']},
+    'croquetas': {'category': 'comida', 'minPrice': 3.0, 'maxPrice': 8.0, 'variations': ['cr0quetas', 'jamón', 'pollo']},
+    'patatas': {'category': 'acompañamiento', 'minPrice': 2.0, 'maxPrice': 6.0, 'variations': ['p4tatas', 'fritas', 'bravas']},
+    
+    // Postres
+    'flan': {'category': 'postre', 'minPrice': 2.0, 'maxPrice': 6.0, 'variations': ['fl4n', 'caramelo', 'huevo']},
+    'helado': {'category': 'postre', 'minPrice': 2.0, 'maxPrice': 8.0, 'variations': ['h3lado', 'ice cream', 'vainilla']},
+    'tarta': {'category': 'postre', 'minPrice': 3.0, 'maxPrice': 12.0, 'variations': ['t4rta', 'cake', 'chocolate']},
+  };
+  
+  // Spanish keywords for receipt parsing
+  static const List<String> _spanishKeywords = [
+    'TOTAL', 'SUBTOTAL', 'SUMA', 'IMPORTE', 'PRECIO',
+    'IVA', 'IMPUESTO', 'TAX', 'IGIC', 'IRPF',
+    'DESCUENTO', 'DTO', 'OFERTA', 'PROMOCION', 'REBAJA',
+    'EFECTIVO', 'TARJETA', 'CARD', 'CAMBIO', 'DEVOLUCION',
+    'TICKET', 'FACTURA', 'RECIBO', 'COMPROBANTE', 'NOTA',
+    'MESA', 'TABLE', 'CAMARERO', 'SERVICIO', 'PROPINA',
+  ];
+
+  /// Check image quality before OCR processing
+  Future<bool> _isImageQualityGood(dynamic imageFile) async {
+    try {
+      if (kIsWeb) {
+        // For web, assume quality is acceptable (browser handles basic validation)
+        return true;
+      }
+      
+      // For mobile, we could implement blur detection here
+      // For now, return true to avoid blocking legitimate images
+      return true;
+    } catch (e) {
+      print('⚠️ Image quality check failed: $e');
+      return true; // Don't block on quality check failure
+    }
+  }
+
+  /// Advanced OCR text correction using correction tables
+  String _correctOCRErrors(String text) {
+    String corrected = text;
+    
+    // Apply character-level corrections in price contexts
+    final pricePattern = RegExp(r'(\d+[.,]?\d*)([€\$]?)');
+    corrected = corrected.replaceAllMapped(pricePattern, (match) {
+      String price = match.group(1)!;
+      String currency = match.group(2) ?? '';
+      
+      // Correct common OCR errors in prices
+      price = price.replaceAll('O', '0').replaceAll('l', '1').replaceAll('I', '1');
+      price = price.replaceAll('S', '5').replaceAll('B', '8');
+      
+      return '$price$currency';
+    });
+    
+    // Apply general corrections for product names
+    _ocrCorrections.forEach((wrong, correct) {
+      // Only apply corrections in non-price contexts
+      corrected = corrected.replaceAllMapped(RegExp(r'([^\d.,€\$]*)($wrong)([^\d.,€\$]*)'), (match) {
+        return '${match.group(1)}$correct${match.group(3)}';
+      });
+    });
+    
+    return corrected;
+  }
+
+  /// Enhanced text preprocessing with advanced normalization
+  String _advancedPreprocessText(String rawText) {
+    String processed = rawText;
+    
+    // Step 1: Apply OCR error corrections
+    processed = _correctOCRErrors(processed);
+    
+    // Step 2: Normalize whitespace and line breaks
+    processed = processed.replaceAll(RegExp(r'\s+'), ' ');
+    processed = processed.replaceAll(RegExp(r'\n\s*\n'), '\n');
+    
+    // Step 3: Fix common Spanish character issues
+    processed = processed.replaceAll('ñ', 'ñ').replaceAll('Ñ', 'Ñ');
+    processed = processed.replaceAll('á', 'á').replaceAll('é', 'é');
+    processed = processed.replaceAll('í', 'í').replaceAll('ó', 'ó').replaceAll('ú', 'ú');
+    
+    // Step 4: Normalize decimal separators in Spanish context
+    processed = processed.replaceAllMapped(RegExp(r'(\d+)[.,](\d{2})'), (match) {
+      return '${match.group(1)}.${match.group(2)}';
+    });
+    
+    // Step 5: Clean up currency symbols
+    processed = processed.replaceAll(RegExp(r'[€\$]\s*'), '€');
+    
+    return processed.trim();
+  }
+
+  /// Intelligent product name matching using Spanish dictionary
+  String? _matchSpanishProduct(String name) {
+    final cleanName = name.toLowerCase().trim();
+    
+    // Direct match
+    if (_spanishProducts.containsKey(cleanName)) {
+      return cleanName;
+    }
+    
+    // Check variations
+    for (final entry in _spanishProducts.entries) {
+      final productData = entry.value;
+      final variations = productData['variations'] as List<String>;
+      
+      for (final variation in variations) {
+        if (cleanName.contains(variation.toLowerCase()) || 
+            variation.toLowerCase().contains(cleanName)) {
+          return entry.key;
+        }
+      }
+    }
+    
+    // Fuzzy matching using Levenshtein distance
+    String? bestMatch;
+    double bestSimilarity = 0.0;
+    
+    for (final productName in _spanishProducts.keys) {
+      final similarity = _calculateLevenshteinSimilarity(cleanName, productName);
+      if (similarity > 0.75 && similarity > bestSimilarity) {
+        bestMatch = productName;
+        bestSimilarity = similarity;
+      }
+    }
+    
+    return bestMatch;
+  }
+
+  /// Calculate Levenshtein similarity between two strings
+  double _calculateLevenshteinSimilarity(String a, String b) {
+    if (a.isEmpty || b.isEmpty) return 0.0;
+    
+    final matrix = List.generate(a.length + 1, 
+        (i) => List.generate(b.length + 1, (j) => 0));
+    
+    for (int i = 0; i <= a.length; i++) matrix[i][0] = i;
+    for (int j = 0; j <= b.length; j++) matrix[0][j] = j;
+    
+    for (int i = 1; i <= a.length; i++) {
+      for (int j = 1; j <= b.length; j++) {
+        final cost = a[i - 1] == b[j - 1] ? 0 : 1;
+        matrix[i][j] = math.min(
+          math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1),
+          matrix[i - 1][j - 1] + cost
+        );
+      }
+    }
+    
+    final maxLength = math.max(a.length, b.length);
+    return 1.0 - (matrix[a.length][b.length] / maxLength);
+  }
+
+  /// Validate price against product category
+  bool _validatePriceForProduct(String productName, double price) {
+    final matchedProduct = _matchSpanishProduct(productName);
+    if (matchedProduct == null) return true; // Allow unknown products
+    
+    final productData = _spanishProducts[matchedProduct]!;
+    final minPrice = productData['minPrice'] as double;
+    final maxPrice = productData['maxPrice'] as double;
+    
+    return price >= minPrice && price <= maxPrice;
+  }
 
   /// Process receipt image and extract bill items with UNIFIED ADVANCED PIPELINE
   Future<Map<String, dynamic>> processReceiptImage(dynamic imageFile) async {
-    print('\n🚀 === UNIFIED ADVANCED OCR PIPELINE STARTING ===');
+    print('\n🚀 === ADVANCED OCR PIPELINE V2.0 STARTING ===');
     print('Platform: ${kIsWeb ? "Web" : "Mobile"}');
 
     try {
+      // STEP 0: Check image quality
+      final isQualityGood = await _isImageQualityGood(imageFile);
+      if (!isQualityGood) {
+        print('⚠️ Image quality too low, requesting better image');
+        return await _promptManualTextExtraction();
+      }
+
       // STEP 1: Apply advanced image preprocessing (unified for both platforms)
       dynamic preprocessedImage = imageFile;
 
@@ -63,23 +262,125 @@ class OCRService {
         return await _promptManualTextExtraction();
       }
 
-      // STEP 3: Apply unified text preprocessing and parsing
-      final preprocessedText = _preprocessOCRText(recognizedText.text);
-      print('🔤 Text preprocessing completed: "$preprocessedText"');
+      // STEP 3: Apply advanced text preprocessing with corrections
+      final preprocessedText = _advancedPreprocessText(recognizedText.text);
+      print('🔤 Advanced text preprocessing completed: "$preprocessedText"');
 
-      // STEP 4: Parse with advanced extraction strategies
-      final parseResult = _parseReceiptText(preprocessedText);
+      // STEP 4: Parse with enhanced extraction strategies
+      final parseResult = _parseReceiptTextAdvanced(preprocessedText);
       print(
           '📊 Advanced parsing completed: ${parseResult['items']?.length ?? 0} items found');
 
-      return parseResult;
+      // STEP 5: Validate results and add confidence scoring
+      final validatedResult = _validateAndScoreResults(parseResult);
+      print('✅ Validation completed with confidence: ${validatedResult['confidence']}');
+
+      return validatedResult;
     } catch (e) {
-      print('❌ Unified OCR pipeline failed: $e');
+      print('❌ Advanced OCR pipeline failed: $e');
       return await _promptManualTextExtraction();
     }
   }
 
-  /// Parse recognized text to extract receipt information
+  /// Advanced parsing with enhanced Spanish receipt recognition
+  Map<String, dynamic> _parseReceiptTextAdvanced(String text) {
+    try {
+      print('\n=== ADVANCED RECEIPT PARSING ===');
+      print('Input text length: ${text.length} characters');
+      print('Raw input text: "$text"');
+
+      // Show text in a more readable format
+      final rawLines = text.split('\n');
+      print('Text broken into ${rawLines.length} lines:');
+      for (int i = 0; i < rawLines.length; i++) {
+        print('  Line $i: "${rawLines[i]}"');
+      }
+
+      final lines = text
+          .split('\n')
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty)
+          .toList();
+
+      print('Processing ${lines.length} clean lines');
+
+      final items = <BillItem>[];
+      final detectedTotals = <String, double>{};
+
+      // PHASE 1: Enhanced line-by-line extraction
+      for (int i = 0; i < lines.length; i++) {
+        final line = lines[i];
+        print('Processing line $i: "$line"');
+
+        // Check for totals first
+        final totalMatch = _extractTotalFromLine(line);
+        if (totalMatch != null) {
+          detectedTotals[totalMatch['type']!] = totalMatch['amount']!;
+          print('  -> Found ${totalMatch['type']}: €${totalMatch['amount']!.toStringAsFixed(2)}');
+          continue;
+        }
+
+        // Skip header/footer lines
+        if (_isHeaderOrFooterLineAdvanced(line)) {
+          print('  -> Skipped (header/footer)');
+          continue;
+        }
+
+        // Try enhanced item extraction
+        final item = _extractItemFromLineAdvanced(line, items.length);
+        if (item != null) {
+          // Validate against Spanish product dictionary
+          final isValidPrice = _validatePriceForProduct(item.name, item.price);
+          if (isValidPrice) {
+            items.add(item);
+            print('  -> Found validated item: ${item.name} - €${item.price.toStringAsFixed(2)}');
+          } else {
+            print('  -> Item price validation failed: ${item.name} - €${item.price.toStringAsFixed(2)}');
+            // Still add but mark for review
+            items.add(item.copyWith(selectedBy: ['NEEDS_REVIEW']));
+          }
+        }
+      }
+
+      // PHASE 2: Multi-line Spanish parsing if needed
+      if (items.isEmpty) {
+        print('No items found with line-by-line parsing, trying multi-line Spanish parsing...');
+        final spanishItems = _parseSpanishTicketFormatAdvanced(lines);
+        items.addAll(spanishItems);
+      }
+
+      // PHASE 3: Aggressive extraction if still empty
+      if (items.isEmpty) {
+        print('Trying aggressive price extraction...');
+        final aggressiveItems = _extractPricesFromTextAdvanced(text);
+        items.addAll(aggressiveItems);
+      }
+
+      print('=== ADVANCED PARSING COMPLETE ===');
+      print('Total items found: ${items.length}');
+      print('Detected totals: $detectedTotals');
+
+      // Calculate totals
+      final subtotal = items.fold<double>(0.0, (sum, item) => sum + item.price);
+      final detectedTotal = detectedTotals['TOTAL'] ?? detectedTotals['SUMA'] ?? subtotal;
+
+      return {
+        'items': items,
+        'subtotal': subtotal,
+        'tax': 0.0,
+        'tip': 0.0,
+        'total': detectedTotal,
+        'detectedTotals': detectedTotals,
+        'restaurantName': 'Ticket Escaneado',
+        'needsReview': (subtotal - detectedTotal).abs() > (detectedTotal * 0.02), // 2% tolerance
+      };
+    } catch (e) {
+      print('❌ Advanced text parsing failed: $e');
+      return _getBasicParsingResult();
+    }
+  }
+
+  /// Legacy parsing method for fallback
   Map<String, dynamic> _parseReceiptText(String text) {
     try {
       print('\n=== PARSING RECEIPT TEXT ===');
@@ -148,19 +449,13 @@ class OCRService {
       print('=== PARSING COMPLETE ===');
       print('Total items found: ${items.length}');
 
-      // Apply intelligent validation and cleanup (no dictionary interference)
+      // Apply intelligent validation and cleanup
       final validatedItems = _validateAndCleanItems(items);
       print('After validation: ${validatedItems.length} items');
 
       // If still no items found, return basic structure for manual editing
       if (validatedItems.isEmpty) {
-        print('No items could be parsed from text, returning basic structure');
-        validatedItems.add(BillItem(
-          id: _uuid.v4(),
-          name: 'Producto del ticket',
-          price: 0.00,
-          selectedBy: [],
-        ));
+        return _getBasicParsingResult();
       }
 
       items.clear();
@@ -171,35 +466,89 @@ class OCRService {
       return {
         'items': items,
         'subtotal': subtotal,
-        'tax': 0.0, // No tax calculation as per previous requirements
-        'tip': 0.0, // No tax calculation as per previous requirements
+        'tax': 0.0,
+        'tip': 0.0,
         'total': subtotal,
         'restaurantName': 'Ticket Escaneado',
         'manualExtraction': items.length == 1 && items.first.price == 0.00,
       };
     } catch (e) {
-      // Return basic structure for manual editing if parsing fails
-      print('❌ Text parsing failed: $e');
-      return {
-        'items': [
-          BillItem(
-            id: _uuid.v4(),
-            name: 'Producto del ticket',
-            price: 0.00,
-            selectedBy: [],
-          )
-        ],
-        'subtotal': 0.00,
-        'tax': 0.0,
-        'tip': 0.0,
-        'total': 0.00,
-        'restaurantName': 'Ticket Escaneado - Editar Manualmente',
-        'manualExtraction': true,
-      };
+      print('❌ Legacy text parsing failed: $e');
+      return _getBasicParsingResult();
     }
   }
 
-  /// Check if line is likely a header or footer (not a product line)
+  /// Get basic parsing result for manual editing
+  Map<String, dynamic> _getBasicParsingResult() {
+    return {
+      'items': [
+        BillItem(
+          id: _uuid.v4(),
+          name: 'Producto del ticket',
+          price: 0.00,
+          selectedBy: [],
+        )
+      ],
+      'subtotal': 0.00,
+      'tax': 0.0,
+      'tip': 0.0,
+      'total': 0.00,
+      'restaurantName': 'Ticket Escaneado - Editar Manualmente',
+      'manualExtraction': true,
+      'confidence': 0.0,
+      'needsReview': true,
+    };
+  }
+
+  /// Enhanced header/footer detection with Spanish keywords
+  bool _isHeaderOrFooterLineAdvanced(String line) {
+    final lowerLine = line.toLowerCase().trim();
+
+    // Skip very short lines (likely not products)
+    if (lowerLine.length < 2) return true;
+
+    // Skip lines that are only numbers, symbols, or very short
+    if (RegExp(r'^[\d\s\-\.\*]{1,4}$').hasMatch(lowerLine)) return true;
+
+    // Check against Spanish keywords
+    for (final keyword in _spanishKeywords) {
+      if (lowerLine.contains(keyword.toLowerCase())) {
+        return true;
+      }
+    }
+
+    // Enhanced patterns for Spanish receipts
+    final skipPatterns = [
+      // Restaurant info
+      'restaurante', 'restaurant', 'bar', 'café', 'cafeteria', 'pizzeria',
+      'taberna', 'cocina', 'kitchen', 'comida', 'food', 'menú', 'menu',
+      'bienvenido', 'welcome', 'gracias', 'thank',
+
+      // Date/time patterns
+      RegExp(r'\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}'), // dates
+      RegExp(r'\d{1,2}:\d{2}'), // times
+      
+      // Address patterns
+      'calle', 'street', 'avenida', 'plaza', 'c/', 'av.',
+      'teléfono', 'tel', 'email', 'web', 'www',
+      
+      // Payment patterns
+      'visa', 'mastercard', 'efectivo', 'cash', 'tarjeta', 'card',
+    ];
+
+    // Check string patterns
+    for (final pattern in skipPatterns) {
+      if (pattern is String && lowerLine.contains(pattern)) {
+        return true;
+      } else if (pattern is RegExp && pattern.hasMatch(lowerLine)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /// Legacy header/footer detection
   bool _isHeaderOrFooterLine(String line) {
     final lowerLine = line.toLowerCase().trim();
 
@@ -263,7 +612,86 @@ class OCRService {
     return skipPatterns.any((pattern) => lowerLine.contains(pattern));
   }
 
-  /// Extract item from a single line using multiple strategies
+  /// Extract total amounts from lines
+  Map<String, dynamic>? _extractTotalFromLine(String line) {
+    
+    // Patterns for different total types
+    final totalPatterns = {
+      'TOTAL': RegExp(r'total[:\s]*([€\s]*)([\d]+[.,][\d]{2})', caseSensitive: false),
+      'SUBTOTAL': RegExp(r'subtotal[:\s]*([€\s]*)([\d]+[.,][\d]{2})', caseSensitive: false),
+      'SUMA': RegExp(r'suma[:\s]*([€\s]*)([\d]+[.,][\d]{2})', caseSensitive: false),
+      'IMPORTE': RegExp(r'importe[:\s]*([€\s]*)([\d]+[.,][\d]{2})', caseSensitive: false),
+    };
+    
+    for (final entry in totalPatterns.entries) {
+      final match = entry.value.firstMatch(line);
+      if (match != null) {
+        final priceStr = match.group(2)?.replaceAll(',', '.') ?? '0';
+        final amount = double.tryParse(priceStr) ?? 0.0;
+        if (amount > 0) {
+          return {'type': entry.key, 'amount': amount};
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  /// Enhanced item extraction with Spanish product matching
+  BillItem? _extractItemFromLineAdvanced(String line, int itemIndex) {
+    final cleanLine = line.trim();
+    if (cleanLine.isEmpty) return null;
+
+    print('  Analyzing line (advanced): "$cleanLine"');
+
+    // Strategy 1: Spanish product name + price patterns
+    final spanishPatterns = [
+      // "COCA COLA 2,50€" or "COCA COLA 2.50"
+      RegExp(r'^([A-ZÁÉÍÓÚÑ\s]{3,})\s+([\d]+[.,][\d]{1,2})\s*€?\s*$'),
+      // "Pizza Margherita    15.50"
+      RegExp(r'^([a-zA-ZáéíóúñÁÉÍÓÚÑ\s]{4,})\s{2,}([\d]+[.,][\d]{1,2})\s*€?\s*$'),
+      // "1 x Hamburguesa 8.50" or "2x Cerveza 5.00"
+      RegExp(r'^([\d]+)\s*x\s*([a-zA-ZáéíóúñÁÉÍÓÚÑ\s]{3,})\s+([\d]+[.,][\d]{1,2})\s*€?\s*$'),
+      // "Cerveza (33cl) 2.80"
+      RegExp(r'^([a-zA-ZáéíóúñÁÉÍÓÚÑ\s\(\)\d]{3,})\s+([\d]+[.,][\d]{1,2})\s*€?\s*$'),
+    ];
+
+    for (int i = 0; i < spanishPatterns.length; i++) {
+      final pattern = spanishPatterns[i];
+      final match = pattern.firstMatch(cleanLine);
+      if (match != null) {
+        String name;
+        String priceStr;
+        int quantity = 1;
+        
+        if (i == 2) { // Quantity pattern
+          quantity = int.tryParse(match.group(1)!) ?? 1;
+          name = match.group(2)!.trim();
+          priceStr = match.group(3)!;
+        } else {
+          name = match.group(1)!.trim();
+          priceStr = match.group(2)!;
+        }
+        
+        print('    -> Spanish pattern $i matched: "$name" - $priceStr (qty: $quantity)');
+        
+        // Try to match with Spanish product dictionary
+        final matchedProduct = _matchSpanishProduct(name);
+        if (matchedProduct != null) {
+          name = matchedProduct; // Use standardized name
+          print('    -> Matched to dictionary product: $matchedProduct');
+        }
+        
+        final item = _createItemFromMatchAdvanced(name, priceStr, itemIndex, quantity);
+        if (item != null) return item;
+      }
+    }
+
+    // Fallback to original extraction methods
+    return _extractItemFromLine(cleanLine, itemIndex);
+  }
+
+  /// Legacy item extraction method
   BillItem? _extractItemFromLine(String line, int itemIndex) {
     final cleanLine = line.trim();
     if (cleanLine.isEmpty) return null;
@@ -387,7 +815,37 @@ class OCRService {
     return null;
   }
 
-  /// Create BillItem from extracted name and price
+  /// Enhanced item creation with quantity support
+  BillItem? _createItemFromMatchAdvanced(String name, String priceStr, int itemIndex, [int quantity = 1]) {
+    final price = double.tryParse(priceStr.replaceAll(',', '.')) ?? 0.0;
+
+    // More flexible price validation
+    if (price < 0.05 || price > 1000.00) return null;
+
+    final cleanName = _cleanItemNameAdvanced(name);
+
+    // Skip if name is too short or generic
+    if (cleanName.length < 2) return null;
+
+    // Skip obvious non-products
+    final skipNames = ['total', 'suma', 'iva', 'descuento', 'cambio', 'efectivo', 'tarjeta'];
+    if (skipNames.any((skip) => cleanName.toLowerCase().contains(skip))) {
+      return null;
+    }
+
+    final finalName = quantity > 1 ? '$quantity x $cleanName' : cleanName;
+    final unitPrice = quantity > 1 ? price / quantity : price;
+
+    return BillItem(
+      id: _uuid.v4(),
+      name: finalName,
+      price: unitPrice,
+      quantity: quantity,
+      selectedBy: [],
+    );
+  }
+
+  /// Legacy item creation method
   BillItem? _createItemFromMatch(String name, String priceStr, int itemIndex) {
     final price = double.tryParse(priceStr.replaceAll(',', '.')) ?? 0.0;
 
@@ -407,7 +865,144 @@ class OCRService {
     );
   }
 
-  /// Try alternative parsing strategies when standard parsing fails
+  /// Advanced Spanish ticket format parsing
+  List<BillItem> _parseSpanishTicketFormatAdvanced(List<String> lines) {
+    final items = <BillItem>[];
+    
+    print('\n=== ADVANCED SPANISH PARSING ===');
+    
+    // Look for product-price pairs across multiple lines
+    for (int i = 0; i < lines.length - 1; i++) {
+      final currentLine = lines[i].trim();
+      final nextLine = lines[i + 1].trim();
+      
+      // Skip if current line looks like header/footer
+      if (_isHeaderOrFooterLineAdvanced(currentLine)) continue;
+      
+      // Check if current line is a product name and next line has a price
+      final priceMatch = RegExp(r'^([€\s]*)?([\d]+[.,][\d]{1,2})([€\s]*)?$').firstMatch(nextLine);
+      if (priceMatch != null && currentLine.length >= 3) {
+        final productName = currentLine;
+        final priceStr = priceMatch.group(2)!;
+        
+        // Try to match with Spanish dictionary
+        final matchedProduct = _matchSpanishProduct(productName);
+        final finalName = matchedProduct ?? productName;
+        
+        final item = _createItemFromMatchAdvanced(finalName, priceStr, items.length);
+        if (item != null) {
+          items.add(item);
+          print('  -> Multi-line match: "$finalName" - €${item.price.toStringAsFixed(2)}');
+        }
+      }
+    }
+    
+    print('Advanced Spanish parsing found ${items.length} items');
+    return items;
+  }
+
+  /// Enhanced price extraction with better validation
+  List<BillItem> _extractPricesFromTextAdvanced(String text) {
+    final items = <BillItem>[];
+    final pricePattern = RegExp(r'([\d]+[.,][\d]{1,2})');
+    final matches = pricePattern.allMatches(text);
+    
+    print('\n=== ADVANCED PRICE EXTRACTION ===');
+    print('Found ${matches.length} potential prices');
+    
+    for (final match in matches) {
+      final priceStr = match.group(1)!;
+      final price = double.tryParse(priceStr.replaceAll(',', '.')) ?? 0.0;
+      
+      // More reasonable price range for Spanish restaurants
+      if (price >= 0.50 && price <= 150.00) {
+        // Try to find associated text
+        final startIndex = math.max(0, match.start - 50);
+        final endIndex = math.min(text.length, match.end + 20);
+        final context = text.substring(startIndex, endIndex);
+        
+        // Look for product names in the context
+        final words = context.split(RegExp(r'[\s\n]+'))
+            .where((word) => word.length >= 3 && !RegExp(r'^[\d.,€\$]+$').hasMatch(word))
+            .toList();
+        
+        if (words.isNotEmpty) {
+          final productName = words.first;
+          final matchedProduct = _matchSpanishProduct(productName);
+          final finalName = matchedProduct ?? _cleanItemNameAdvanced(productName);
+          
+          if (finalName.length >= 3) {
+            final item = BillItem(
+              id: _uuid.v4(),
+              name: finalName,
+              price: price,
+              selectedBy: [],
+            );
+            items.add(item);
+            print('  -> Extracted: "$finalName" - €${price.toStringAsFixed(2)}');
+          }
+        }
+      }
+    }
+    
+    print('Advanced price extraction found ${items.length} items');
+    return items;
+  }
+
+  /// Validate and score parsing results
+  Map<String, dynamic> _validateAndScoreResults(Map<String, dynamic> parseResult) {
+    final items = parseResult['items'] as List<BillItem>;
+    final subtotal = parseResult['subtotal'] as double;
+    final detectedTotal = parseResult['total'] as double;
+    final needsReview = parseResult['needsReview'] as bool? ?? false;
+    
+    // Calculate confidence score
+    double confidence = 1.0;
+    
+    // Reduce confidence if no items found
+    if (items.isEmpty) {
+      confidence = 0.0;
+    } else if (items.length == 1 && items.first.price == 0.0) {
+      confidence = 0.0;
+    } else {
+      // Reduce confidence based on total deviation
+      final deviation = (subtotal - detectedTotal).abs();
+      final deviationPercent = detectedTotal > 0 ? deviation / detectedTotal : 0.0;
+      
+      if (deviationPercent > 0.10) { // >10% deviation
+        confidence *= 0.3;
+      } else if (deviationPercent > 0.05) { // >5% deviation
+        confidence *= 0.6;
+      } else if (deviationPercent > 0.02) { // >2% deviation
+        confidence *= 0.8;
+      }
+      
+      // Boost confidence for dictionary matches
+      int dictionaryMatches = 0;
+      for (final item in items) {
+        if (_matchSpanishProduct(item.name) != null) {
+          dictionaryMatches++;
+        }
+      }
+      final dictionaryRatio = items.isNotEmpty ? dictionaryMatches / items.length : 0.0;
+      confidence *= (0.7 + 0.3 * dictionaryRatio); // Boost for dictionary matches
+    }
+    
+    // Add validation results to parse result
+    final result = Map<String, dynamic>.from(parseResult);
+    result['confidence'] = confidence;
+    result['needsReview'] = needsReview || confidence < 0.7;
+    result['dictionaryMatches'] = items.where((item) => _matchSpanishProduct(item.name) != null).length;
+    
+    print('\n=== VALIDATION RESULTS ===');
+    print('Confidence: ${(confidence * 100).toStringAsFixed(1)}%');
+    print('Needs review: ${result['needsReview']}');
+    print('Dictionary matches: ${result['dictionaryMatches']}/${items.length}');
+    
+    return result;
+  }
+
+  /// Legacy alternative parsing method
   List<BillItem> _tryAlternativeParsing(List<String> lines) {
     final items = <BillItem>[];
     print('=== ALTERNATIVE PARSING STRATEGIES ===');
@@ -936,7 +1531,7 @@ class OCRService {
     };
   }
 
-  /// Extract prices from text when standard parsing fails
+  /// Legacy price extraction method
   List<BillItem> _extractPricesFromText(String text) {
     print('Extracting prices from raw text...');
     final items = <BillItem>[];
@@ -1017,7 +1612,7 @@ class OCRService {
     return cleaned;
   }
 
-  /// Preprocess OCR text to improve parsing accuracy
+  /// Legacy OCR text preprocessing
   String _preprocessOCRText(String rawText) {
     print('=== PREPROCESSING OCR TEXT ===');
     print('Raw text: "$rawText"');
@@ -1286,7 +1881,32 @@ class OCRService {
     return commonChars / longer.length;
   }
 
-  /// Clean and format item names
+  /// Enhanced item name cleaning with Spanish support
+  String _cleanItemNameAdvanced(String name) {
+    String cleaned = name.trim();
+    
+    // Remove common OCR artifacts
+    cleaned = cleaned.replaceAll(RegExp(r'[€\$\*\-\.]+$'), '');
+    cleaned = cleaned.replaceAll(RegExp(r'^[\*\-\.]+'), '');
+    
+    // Remove quantity indicators if they got mixed in
+    cleaned = cleaned.replaceAll(RegExp(r'^\d+\s*x\s*', caseSensitive: false), '');
+    
+    // Normalize Spanish characters
+    cleaned = cleaned.replaceAll('Ã±', 'ñ').replaceAll('ÃÑ', 'Ñ');
+    cleaned = cleaned.replaceAll('Ã¡', 'á').replaceAll('Ã©', 'é');
+    cleaned = cleaned.replaceAll('Ã­', 'í').replaceAll('Ã³', 'ó').replaceAll('Ãº', 'ú');
+    
+    // Capitalize properly for Spanish
+    if (cleaned.isNotEmpty) {
+      cleaned = cleaned.toLowerCase();
+      cleaned = cleaned[0].toUpperCase() + cleaned.substring(1);
+    }
+    
+    return cleaned.trim();
+  }
+
+  /// Legacy item name cleaning
   String _cleanItemName(String name) {
     print('    Cleaning name: "$name"');
 
