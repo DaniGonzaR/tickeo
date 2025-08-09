@@ -4,6 +4,7 @@ import 'package:tickeo/models/bill_item.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:js' if (dart.library.io) 'dart:js' as js;
 import 'package:http/http.dart' as http;
 
@@ -122,7 +123,14 @@ class OCRService {
         items.addAll(alternativeItems);
       }
       
-      // If still no items after alternative parsing, try to extract any numbers as potential prices
+      // If still no items after alternative parsing, try intelligent Spanish parsing
+      if (items.isEmpty) {
+        print('Trying intelligent Spanish product-price association...');
+        final spanishItems = _parseSpanishTicketFormat(lines);
+        items.addAll(spanishItems);
+      }
+      
+      // If still no items, try to extract any numbers as potential prices
       if (items.isEmpty) {
         print('Trying to extract any price-like patterns from text...');
         final priceItems = _extractPricesFromText(text);
@@ -469,6 +477,186 @@ class OCRService {
     }
     
     return items;
+  }
+  
+  /// Intelligent Spanish ticket parsing - associates products with prices on separate lines
+  List<BillItem> _parseSpanishTicketFormat(List<String> lines) {
+    print('=== INTELLIGENT SPANISH TICKET PARSING ===');
+    final items = <BillItem>[];
+    
+    // Step 1: Identify Spanish product names
+    final productLines = <int>[];
+    final priceLines = <int>[];
+    
+    // Common Spanish food/drink keywords
+    final spanishProductKeywords = [
+      'coca', 'cola', 'pepsi', 'agua', 'cerveza', 'beer', 'vino', 'wine',
+      'jarra', 'caña', 'botella', 'copa', 'vaso', 'refresco',
+      'hamburguesa', 'pizza', 'bocadillo', 'sandwich', 'tapa', 'ración',
+      'patatas', 'papas', 'bravas', 'fritas', 'tortilla', 'ensalada',
+      'pollo', 'carne', 'pescado', 'jamón', 'queso', 'pan', 'tostada',
+      'café', 'cortado', 'cappuccino', 'té', 'zumo', 'jugo',
+      'helado', 'postre', 'flan', 'tarta', 'mousse',
+      'aceitunas', 'olivas', 'nachos', 'alitas', 'croquetas',
+      'gazpacho', 'salmorejo', 'paella', 'fideuá', 'risotto',
+      'victoria', 'estrella', 'mahou', 'cruzcampo', 'alhambra',
+      'tinto', 'verano', 'sangría', 'clara', 'radler'
+    ];
+    
+    print('🔍 STEP 1: Identifying product lines...');
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i].trim().toLowerCase();
+      if (line.isEmpty || _isHeaderOrFooterLine(lines[i])) continue;
+      
+      // Check if line contains Spanish product keywords
+      bool isProduct = spanishProductKeywords.any((keyword) => line.contains(keyword));
+      
+      // Also check for typical product patterns (letters with spaces, no prices)
+      if (!isProduct && RegExp(r'^[a-záéíóúñü\s]{3,}$').hasMatch(line) && 
+          !RegExp(r'\d+[.,]\d{2}').hasMatch(line)) {
+        isProduct = true;
+      }
+      
+      if (isProduct) {
+        productLines.add(i);
+        print('   Found product line $i: "${lines[i]}"');
+      }
+    }
+    
+    print('🔍 STEP 2: Identifying price lines...');
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i].trim();
+      if (line.isEmpty || _isHeaderOrFooterLine(line)) continue;
+      
+      // Look for standalone prices (numbers with decimals and currency)
+      if (RegExp(r'^\s*\d{1,3}[.,]\d{2}\s*[€\$]?\s*$').hasMatch(line)) {
+        priceLines.add(i);
+        print('   Found price line $i: "$line"');
+      }
+    }
+    
+    print('🔍 STEP 3: Associating products with prices...');
+    print('   Products found: ${productLines.length}');
+    print('   Prices found: ${priceLines.length}');
+    
+    // Strategy 1: Sequential association (most common in Spanish tickets)
+    if (productLines.isNotEmpty && priceLines.isNotEmpty) {
+      final minCount = math.min(productLines.length, priceLines.length);
+      
+      for (int i = 0; i < minCount; i++) {
+        final productLine = lines[productLines[i]].trim();
+        final priceLine = lines[priceLines[i]].trim();
+        
+        // Extract price
+        final priceMatch = RegExp(r'(\d{1,3}[.,]\d{2})').firstMatch(priceLine);
+        if (priceMatch != null) {
+          final priceStr = priceMatch.group(1)!.replaceAll(',', '.');
+          final price = double.tryParse(priceStr) ?? 0.0;
+          
+          if (price >= 0.10 && price <= 999.99) {
+            final cleanName = _cleanSpanishProductName(productLine);
+            if (cleanName.isNotEmpty) {
+              print('   ✅ Associated: "$cleanName" → €${price.toStringAsFixed(2)}');
+              
+              items.add(BillItem(
+                id: _uuid.v4(),
+                name: cleanName,
+                price: price,
+                selectedBy: [],
+              ));
+            }
+          }
+        }
+      }
+    }
+    
+    // Strategy 2: If no sequential match, try proximity-based matching
+    if (items.isEmpty && productLines.isNotEmpty && priceLines.isNotEmpty) {
+      print('🔍 STEP 4: Trying proximity-based matching...');
+      
+      for (final productIndex in productLines) {
+        final productLine = lines[productIndex].trim();
+        
+        // Find the closest price line
+        int? closestPriceIndex;
+        int minDistance = 999;
+        
+        for (final priceIndex in priceLines) {
+          final distance = (productIndex - priceIndex).abs();
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestPriceIndex = priceIndex;
+          }
+        }
+        
+        if (closestPriceIndex != null && minDistance <= 5) {
+          final priceLine = lines[closestPriceIndex].trim();
+          final priceMatch = RegExp(r'(\d{1,3}[.,]\d{2})').firstMatch(priceLine);
+          
+          if (priceMatch != null) {
+            final priceStr = priceMatch.group(1)!.replaceAll(',', '.');
+            final price = double.tryParse(priceStr) ?? 0.0;
+            
+            if (price >= 0.10 && price <= 999.99) {
+              final cleanName = _cleanSpanishProductName(productLine);
+              if (cleanName.isNotEmpty) {
+                print('   ✅ Proximity match: "$cleanName" → €${price.toStringAsFixed(2)} (distance: $minDistance)');
+                
+                items.add(BillItem(
+                  id: _uuid.v4(),
+                  name: cleanName,
+                  price: price,
+                  selectedBy: [],
+                ));
+                
+                // Remove used price line to avoid duplicates
+                priceLines.remove(closestPriceIndex);
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    print('=== SPANISH PARSING COMPLETE ===');
+    print('Successfully parsed ${items.length} Spanish products');
+    
+    return items;
+  }
+  
+  /// Clean and format Spanish product names properly
+  String _cleanSpanishProductName(String name) {
+    if (name.isEmpty) return '';
+    
+    // Remove common prefixes/suffixes
+    String cleaned = name
+        .replaceAll(RegExp(r'^\d+\s*'), '') // Remove leading numbers
+        .replaceAll(RegExp(r'\s*[€\$].*'), '') // Remove prices
+        .replaceAll(RegExp(r'\s*\d+[.,]\d{2}.*'), '') // Remove decimal prices
+        .replaceAll(RegExp(r'[\*\-_=]{2,}'), '') // Remove decorative chars
+        .trim();
+    
+    if (cleaned.isEmpty) return '';
+    
+    // Proper Spanish capitalization
+    final words = cleaned.toLowerCase().split(' ');
+    final capitalizedWords = <String>[];
+    
+    for (int i = 0; i < words.length; i++) {
+      final word = words[i];
+      if (word.isEmpty) continue;
+      
+      // Don't capitalize Spanish articles and prepositions unless first word
+      final spanishArticles = ['de', 'del', 'la', 'el', 'con', 'y', 'a', 'al'];
+      
+      if (i > 0 && spanishArticles.contains(word)) {
+        capitalizedWords.add(word);
+      } else {
+        capitalizedWords.add(word[0].toUpperCase() + word.substring(1));
+      }
+    }
+    
+    return capitalizedWords.join(' ');
   }
   
   /// Process image on web platform using robust multi-strategy OCR
