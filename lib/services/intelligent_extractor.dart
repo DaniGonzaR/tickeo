@@ -51,43 +51,22 @@ class IntelligentExtractor {
 
   /// Corrige errores comunes de OCR en nombres de productos
   Future<List<BillItem>> _correctOCRErrors(List<BillItem> items, MultiEngineOCRResult ocrResult) async {
-    print('🔧 Corrigiendo errores OCR...');
+    print('🔧 Manteniendo nombres originales del ticket...');
     
-    // Solo correcciones específicas de palabras completas para evitar sobre-corrección
-    final specificCorrections = {
-      // Palabras comunes mal reconocidas
-      'c0ca': 'coca', 'c0la': 'cola', 'cerv3za': 'cerveza',
-      'hamb0rguesa': 'hamburguesa', 'p0llo': 'pollo',
-      'qu3so': 'queso', 'l3che': 'leche', 'ag0a': 'agua',
-      'f0nt': 'font', 've11a': 'vella', 'zer0': 'zero',
-      'beb1da': 'bebida', 'ene': 'ene', 'green': 'green',
-      'empanada': 'empanada', 'came': 'carne',
-      'pr0tect0r': 'protector', '501ar': 'solar',
-      'me10c0t0n': 'melocoton', 'r0j0': 'rojo',
-    };
-    
-    final correctedItems = <BillItem>[];
+    // NO aplicar correcciones - mantener texto original del ticket
+    final originalItems = <BillItem>[];
     
     for (final item in items) {
-      String correctedName = item.name.toLowerCase();
-      
-      // Solo aplicar correcciones específicas de palabras completas
-      for (final correction in specificCorrections.entries) {
-        correctedName = correctedName.replaceAll(correction.key, correction.value);
-      }
-      
-      // Capitalizar correctamente
-      correctedName = _capitalizeSpanish(correctedName);
-      
-      correctedItems.add(BillItem(
+      // Mantener el nombre exactamente como aparece en el ticket
+      originalItems.add(BillItem(
         id: item.id,
-        name: correctedName,
+        name: item.name, // Sin modificaciones
         price: item.price,
         selectedBy: item.selectedBy,
       ));
     }
     
-    return correctedItems;
+    return originalItems;
   }
 
   /// Filtrado inteligente basado en contexto

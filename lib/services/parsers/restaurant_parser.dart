@@ -91,47 +91,83 @@ class RestaurantParser extends BaseParser {
   Future<List<BillItem>> _parseAlternativeFormat(List<String> lines) async {
     final items = <BillItem>[];
     
-    // Buscar patrones típicos: cantidad + producto + precio
+    print('🔍 DEBUG: Analizando ${lines.length} líneas del ticket de restaurante:');
+    
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i].trim();
+      print('📝 Línea $i: "$line"');
       
-      if (isHeaderOrFooter(line)) continue;
+      if (isHeaderOrFooter(line)) {
+        print('   ⏭️ Saltando header/footer');
+        continue;
+      }
       
-      // Patrón: "2 CERVEZA MAHOU 5,00"
-      final quantityPattern = RegExp(r'^(\d+)\s+([A-Za-záéíóúñü\s]+?)\s+(\d+[.,]\d{2})');
-      final match = quantityPattern.firstMatch(line);
+      // Patrón específico para formato "1    Coca Cola                2,90 €"
+      final restaurantPattern = RegExp(r'^(\d+)\s+([A-Za-záéíóúñü\s\d\./\-]+?)\s+(\d+[.,]\d{2})\s*€?');
+      final restaurantMatch = restaurantPattern.firstMatch(line);
       
-      if (match != null) {
-        final quantity = int.tryParse(match.group(1)!) ?? 1;
-        final productName = match.group(2)!.trim();
-        final priceStr = match.group(3)!.replaceAll(',', '.');
+      if (restaurantMatch != null) {
+        print('   ✅ RESTAURANT MATCH: "${restaurantMatch.group(1)}" - "${restaurantMatch.group(2)}" - "${restaurantMatch.group(3)}"');
+        final quantity = int.tryParse(restaurantMatch.group(1)!) ?? 1;
+        String productName = restaurantMatch.group(2)!.trim();
+        final priceStr = restaurantMatch.group(3)!.replaceAll(',', '.');
         final price = double.tryParse(priceStr) ?? 0.0;
         
+        // Limpiar nombre del producto
+        productName = _cleanRestaurantProductName(productName);
+        
         if (isValidPrice(price) && productName.length >= 3) {
-          // Si hay cantidad > 1, crear items individuales
+          // Crear items según la cantidad
           for (int j = 0; j < quantity; j++) {
-            items.add(createBillItem(productName, price / quantity));
+            items.add(createBillItem(productName, price));
           }
+          continue;
         }
-      } else {
-        // Patrón simple: producto seguido de precio
-        final prices = extractPricesFromLine(line);
-        if (prices.isNotEmpty) {
-          String productName = line;
-          for (final price in prices) {
-            productName = productName.replaceAll(price.toString(), '');
-            productName = productName.replaceAll(price.toStringAsFixed(2), '');
-          }
-          
-          productName = cleanProductName(productName);
-          if (productName.length >= 2) {
-            items.add(createBillItem(productName, prices.first));
-          }
+      }
+      
+      // Patrón alternativo para líneas con formato diferente
+      final prices = extractPricesFromLine(line);
+      if (prices.isNotEmpty) {
+        print('   💰 Precio encontrado: ${prices.first}');
+        String productName = line;
+        
+        // Remover precios y símbolos de euro del nombre
+        for (final price in prices) {
+          productName = productName.replaceAll(price.toString(), '');
+          productName = productName.replaceAll(price.toStringAsFixed(2), '');
+          productName = productName.replaceAll('€', '');
+        }
+        
+        productName = _cleanRestaurantProductName(productName);
+        if (productName.length >= 2) {
+          print('   ✅ Producto extraído: "$productName" - €${prices.first}');
+          items.add(createBillItem(productName, prices.first));
         }
       }
     }
     
     return items;
+  }
+
+  /// Limpia nombres de productos de restaurante
+  String _cleanRestaurantProductName(String name) {
+    String cleaned = name.trim();
+    
+    // Remover números al inicio (cantidad)
+    cleaned = cleaned.replaceAll(RegExp(r'^\d+\s*'), '');
+    
+    // Remover precios y símbolos
+    cleaned = cleaned.replaceAll(RegExp(r'\d+[.,]\d{2}'), '');
+    cleaned = cleaned.replaceAll('€', '');
+    cleaned = cleaned.replaceAll(RegExp(r'[*]+'), '');
+    
+    // Limpiar espacios múltiples
+    cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+    
+    // Capitalizar primera letra de cada palabra
+    return cleaned.split(' ')
+        .map((word) => word.isNotEmpty ? word[0].toUpperCase() + word.substring(1).toLowerCase() : '')
+        .join(' ');
   }
 
   /// Identifica y mejora el nombre de productos de restaurante
@@ -166,6 +202,41 @@ class RestaurantParser extends BaseParser {
       default:
         return cleanLine.isNotEmpty ? cleanLine : category.capitalize();
     }
+  }
+
+  @override
+  bool isHeaderOrFooter(String line) {
+    final upperLine = line.toUpperCase();
+    
+    // Patrones específicos de restaurantes
+    final restaurantPatterns = [
+      'TOTAL', 'SUBTOTAL', 'IVA', 'BASE', 'IMPUESTO', 'CAMBIO',
+      'TARJETA', 'EFECTIVO', 'VISA', 'MASTERCARD', 'GRACIAS',
+      'FACTURA', 'TICKET', 'FECHA', 'HORA', 'MESA', 'CAMARERO',
+      'RESTAURANTE', 'BAR', 'CAFETERIA', 'TERRAZA', 'ESTABLECIMIENTO',
+      'DIRECCION', 'TELEFONO', 'CIF', 'NIF', 'LOCALIDAD',
+      'CUOTA', 'TSTEL', 'TOTE', 'TOT', '3ASE', 'SUOTA',
+      'IMPUESTOS INCL', 'GRACIAS POR SU VISITA'
+    ];
+    
+    // Detectar líneas que son claramente totales o resúmenes
+    if (RegExp(r'TOTAL.*\d+[.,]\d{2}').hasMatch(upperLine)) {
+      return true;
+    }
+    
+    // Detectar líneas con formato de total confuso del OCR
+    if (RegExp(r'(TOTE|TOT|TSTEL).*€.*\d+[.,]\d{2}').hasMatch(upperLine)) {
+      return true;
+    }
+    
+    // Detectar líneas de IVA/bases
+    if (RegExp(r'\d+%.*BASE.*\d+[.,]\d{2}').hasMatch(upperLine)) {
+      return true;
+    }
+    
+    // Usar detección base más patrones específicos
+    return super.isHeaderOrFooter(line) || 
+           restaurantPatterns.any((pattern) => upperLine.contains(pattern));
   }
 
   /// Elimina items duplicados

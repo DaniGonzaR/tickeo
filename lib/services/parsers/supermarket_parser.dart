@@ -64,7 +64,7 @@ class SupermarketParser extends BaseParser {
       
       // Patrón para formato PRECIO + LETRA + PRODUCTO (formato real del ticket)
       // Ej: "2,45 C	MELOCOTON ROJO	AP" o "16,95 A	*PROTECTOR SOLAR"
-      final priceFirstPattern = RegExp(r'^(\d*[.,]\d{2})\s*([ABC])?\s+([*]?[A-Za-záéíóúñü\s\d\.-]+?)(?:\s+[A-Z]{2,})?$');
+      final priceFirstPattern = RegExp(r'^(\d*[.,]\d{2})\s*([ABC])?\s+(.+)$');
       final priceMatch = priceFirstPattern.firstMatch(line);
       
       if (priceMatch != null) {
@@ -72,8 +72,16 @@ class SupermarketParser extends BaseParser {
         final priceStr = priceMatch.group(1)!.replaceAll(',', '.');
         String productName = priceMatch.group(3)!.trim();
         
-        // Limpiar asteriscos y caracteres especiales del nombre
+        // Limpiar asteriscos y sufijos específicos conocidos
         productName = productName.replaceAll('*', '').trim();
+        
+        // Remover sufijos específicos de tickets (AP, etc.) pero mantener palabras del producto
+        final knownSuffixes = ['AP', 'EUR/kg'];
+        for (final suffix in knownSuffixes) {
+          if (productName.endsWith(' $suffix')) {
+            productName = productName.substring(0, productName.length - suffix.length - 1).trim();
+          }
+        }
         
         double price = double.tryParse(priceStr) ?? 0.0;
         
@@ -129,11 +137,11 @@ class SupermarketParser extends BaseParser {
         final unitPrice = double.tryParse(unitPriceStr) ?? 0.0;
         
         if (isValidPrice(unitPrice) && productName.length >= 3) {
-          final cleanName = _improveSupermarketProductName(productName);
+          // Mantener el nombre original del ticket sin mejoras
           
           // Crear items individuales si hay cantidad > 1
           for (int j = 0; j < quantity; j++) {
-            items.add(createBillItem(cleanName, unitPrice));
+            items.add(createBillItem(productName, unitPrice));
           }
         }
       }
@@ -294,19 +302,38 @@ class SupermarketParser extends BaseParser {
 
   @override
   bool isHeaderOrFooter(String line) {
-    final lower = line.toLowerCase().trim();
+    final upperLine = line.toUpperCase();
     
-    // Patrones específicos de supermercados además de los generales
-    final supermarketSkipPatterns = [
-      'mercadona', 'carrefour', 'alcampo', 'lidl', 'dia', 'eroski',
-      'hipermercado', 'supermercado', 'establecimiento',
-      'total articulos', 'num articulos', 'vendidos',
-      'ahorro', 'descuento', 'oferta', 'promocion',
-      'tarjeta cliente', 'puntos', 'saldo',
-      'bolsa', 'bolsas', 'kg', 'unidades', 'uds',
+    // Patrones de header/footer comunes en tickets españoles
+    final patterns = [
+      'TOTAL', 'SUBTOTAL', 'IVA', 'IMPUESTO', 'BASE', 'CAMBIO',
+      'TARJETA', 'EFECTIVO', 'VISA', 'MASTERCARD', 'FECHA', 'HORA',
+      'ESTABLECIMIENTO', 'DIRECCION', 'TELEFONO', 'CIF', 'NIF',
+      'GRACIAS', 'VUELVA', 'PRONTO', 'TICKET', 'FACTURA',
+      'OPERACION', 'TERMINAL', 'NUMERO', 'CODIGO', 'REFERENCIA',
+      'VENDEDOR', 'CAJERO', 'CAJA', 'TRANSACCION', 'AUTORIZA',
+      'CLIENTE', 'LOCALIDAD', 'PROVINCIA', 'CP', 'ALCAMPO',
+      'MERCADONA', 'CARREFOUR', 'LIDL', 'DIA', 'EROSKI',
+      'WWW', 'HTTP', 'EMAIL', '@', '.COM', '.ES',
+      'DEVOLUCION', 'GARANTIA', 'CONSERVE', 'COMPROBANTE',
+      'TOT', 'EUR/KG', 'VENDI DOS', 'TOLAI ANT'
     ];
     
-    return super.isHeaderOrFooter(line) || 
-           supermarketSkipPatterns.any((pattern) => lower.contains(pattern));
+    // Detectar líneas que contienen solo totales o precios sin productos
+    if (RegExp(r'^\d+[.,]\d{2}\s*(TOT|TOTAL|€\*?)\s*$').hasMatch(upperLine)) {
+      return true;
+    }
+    
+    // Detectar líneas de IVA/impuestos (formato: "3,51 16.72 21,00 IVA H")
+    if (RegExp(r'\d+[.,]\d{2}\s+\d+[.,]\d{2}\s+\d+[.,]\d{2}\s+(IVA|BASE)').hasMatch(upperLine)) {
+      return true;
+    }
+    
+    return patterns.any((pattern) => upperLine.contains(pattern)) ||
+           line.trim().isEmpty ||
+           line.length < 3 ||
+           RegExp(r'^[*\-=._ ]+$').hasMatch(line) ||
+           RegExp(r'^\d{2}/\d{2}/\d{2,4}').hasMatch(line) ||
+           RegExp(r'^\d{2}:\d{2}').hasMatch(line);
   }
 }
