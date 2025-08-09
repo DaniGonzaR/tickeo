@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
+import 'package:image_picker/image_picker.dart';
 
 /// Preprocesador de imágenes para mejorar la calidad antes del OCR
 class ImagePreprocessor {
@@ -22,8 +23,16 @@ class ImagePreprocessor {
         imageBytes = await imageFile.readAsBytes();
       } else if (imageFile is Uint8List) {
         imageBytes = imageFile;
+      } else if (imageFile is XFile) {
+        // Manejar XFile (image_picker)
+        imageBytes = await imageFile.readAsBytes();
       } else {
-        throw Exception('Tipo de imagen no soportado');
+        // Intentar convertir cualquier tipo con readAsBytes si tiene el método
+        try {
+          imageBytes = await imageFile.readAsBytes();
+        } catch (e) {
+          throw Exception('Tipo de imagen no soportado: ${imageFile.runtimeType}');
+        }
       }
 
       // Decodificar imagen
