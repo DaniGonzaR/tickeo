@@ -139,110 +139,203 @@ class OCRService {
     };
   }
 
-  /// Enhanced Spanish parsing specifically for the problematic ticket
+  /// Enhanced Spanish parsing for both restaurant and supermarket receipts
   List<BillItem> _parseSpanishTicketFormatFixed(List<String> lines) {
-    print('=== ENHANCED SPANISH PARSING V3.0 ===');
+    print('=== ENHANCED SPANISH PARSING V4.0 ===');
     final items = <BillItem>[];
     
-    // STEP 1: Specific patterns to skip (from the problematic log)
+    // STEP 1: Enhanced patterns to skip (headers, footers, metadata)
     final skipPatterns = [
-      'aver', 'a arcones', 'terraza', 'factura proforma',
-      'no op.:', 'uds.', 'producto', 'importe', 'base:',
+      // Restaurant patterns
+      'aver', 'a arcones', 'terraza', 'factura proforma', 'camarero', 'mesa',
+      // Supermarket patterns  
+      'alcampo', 'factura simplificada', 'establecimiento', 'localidad',
+      'numero tarjeta', 'numero operacion', 'tipo de transaccion', 'codigo respuesta',
+      'importe', 'numero autorizacion', 'fecha', 'hora', 'verificacion',
+      // Common patterns
+      'no op.:', 'uds.', 'producto', 'base:', 'cuota:', 'tot', 'ap',
       'total:', 'total (impuestos incl.)', 'gracias por su visita',
-      'camarero', 'mesa', 'fecha', 'hora', '10%', '21%'
+      'iva', 'impuesto', 'subtotal', '10%', '21%', 'c iva', 'a iva', 'b iva',
+      'num. total art.', 'vendidos', 'imp.', 'para el cliente',
+      'etiqueta con usuario', 'tarjeta', 'cambio', '€*', '€', 'eur/kg'
     ];
     
-    // STEP 2: Known products with exact expected prices from the ticket
-    final expectedProducts = {
-      'coca cola': 2.90,
-      'agua': 1.90,
-      'jarra tinto': 3.50,
-      'victoria': 3.00,
-      'patatas': 7.50,
-    };
-    
-    // STEP 3: Extract all prices from all lines
+    // STEP 2: Extract all valid prices from the text
     final allPrices = <double>[];
-    for (final line in lines) {
-      final priceMatches = RegExp(r'(\d{1,3}[.,]\d{2})').allMatches(line);
+    final priceLines = <int, double>{};
+    
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      // Look for prices: 1.23, 12.34, 123.45 format
+      final priceMatches = RegExp(r'(\d{1,3}[.,]\d{2})(?!\s*(?:kg|l|eur|€))').allMatches(line);
       for (final match in priceMatches) {
         final priceStr = match.group(1)!.replaceAll(',', '.');
         final price = double.tryParse(priceStr) ?? 0.0;
-        if (price >= 1.0 && price <= 30.0) { // Reasonable restaurant prices
+        if (price >= 0.50 && price <= 100.0) { // Reasonable product prices
           allPrices.add(price);
+          priceLines[i] = price;
         }
       }
     }
     
     print('Found prices: ${allPrices.map((p) => '€${p.toStringAsFixed(2)}').join(', ')}');
     
-    // STEP 4: Find product lines and match with expected prices
-    final usedPrices = <double>{};
+    // STEP 3: Identify product lines (lines that look like products)
+    final productCandidates = <int, String>{};
     
     for (int i = 0; i < lines.length; i++) {
-      final line = lines[i].toLowerCase().trim();
+      final line = lines[i].trim();
+      final lowerLine = line.toLowerCase();
       
-      // Skip problematic header/footer lines
-      if (skipPatterns.any((pattern) => line.contains(pattern))) {
-        print('  Skipped line $i: "${lines[i]}" (header/footer pattern)');
+      // Skip if it's a header/footer pattern
+      if (skipPatterns.any((pattern) => lowerLine.contains(pattern))) {
         continue;
       }
       
-      // Check for each known product
-      for (final entry in expectedProducts.entries) {
-        final productKey = entry.key;
-        final expectedPrice = entry.value;
-        
-        bool isProductMatch = false;
-        String cleanProductName = '';
-        
-        // Specific matching for each product
-        if (productKey == 'coca cola' && line.contains('coca') && line.contains('cola')) {
-          isProductMatch = true;
-          cleanProductName = 'Coca Cola';
-        } else if (productKey == 'agua' && line.contains('agua') && (line.contains('1/2') || line.contains('l'))) {
-          isProductMatch = true;
-          cleanProductName = 'Agua 1/2 L';
-        } else if (productKey == 'jarra tinto' && line.contains('jarra') && (line.contains('tinto') || line.contains('verano'))) {
-          isProductMatch = true;
-          cleanProductName = 'Jarra Tinto de Verano';
-        } else if (productKey == 'victoria' && line.contains('victoria')) {
-          isProductMatch = true;
-          cleanProductName = 'Victoria';
-        } else if (productKey == 'patatas' && line.contains('patatas') && (line.contains('salsas') || line.contains('3'))) {
-          isProductMatch = true;
-          cleanProductName = 'Patatas 3 salsas';
+      // Skip if line is too short or just numbers/symbols
+      if (line.length < 3 || RegExp(r'^[\d\s.,€*-]+$').hasMatch(line)) {
+        continue;
+      }
+      
+      // Skip if line contains only price information
+      if (RegExp(r'^\s*\d+[.,]\d{2}\s*[€]?\s*[ABC]?\s*$').hasMatch(line)) {
+        continue;
+      }
+      
+      // This looks like a product if it contains letters and reasonable length
+      if (RegExp(r'[a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]').hasMatch(line) && line.length >= 3) {
+        productCandidates[i] = line;
+      }
+    }
+    
+    print('Product candidates found: ${productCandidates.length}');
+    productCandidates.forEach((lineNum, product) {
+      print('  Line $lineNum: "$product"');
+    });
+    
+    // STEP 4: Match products with prices using different strategies
+    final usedPrices = <double>{};
+    
+    // Strategy 1: Products with prices on the same line
+    for (final entry in productCandidates.entries) {
+      final lineNum = entry.key;
+      final productLine = entry.value;
+      
+      if (priceLines.containsKey(lineNum)) {
+        final price = priceLines[lineNum]!;
+        if (!usedPrices.contains(price)) {
+          // Extract clean product name by removing price and symbols
+          String cleanName = productLine
+              .replaceAll(RegExp(r'\d+[.,]\d{2}'), '') // Remove prices
+              .replaceAll(RegExp(r'[€*\s]+$'), '') // Remove trailing symbols
+              .replaceAll(RegExp(r'^\d+\s*x\s*[.,]?\d*\s*'), '') // Remove quantity prefix like "3 x ,73"
+              .replaceAll(RegExp(r'\s*[ABC]\s*$'), '') // Remove tax codes
+              .trim();
+          
+          if (cleanName.length >= 2) {
+            items.add(BillItem(
+              id: _uuid.v4(),
+              name: _cleanProductName(cleanName),
+              price: price,
+              selectedBy: [],
+            ));
+            usedPrices.add(price);
+            print('  ✅ Same-line match: "${_cleanProductName(cleanName)}" -> €${price.toStringAsFixed(2)}');
+          }
         }
+      }
+    }
+    
+    // Strategy 2: Products followed by prices on next line(s) - for supermarket format
+    for (final entry in productCandidates.entries) {
+      final lineNum = entry.key;
+      final productLine = entry.value;
+      
+      // Skip if already matched
+      if (priceLines.containsKey(lineNum)) continue;
+      
+      // Look for price in next 1-3 lines
+      for (int offset = 1; offset <= 3 && lineNum + offset < lines.length; offset++) {
+        final nextLineNum = lineNum + offset;
+        if (priceLines.containsKey(nextLineNum)) {
+          final price = priceLines[nextLineNum]!;
+          if (!usedPrices.contains(price)) {
+            String cleanName = _cleanProductName(productLine);
+            
+            if (cleanName.length >= 2) {
+              items.add(BillItem(
+                id: _uuid.v4(),
+                name: cleanName,
+                price: price,
+                selectedBy: [],
+              ));
+              usedPrices.add(price);
+              print('  ✅ Next-line match: "$cleanName" -> €${price.toStringAsFixed(2)} (line $lineNum -> $nextLineNum)');
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    // Strategy 3: Known product patterns with flexible matching
+    final knownProducts = {
+      'coca': ['coca', 'cola'],
+      'agua': ['agua', 'font', 'vella'],
+      'jarra': ['jarra', 'tinto', 'verano'],
+      'victoria': ['victoria'],
+      'patatas': ['patatas', 'salsas'],
+      'empanada': ['empanada', 'carne'],
+      'protector': ['protector', 'solar'],
+      'bebida': ['bebida', 'green', 'ene'],
+      'melocoton': ['melocoton', 'rojo'],
+    };
+    
+    for (final entry in productCandidates.entries) {
+      final lineNum = entry.key;
+      final productLine = entry.value.toLowerCase();
+      
+      // Skip if already processed
+      if (items.any((item) => item.name.toLowerCase().contains(productLine.split(' ').first))) {
+        continue;
+      }
+      
+      for (final knownEntry in knownProducts.entries) {
+        final keywords = knownEntry.value;
         
-        if (isProductMatch) {
-          // Find the closest available price to the expected price
+        if (keywords.any((keyword) => productLine.contains(keyword))) {
+          // Find best available price
           double? bestPrice;
-          double minDifference = 999.0;
+          double minDistance = 999.0;
           
           for (final price in allPrices) {
             if (usedPrices.contains(price)) continue;
             
-            final difference = (price - expectedPrice).abs();
-            if (difference < minDifference) {
-              minDifference = difference;
+            // Calculate distance based on line proximity
+            double distance = 999.0;
+            for (final priceEntry in priceLines.entries) {
+              if (priceEntry.value == price) {
+                distance = math.min(distance, (priceEntry.key - lineNum).abs().toDouble());
+              }
+            }
+            
+            if (distance < minDistance) {
+              minDistance = distance;
               bestPrice = price;
             }
           }
           
-          // Accept if price is within €1.50 tolerance
-          if (bestPrice != null && minDifference <= 1.5) {
+          if (bestPrice != null && minDistance <= 5) {
+            String displayName = _cleanProductName(lines[lineNum]);
             items.add(BillItem(
               id: _uuid.v4(),
-              name: cleanProductName,
+              name: displayName,
               price: bestPrice,
               selectedBy: [],
             ));
-            
             usedPrices.add(bestPrice);
-            print('  ✅ Matched: "$cleanProductName" -> €${bestPrice.toStringAsFixed(2)} (expected: €${expectedPrice.toStringAsFixed(2)}, diff: €${minDifference.toStringAsFixed(2)})');
-            break; // Move to next line after finding a match
-          } else {
-            print('  ⚠️ Product "$cleanProductName" found but no suitable price (best: €${bestPrice?.toStringAsFixed(2)}, diff: €${minDifference.toStringAsFixed(2)})');
+            print('  ✅ Known-product match: "$displayName" -> €${bestPrice.toStringAsFixed(2)} (distance: $minDistance)');
+            break;
           }
         }
       }
