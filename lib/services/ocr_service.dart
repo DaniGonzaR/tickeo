@@ -659,18 +659,19 @@ class OCRService {
     return capitalizedWords.join(' ');
   }
   
-  /// Process image on web platform using robust multi-strategy OCR
+
+
+  /// Process image on web platform using simplified OCR (OCR.space only)
   Future<Map<String, dynamic>> _processImageOnWeb(dynamic imageFile) async {
-    print('🚀 STARTING ROBUST WEB OCR PROCESSING...');
+    print('🚀 STARTING SIMPLIFIED OCR PROCESSING (OCR.space only)...');
     print('📷 Image file type: ${imageFile.runtimeType}');
     
-    // Convert image file to base64 format with better compatibility
+    // Convert image file to base64 format
     String? base64Image;
     try {
       if (imageFile != null) {
         print('📸 Processing image file: ${imageFile.runtimeType}');
         
-        // Handle different types of image files
         List<int> bytes;
         String mimeType = 'image/jpeg'; // Default
         
@@ -678,7 +679,7 @@ class OCRService {
           print('📸 Converting XFile to base64...');
           bytes = await imageFile.readAsBytes();
           
-          // Try to detect MIME type from file extension or content
+          // Detect MIME type from file extension
           final fileName = imageFile.name?.toLowerCase() ?? '';
           if (fileName.endsWith('.png')) {
             mimeType = 'image/png';
@@ -691,25 +692,8 @@ class OCRService {
           print('📸 Processing byte array...');
           bytes = imageFile;
         } else {
-          // Try to handle other file types more gracefully
-          print('📸 Attempting to read bytes from unknown type...');
-          try {
-            // Try different methods to get bytes
-            if (imageFile.readAsBytes != null) {
-              bytes = await imageFile.readAsBytes();
-            } else if (imageFile.bytes != null) {
-              bytes = imageFile.bytes;
-            } else {
-              print('❌ No readable bytes method found');
-              throw Exception('Cannot extract bytes from image file');
-            }
-          } catch (e) {
-            print('❌ Could not read bytes from image file: $e');
-            print('📸 File properties: ${imageFile.runtimeType}');
-            
-            // Try one more fallback - manual extraction
-            return await _promptManualTextExtraction();
-          }
+          print('❌ Unsupported image file type: ${imageFile.runtimeType}');
+          return await _promptManualTextExtraction();
         }
         
         // Convert to base64
@@ -721,173 +705,38 @@ class OCRService {
       }
     } catch (e) {
       print('❌ Image conversion failed: $e');
-      throw Exception('Failed to convert image: $e');
+      return await _promptManualTextExtraction();
     }
     
-    // Strategy 1: Try Tesseract.js
-    print('🎯 STRATEGY 1: Attempting Tesseract.js OCR...');
-    try {
-      final tesseractResult = await _callTesseractOCR(base64Image);
-      if (tesseractResult != null && tesseractResult.trim().isNotEmpty) {
-        print('✅ SUCCESS: Tesseract.js extracted text!');
-        print('📝 EXTRACTED TEXT: $tesseractResult');
-        final parsedResult = _parseReceiptText(tesseractResult);
-        if (parsedResult['items'] != null && (parsedResult['items'] as List).isNotEmpty) {
-          print('🎯 SUCCESS: Parsed ${(parsedResult['items'] as List).length} items from Tesseract.js');
-          return parsedResult;
-        }
-      }
-    } catch (e) {
-      print('❌ Tesseract.js failed: $e');
-    }
-    
-    // Strategy 2: Try OCR.space API (free tier)
-    print('🎯 STRATEGY 2: Attempting OCR.space API...');
+    // Use OCR.space API (free tier - 25,000 requests/month)
+    print('🎯 Using OCR.space API for text extraction...');
     try {
       final ocrSpaceResult = await _callOCRSpaceAPI(base64Image);
       if (ocrSpaceResult != null && ocrSpaceResult.trim().isNotEmpty) {
         print('✅ SUCCESS: OCR.space extracted text!');
         print('📝 EXTRACTED TEXT: $ocrSpaceResult');
+        
+        // Parse the extracted text using intelligent Spanish parsing
         final parsedResult = _parseReceiptText(ocrSpaceResult);
         if (parsedResult['items'] != null && (parsedResult['items'] as List).isNotEmpty) {
           print('🎯 SUCCESS: Parsed ${(parsedResult['items'] as List).length} items from OCR.space');
           return parsedResult;
+        } else {
+          print('⚠️ OCR.space extracted text but parsing failed. Prompting manual extraction.');
         }
+      } else {
+        print('⚠️ OCR.space returned empty text');
       }
     } catch (e) {
       print('❌ OCR.space API failed: $e');
     }
     
-    // Strategy 3: Simplified Tesseract.js with basic settings
-    print('🎯 STRATEGY 3: Attempting simplified Tesseract.js...');
-    try {
-      final simplifiedResult = await _callSimplifiedTesseract(base64Image);
-      if (simplifiedResult != null && simplifiedResult.trim().isNotEmpty) {
-        print('✅ SUCCESS: Simplified Tesseract extracted text!');
-        print('📝 EXTRACTED TEXT: $simplifiedResult');
-        final parsedResult = _parseReceiptText(simplifiedResult);
-        if (parsedResult['items'] != null && (parsedResult['items'] as List).isNotEmpty) {
-          print('🎯 SUCCESS: Parsed ${(parsedResult['items'] as List).length} items from simplified Tesseract');
-          return parsedResult;
-        }
-      }
-    } catch (e) {
-      print('❌ Simplified Tesseract failed: $e');
-    }
-    
-    // Strategy 4: Manual text extraction prompt
-    print('🎯 STRATEGY 4: Manual text extraction fallback...');
+    // Fallback to manual text extraction
+    print('🎯 Fallback: Manual text extraction...');
     return await _promptManualTextExtraction();
   }
   
-  /// Call Tesseract.js OCR function via JavaScript interop
-  Future<String?> _callTesseractOCR(dynamic imageFile) async {
-    try {
-      print('🚀 STARTING _callTesseractOCR...');
-      
-      if (!kIsWeb) {
-        print('❌ Not on web platform, skipping Tesseract.js');
-        return null;
-      }
-      
-      print('✅ On web platform, proceeding with Tesseract.js...');
-      print('📷 Image file type: ${imageFile.runtimeType}');
-      print('📷 Image file details: $imageFile');
-      
-      // Check if js.context is available
-      print('🔍 Checking js.context availability...');
-      if (js.context == null) {
-        print('❌ js.context is null!');
-        return null;
-      }
-      print('✅ js.context is available');
-      
-      // Check if Tesseract.js is available
-      print('🔍 Checking tesseractOCR availability...');
-      final tesseractOCR = js.context['tesseractOCR'];
-      print('🔍 tesseractOCR object: $tesseractOCR');
-      
-      if (tesseractOCR == null) {
-        print('❌ CRITICAL: tesseractOCR is null! JavaScript not loaded properly.');
-        return null;
-      }
-      print('✅ tesseractOCR is available');
-      
-      // Check if processImage method exists
-      print('🔍 Checking processImage method...');
-      try {
-        final processImageMethod = tesseractOCR['processImage'];
-        print('🔍 processImage method: $processImageMethod');
-        if (processImageMethod == null) {
-          print('❌ CRITICAL: processImage method is null!');
-          return null;
-        }
-        print('✅ processImage method is available');
-      } catch (methodError) {
-        print('❌ Error checking processImage method: $methodError');
-        return null;
-      }
-      
-      // Call the JavaScript function to process the real image
-      print('🚀 Calling tesseractOCR.processImage...');
-      print('📷 Passing image file: $imageFile');
-      
-      final jsPromise;
-      try {
-        jsPromise = js.context['tesseractOCR'].callMethod('processImage', [imageFile]);
-        print('✅ JavaScript method called successfully');
-        print('🔍 Promise object: $jsPromise');
-      } catch (callError) {
-        print('❌ CRITICAL: Error calling JavaScript method: $callError');
-        return null;
-      }
-      
-      // Convert JS Promise to Dart Future
-      print('🔄 Converting JS Promise to Dart Future...');
-      final completer = Completer<String?>();
-      
-      try {
-        jsPromise.callMethod('then', [
-          js.allowInterop((result) {
-            print('✅ SUCCESS: Tesseract.js returned result!');
-            print('📝 Result type: ${result.runtimeType}');
-            print('📝 Result content: $result');
-            completer.complete(result?.toString());
-          })
-        ]);
-        print('✅ Promise.then() handler attached');
-      } catch (thenError) {
-        print('❌ Error attaching then handler: $thenError');
-        return null;
-      }
-      
-      try {
-        jsPromise.callMethod('catch', [
-          js.allowInterop((error) {
-            print('❌ TESSERACT ERROR: $error');
-            print('🔍 Error type: ${error.runtimeType}');
-            completer.completeError(error.toString());
-          })
-        ]);
-        print('✅ Promise.catch() handler attached');
-      } catch (catchError) {
-        print('❌ Error attaching catch handler: $catchError');
-        return null;
-      }
-      
-      // Wait for the result with timeout
-      return await completer.future.timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          print('Tesseract.js timeout');
-          return null as String?;
-        },
-      );
-    } catch (e) {
-      print('Tesseract.js call failed: $e');
-      return null;
-    }
-  }
+
   
   /// Call OCR.space API as backup OCR strategy
   Future<String?> _callOCRSpaceAPI(String base64Image) async {
@@ -931,65 +780,7 @@ class OCRService {
     }
   }
   
-  /// Call simplified Tesseract.js with basic settings
-  Future<String?> _callSimplifiedTesseract(String base64Image) async {
-    try {
-      print('🔧 Calling simplified Tesseract.js...');
-      
-      if (!kIsWeb || js.context['Tesseract'] == null) {
-        print('❌ Tesseract.js not available');
-        return null;
-      }
-      
-      // Direct Tesseract.js call with minimal configuration
-      final completer = Completer<String?>();
-      
-      js.context.callMethod('eval', [
-        '''
-        (async function() {
-          try {
-            const worker = await Tesseract.createWorker();
-            await worker.loadLanguage('spa');
-            await worker.initialize('spa');
-            const { data: { text } } = await worker.recognize('$base64Image');
-            await worker.terminate();
-            return text;
-          } catch (error) {
-            throw error;
-          }
-        })()
-        .then(result => window.dartSimplifiedOCRResult = result)
-        .catch(error => window.dartSimplifiedOCRError = error.toString());
-        '''
-      ]);
-      
-      // Wait for result
-      for (int i = 0; i < 60; i++) {
-        await Future.delayed(const Duration(seconds: 1));
-        
-        final result = js.context['dartSimplifiedOCRResult'];
-        final error = js.context['dartSimplifiedOCRError'];
-        
-        if (result != null) {
-          js.context['dartSimplifiedOCRResult'] = null;
-          print('✅ Simplified Tesseract returned: $result');
-          return result.toString();
-        }
-        
-        if (error != null) {
-          js.context['dartSimplifiedOCRError'] = null;
-          print('❌ Simplified Tesseract error: $error');
-          return null;
-        }
-      }
-      
-      print('❌ Simplified Tesseract timeout');
-      return null;
-    } catch (e) {
-      print('❌ Simplified Tesseract failed: $e');
-      return null;
-    }
-  }
+
   
   /// Prompt user for manual text extraction as last resort
   Future<Map<String, dynamic>> _promptManualTextExtraction() async {

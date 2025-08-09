@@ -41,364 +41,107 @@
   <title>Tickeo - Bill Splitter</title>
   <link rel="manifest" href="manifest.json">
   
-  <!-- Tesseract.js for OCR functionality -->
-  <script src="https://unpkg.com/tesseract.js@v5.0.0/dist/tesseract.min.js"></script>
+  <!-- Simplified OCR - No complex dependencies needed -->
   <script>
-    // Initialize OCR systems
-    console.log(' Initializing robust OCR system...');
+    console.log('🚀 Initializing simplified OCR system (OCR.space only)...');
     
-    // Strategy 1: Advanced Tesseract.js with error handling
+    // Simple placeholder for compatibility - OCR is handled server-side via OCR.space
     window.processImageWithOCR = async function(imageFile) {
-      try {
-        console.log(' STRATEGY 1: Advanced Tesseract.js OCR starting...');
-        console.log(' Image file type:', typeof imageFile);
-        console.log(' Image file details:', imageFile);
-        
-        // Handle different types of image input
-        let imageToProcess = imageFile;
-        
-        // If it's a File object or Blob, use it directly
-        if (imageFile instanceof File || imageFile instanceof Blob) {
-          console.log(' Processing File/Blob object');
-          imageToProcess = imageFile;
-        }
-        // If it's a base64 string, use it directly
-        else if (typeof imageFile === 'string' && imageFile.startsWith('data:')) {
-          console.log(' Processing base64 string');
-          imageToProcess = imageFile;
-        }
-        // If it's a URL or path, fetch it
-        else if (typeof imageFile === 'string') {
-          console.log(' Processing URL/path string');
-          const response = await fetch(imageFile);
-          imageToProcess = await response.blob();
-        }
-        else {
-          console.error(' Unsupported image format:', typeof imageFile);
-          throw new Error('Unsupported image format');
-        }
-        
-        console.log(' Creating Tesseract worker...');
-        
-        // Create worker with optimized settings for receipts
-        const worker = await Tesseract.createWorker('spa', 1, {
-          logger: m => {
-            console.log(' OCR Progress:', m.status, Math.round(m.progress * 100) + '%');
-          }
-        });
-        
-        // Set parameters optimized for receipt text
-        await worker.setParameters({
-          'tessedit_char_whitelist': '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzáéíóúñüÁÉÍÓÚÑÜ .,:-€$',
-          'tessedit_pageseg_mode': '6', // Uniform block of text
-        });
-        
-        console.log(' Processing image with optimized Tesseract...');
-        
-        // Process the image with timeout
-        const { data: { text, confidence } } = await Promise.race([
-          worker.recognize(imageToProcess),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('OCR timeout')), 30000)
-          )
-        ]);
-        
-        console.log(' OCR completed successfully!');
-        console.log(' Confidence:', confidence);
-        console.log(' Extracted text length:', text.length);
-        console.log(' Extracted text:', text);
-        
-        // Terminate worker to free memory
-        await worker.terminate();
-        
-        // Return the extracted text
-        return text;
-      } catch (error) {
-        console.error(' Advanced Tesseract OCR failed:', error);
-        throw error;
-      }
+      console.log('📝 OCR processing delegated to Dart OCR service (OCR.space)');
+      throw new Error('OCR processing should be handled by Dart service');
     };
     
-    // 📐 LEVEL 1: Automatic Perspective Correction for Tickets
-    window.correctPerspective = function(base64Image) {
-      return new Promise((resolve, reject) => {
-        try {
-          console.log('📐 Starting automatic perspective correction...');
-          
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          const img = new Image();
-          
-          img.onload = function() {
-            console.log('📸 Image loaded for perspective correction');
-            
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-            
-            // Get image data for edge detection
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            
-            // Step 1: Convert to grayscale for edge detection
-            const grayData = convertToGrayscale(imageData);
-            console.log('⚫ Converted to grayscale for edge detection');
-            
-            // Step 2: Apply Gaussian blur to reduce noise
-            const blurredData = applyGaussianBlur(grayData, canvas.width, canvas.height);
-            console.log('🌫️ Applied Gaussian blur');
-            
-            // Step 3: Detect edges using Canny edge detection
-            const edges = detectEdges(blurredData, canvas.width, canvas.height);
-            console.log('🔍 Detected edges');
-            
-            // Step 4: Find ticket contours (rectangular shapes)
-            const ticketCorners = findTicketCorners(edges, canvas.width, canvas.height);
-            
-            if (ticketCorners && ticketCorners.length === 4) {
-              console.log('📄 Ticket corners detected:', ticketCorners);
-              
-              // LEVEL 1: Apply perspective correction first
-              const perspectiveCorrected = applyPerspectiveTransform(canvas, ticketCorners);
-              console.log('📐 Perspective correction completed');
-              
-              // LEVEL 2: Detect and focus on text regions
-              const textFocused = detectTextRegions(perspectiveCorrected);
-              console.log('🔍 Text region detection completed');
-              
-              // PHASE 1: Apply advanced preprocessing
-              const preprocessedImage = preprocessImageForOCR(textFocused);
-              console.log('✅ Image preprocessing completed');
-              
-              resolve(preprocessedImage);
-            } else {
-              console.log('⚠️ Could not detect ticket corners, using original image');
-              resolve(base64Image); // Fallback to original
-            }
-          };
-          
-          img.onerror = function() {
-            console.error('❌ Failed to load image for perspective correction');
-            resolve(base64Image); // Fallback to original
-          };
-          
-          img.src = base64Image;
-          
-        } catch (error) {
-          console.error('❌ Perspective correction failed:', error);
-          resolve(base64Image); // Fallback to original
+    console.log('✅ Simplified OCR system initialized - All processing handled by OCR.space API');
+  </script>
+
+  <!-- PWA Install Prompt -->
+  <script>
+    // PWA Install functionality
+    let deferredPrompt;
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      
+      // Show install button
+      const installButton = document.createElement('button');
+      installButton.textContent = 'Install Tickeo';
+      installButton.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #6366F1;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+      `;
+      
+      installButton.addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          console.log('PWA install outcome:', outcome);
+          deferredPrompt = null;
+          installButton.remove();
         }
       });
-    };
+      
+      document.body.appendChild(installButton);
+    });
     
-    // Helper functions for perspective correction
-    function convertToGrayscale(imageData) {
-      const data = new Uint8ClampedArray(imageData.data);
-      for (let i = 0; i < data.length; i += 4) {
-        const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-        data[i] = gray;
-        data[i + 1] = gray;
-        data[i + 2] = gray;
+    // Remove install button after successful install
+    window.addEventListener('appinstalled', () => {
+      console.log('PWA installed successfully');
+      const installButton = document.querySelector('button');
+      if (installButton && installButton.textContent === 'Install Tickeo') {
+        installButton.remove();
       }
-      return data;
-    }
-    
-    function applyGaussianBlur(data, width, height) {
-      // Simple 3x3 Gaussian kernel
-      const kernel = [1, 2, 1, 2, 4, 2, 1, 2, 1];
-      const kernelSum = 16;
-      const result = new Uint8ClampedArray(data.length);
-      
-      for (let y = 1; y < height - 1; y++) {
-        for (let x = 1; x < width - 1; x++) {
-          let sum = 0;
-          for (let ky = -1; ky <= 1; ky++) {
-            for (let kx = -1; kx <= 1; kx++) {
-              const idx = ((y + ky) * width + (x + kx)) * 4;
-              const kernelIdx = (ky + 1) * 3 + (kx + 1);
-              sum += data[idx] * kernel[kernelIdx];
-            }
-          }
-          const idx = (y * width + x) * 4;
-          const blurred = sum / kernelSum;
-          result[idx] = blurred;
-          result[idx + 1] = blurred;
-          result[idx + 2] = blurred;
-          result[idx + 3] = data[idx + 3];
-        }
-      }
-      return result;
-    }
-    
-    function detectEdges(data, width, height) {
-      // Sobel edge detection
-      const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-      const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-      const edges = new Uint8ClampedArray(width * height);
-      
-      for (let y = 1; y < height - 1; y++) {
-        for (let x = 1; x < width - 1; x++) {
-          let gx = 0, gy = 0;
-          
-          for (let ky = -1; ky <= 1; ky++) {
-            for (let kx = -1; kx <= 1; kx++) {
-              const idx = ((y + ky) * width + (x + kx)) * 4;
-              const kernelIdx = (ky + 1) * 3 + (kx + 1);
-              const pixel = data[idx];
-              gx += pixel * sobelX[kernelIdx];
-              gy += pixel * sobelY[kernelIdx];
-            }
-          }
-          
-          const magnitude = Math.sqrt(gx * gx + gy * gy);
-          edges[y * width + x] = magnitude > 50 ? 255 : 0; // Threshold
-        }
-      }
-      return edges;
-    }
-    
-    function findTicketCorners(edges, width, height) {
-      // Simplified corner detection - look for rectangular contours
-      console.log('🔍 Searching for ticket corners...');
-      
-      // Find the largest rectangular contour (likely the ticket)
-      const corners = [];
-      
-      // Simple heuristic: look for corners in quadrants
-      const quadrants = [
-        { x: 0, y: 0, w: width/2, h: height/2 }, // Top-left
-        { x: width/2, y: 0, w: width/2, h: height/2 }, // Top-right
-        { x: 0, y: height/2, w: width/2, h: height/2 }, // Bottom-left
-        { x: width/2, y: height/2, w: width/2, h: height/2 } // Bottom-right
-      ];
-      
-      for (const quad of quadrants) {
-        const corner = findStrongestCornerInRegion(edges, width, height, quad);
-        if (corner) corners.push(corner);
-      }
-      
-      if (corners.length === 4) {
-        console.log('✅ Found 4 ticket corners');
-        return corners;
-      }
-      
-      console.log('⚠️ Could not find 4 distinct corners');
-      return null;
-    }
-    
-    function findStrongestCornerInRegion(edges, width, height, region) {
-      let maxStrength = 0;
-      let bestCorner = null;
-      
-      for (let y = region.y; y < region.y + region.h && y < height; y++) {
-        for (let x = region.x; x < region.x + region.w && x < width; x++) {
-          if (edges[y * width + x] > 0) {
-            const strength = calculateCornerStrength(edges, width, height, x, y);
-            if (strength > maxStrength) {
-              maxStrength = strength;
-              bestCorner = { x, y };
-            }
-          }
-        }
-      }
-      
-      return bestCorner;
-    }
-    
-    function calculateCornerStrength(edges, width, height, x, y) {
-      // Simple corner strength calculation
-      let strength = 0;
-      const radius = 5;
-      
-      for (let dy = -radius; dy <= radius; dy++) {
-        for (let dx = -radius; dx <= radius; dx++) {
-          const nx = x + dx;
-          const ny = y + dy;
-          if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-            if (edges[ny * width + nx] > 0) {
-              strength++;
-            }
-          }
-        }
-      }
-      
-      return strength;
-    }
-    
-    function applyPerspectiveTransform(canvas, corners) {
-      console.log('🔄 Applying perspective transformation...');
-      
-      // Sort corners: top-left, top-right, bottom-right, bottom-left
-      const sortedCorners = sortCorners(corners);
-      
-      // Calculate target rectangle dimensions
-      const targetWidth = Math.max(
-        distance(sortedCorners[0], sortedCorners[1]),
-        distance(sortedCorners[3], sortedCorners[2])
-      );
-      const targetHeight = Math.max(
-        distance(sortedCorners[0], sortedCorners[3]),
-        distance(sortedCorners[1], sortedCorners[2])
-      );
-      
-      // Create new canvas for corrected image
-      const correctedCanvas = document.createElement('canvas');
-      correctedCanvas.width = targetWidth;
-      correctedCanvas.height = targetHeight;
-      const correctedCtx = correctedCanvas.getContext('2d');
-      
-      // Apply perspective transformation (simplified)
-      // For a full implementation, we'd use a proper perspective matrix
-      // Here we use a simplified approach
-      
-      try {
-        correctedCtx.save();
-        
-        // Simple quadrilateral to rectangle mapping
-        const srcCorners = sortedCorners;
-        const dstCorners = [
-          { x: 0, y: 0 },
-          { x: targetWidth, y: 0 },
-          { x: targetWidth, y: targetHeight },
-          { x: 0, y: targetHeight }
-        ];
-        
-        // Draw the transformed image (simplified transformation)
-        correctedCtx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
-        
-        correctedCtx.restore();
-        
-        console.log('✅ Perspective transformation completed');
-        return correctedCanvas.toDataURL('image/jpeg', 0.9);
-        
-      } catch (error) {
-        console.error('❌ Perspective transformation failed:', error);
-        return canvas.toDataURL('image/jpeg', 0.9);
-      }
-    }
-    
-    function sortCorners(corners) {
-      // Sort corners clockwise starting from top-left
-      const center = {
-        x: corners.reduce((sum, c) => sum + c.x, 0) / corners.length,
-        y: corners.reduce((sum, c) => sum + c.y, 0) / corners.length
-      };
-      
-      return corners.sort((a, b) => {
-        const angleA = Math.atan2(a.y - center.y, a.x - center.x);
-        const angleB = Math.atan2(b.y - center.y, b.x - center.x);
-        return angleA - angleB;
+    });
+  </script>
+</head>
+
+<body>
+  <script>
+    // Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('SW registered: ', registration);
+          })
+          .catch((registrationError) => {
+            console.log('SW registration failed: ', registrationError);
+          });
       });
     }
-    
-    function distance(p1, p2) {
-      return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
-    }
-    
-    // 🔍 LEVEL 2: Intelligent Text Region Detection
-    window.detectTextRegions = function(base64Image) {
-      return new Promise((resolve, reject) => {
-        try {
-          console.log('🔍 Starting intelligent text region detection...');
+  </script>
+
+  <script src="flutter.js" defer></script>
+  <script>
+    window.addEventListener('load', function(ev) {
+      // Download main.dart.js
+      _flutter.loader.loadEntrypoint({
+        serviceWorker: {
+          serviceWorkerVersion: serviceWorkerVersion,
+        },
+        onEntrypointLoaded: function(engineInitializer) {
+          engineInitializer.initializeEngine().then(function(appRunner) {
+            appRunner.runApp();
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+
+
+
           
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
