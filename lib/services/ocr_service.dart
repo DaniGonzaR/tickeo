@@ -4,6 +4,7 @@ import 'package:tickeo/models/bill_item.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:js' if (dart.library.io) 'dart:js' as js;
 import 'package:http/http.dart' as http;
 
@@ -115,18 +116,18 @@ class OCRService {
         }
       }
       
-      // If no items found with standard parsing, try intelligent Spanish parsing FIRST
+      // If no items found with standard parsing, try alternative strategies
       if (items.isEmpty) {
-        print('No items found with standard parsing, trying intelligent Spanish parsing...');
-        final spanishItems = _parseSpanishTicketFormat(lines);
-        items.addAll(spanishItems);
-      }
-      
-      // If still no items after Spanish parsing, try alternative strategies
-      if (items.isEmpty) {
-        print('No items found with Spanish parsing, trying alternative strategies...');
+        print('No items found with standard parsing, trying alternative strategies...');
         final alternativeItems = _tryAlternativeParsing(lines);
         items.addAll(alternativeItems);
+      }
+      
+      // If still no items after alternative parsing, try intelligent Spanish parsing
+      if (items.isEmpty) {
+        print('Trying intelligent Spanish product-price association...');
+        final spanishItems = _parseSpanishTicketFormat(lines);
+        items.addAll(spanishItems);
       }
       
       // If still no items, try to extract any numbers as potential prices
@@ -483,7 +484,7 @@ class OCRService {
     print('=== INTELLIGENT SPANISH TICKET PARSING ===');
     final items = <BillItem>[];
     
-    // Step 1: Identify Spanish product names with better filtering
+    // Step 1: Identify Spanish product names
     final productLines = <int>[];
     final priceLines = <int>[];
     
@@ -502,23 +503,10 @@ class OCRService {
       'tinto', 'verano', 'sangría', 'clara', 'radler'
     ];
     
-    // Words to exclude (not products)
-    final excludeWords = [
-      'arcones', 'aver', 'importe', 'total', 'subtotal', 'base', 'cuota',
-      'terraza', 'camarera', 'cajero', 'mesa', 'gracias', 'visita',
-      'factura', 'proforma', 'madrid', 'impuestos', 'incl'
-    ];
-    
     print('🔍 STEP 1: Identifying product lines...');
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i].trim().toLowerCase();
       if (line.isEmpty || _isHeaderOrFooterLine(lines[i])) continue;
-      
-      // Skip if contains exclude words
-      if (excludeWords.any((word) => line.contains(word))) {
-        print('   Skipped line $i: "${lines[i]}" (contains exclude word)');
-        continue;
-      }
       
       // Check if line contains Spanish product keywords
       bool isProduct = spanishProductKeywords.any((keyword) => line.contains(keyword));
@@ -551,63 +539,31 @@ class OCRService {
     print('   Products found: ${productLines.length}');
     print('   Prices found: ${priceLines.length}');
     
-    // Strategy 1: Proximity-based association (find closest price to each product)
+    // Strategy 1: Sequential association (most common in Spanish tickets)
     if (productLines.isNotEmpty && priceLines.isNotEmpty) {
-      final usedPrices = <int>[];
+      final minCount = math.min(productLines.length, priceLines.length);
       
-      for (final productIndex in productLines) {
-        final productLine = lines[productIndex].trim();
+      for (int i = 0; i < minCount; i++) {
+        final productLine = lines[productLines[i]].trim();
+        final priceLine = lines[priceLines[i]].trim();
         
-        // Find the closest unused price line after this product
-        int? bestPriceIndex;
-        int minDistance = 999;
-        
-        for (final priceIndex in priceLines) {
-          if (usedPrices.contains(priceIndex)) continue; // Skip already used prices
+        // Extract price
+        final priceMatch = RegExp(r'(\d{1,3}[.,]\d{2})').firstMatch(priceLine);
+        if (priceMatch != null) {
+          final priceStr = priceMatch.group(1)!.replaceAll(',', '.');
+          final price = double.tryParse(priceStr) ?? 0.0;
           
-          // Prefer prices that come after the product (typical ticket format)
-          final distance = priceIndex - productIndex;
-          if (distance > 0 && distance < minDistance) {
-            minDistance = distance;
-            bestPriceIndex = priceIndex;
-          }
-        }
-        
-        // If no price found after, try before (fallback)
-        if (bestPriceIndex == null) {
-          for (final priceIndex in priceLines) {
-            if (usedPrices.contains(priceIndex)) continue;
-            
-            final distance = (productIndex - priceIndex).abs();
-            if (distance < minDistance) {
-              minDistance = distance;
-              bestPriceIndex = priceIndex;
-            }
-          }
-        }
-        
-        if (bestPriceIndex != null && minDistance <= 10) {
-          final priceLine = lines[bestPriceIndex].trim();
-          final priceMatch = RegExp(r'(\d{1,3}[.,]\d{2})').firstMatch(priceLine);
-          
-          if (priceMatch != null) {
-            final priceStr = priceMatch.group(1)!.replaceAll(',', '.');
-            final price = double.tryParse(priceStr) ?? 0.0;
-            
-            if (price >= 0.10 && price <= 999.99) {
-              final cleanName = _cleanSpanishProductName(productLine);
-              if (cleanName.isNotEmpty && !_isGenericName(cleanName)) {
-                print('   ✅ Associated: "$cleanName" → €${price.toStringAsFixed(2)} (distance: $minDistance)');
-                
-                items.add(BillItem(
-                  id: _uuid.v4(),
-                  name: cleanName,
-                  price: price,
-                  selectedBy: [],
-                ));
-                
-                usedPrices.add(bestPriceIndex); // Mark price as used
-              }
+          if (price >= 0.10 && price <= 999.99) {
+            final cleanName = _cleanSpanishProductName(productLine);
+            if (cleanName.isNotEmpty) {
+              print('   ✅ Associated: "$cleanName" → €${price.toStringAsFixed(2)}');
+              
+              items.add(BillItem(
+                id: _uuid.v4(),
+                name: cleanName,
+                price: price,
+                selectedBy: [],
+              ));
             }
           }
         }
@@ -701,17 +657,6 @@ class OCRService {
     }
     
     return capitalizedWords.join(' ');
-  }
-  
-  /// Check if a name is generic and should be filtered out
-  bool _isGenericName(String name) {
-    final lowerName = name.toLowerCase();
-    final genericPatterns = [
-      'producto', 'product', 'item', 'articulo',
-      'elemento', 'cosa', 'objeto', 'unnamed'
-    ];
-    
-    return genericPatterns.any((pattern) => lowerName.contains(pattern));
   }
   
   /// Process image on web platform using robust multi-strategy OCR
