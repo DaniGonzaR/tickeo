@@ -157,11 +157,19 @@
             if (ticketCorners && ticketCorners.length === 4) {
               console.log('📄 Ticket corners detected:', ticketCorners);
               
-              // Step 5: Apply perspective transformation
-              const correctedImage = applyPerspectiveTransform(canvas, ticketCorners);
-              console.log('✅ Perspective correction applied');
+              // LEVEL 1: Apply perspective correction first
+              const perspectiveCorrected = applyPerspectiveTransform(canvas, ticketCorners);
+              console.log('📐 Perspective correction completed');
               
-              resolve(correctedImage);
+              // LEVEL 2: Detect and focus on text regions
+              const textFocused = detectTextRegions(perspectiveCorrected);
+              console.log('🔍 Text region detection completed');
+              
+              // PHASE 1: Apply advanced preprocessing
+              const preprocessedImage = preprocessImageForOCR(textFocused);
+              console.log('✅ Image preprocessing completed');
+              
+              resolve(preprocessedImage);
             } else {
               console.log('⚠️ Could not detect ticket corners, using original image');
               resolve(base64Image); // Fallback to original
@@ -384,6 +392,311 @@
     
     function distance(p1, p2) {
       return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
+    }
+    
+    // 🔍 LEVEL 2: Intelligent Text Region Detection
+    window.detectTextRegions = function(base64Image) {
+      return new Promise((resolve, reject) => {
+        try {
+          console.log('🔍 Starting intelligent text region detection...');
+          
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
+          
+          img.onload = function() {
+            console.log('📸 Image loaded for text region detection');
+            
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            
+            // Step 1: Convert to grayscale for analysis
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const grayData = convertToGrayscaleForRegions(imageData);
+            console.log('⚫ Converted to grayscale for region analysis');
+            
+            // Step 2: Detect text-like regions using morphological operations
+            const textMask = detectTextLikeRegions(grayData, canvas.width, canvas.height);
+            console.log('📝 Detected text-like regions');
+            
+            // Step 3: Filter regions by size and density
+            const filteredRegions = filterRelevantRegions(textMask, canvas.width, canvas.height);
+            console.log('🎯 Filtered relevant text regions:', filteredRegions.length);
+            
+            if (filteredRegions.length > 0) {
+              // Step 4: Create focused image with only text regions
+              const focusedImage = createFocusedImage(canvas, filteredRegions);
+              console.log('✅ Created focused image with text regions only');
+              
+              resolve(focusedImage);
+            } else {
+              console.log('⚠️ No text regions detected, using original image');
+              resolve(base64Image); // Fallback to original
+            }
+          };
+          
+          img.onerror = function() {
+            console.error('❌ Failed to load image for text region detection');
+            resolve(base64Image); // Fallback to original
+          };
+          
+          img.src = base64Image;
+          
+        } catch (error) {
+          console.error('❌ Text region detection failed:', error);
+          resolve(base64Image); // Fallback to original
+        }
+      });
+    };
+    
+    // Helper functions for text region detection
+    function convertToGrayscaleForRegions(imageData) {
+      const data = new Uint8ClampedArray(imageData.data.length);
+      for (let i = 0; i < imageData.data.length; i += 4) {
+        const gray = Math.round(0.299 * imageData.data[i] + 0.587 * imageData.data[i + 1] + 0.114 * imageData.data[i + 2]);
+        data[i] = gray;
+        data[i + 1] = gray;
+        data[i + 2] = gray;
+        data[i + 3] = imageData.data[i + 3];
+      }
+      return data;
+    }
+    
+    function detectTextLikeRegions(grayData, width, height) {
+      console.log('🔍 Analyzing image for text-like patterns...');
+      
+      // Step 1: Apply adaptive thresholding
+      const binaryData = applyAdaptiveThreshold(grayData, width, height);
+      
+      // Step 2: Morphological operations to connect text characters
+      const morphData = applyMorphologicalOperations(binaryData, width, height);
+      
+      // Step 3: Find connected components (potential text regions)
+      const components = findConnectedComponents(morphData, width, height);
+      
+      console.log(`📊 Found ${components.length} potential text regions`);
+      return components;
+    }
+    
+    function applyAdaptiveThreshold(data, width, height) {
+      const result = new Uint8ClampedArray(data.length);
+      const windowSize = 15; // Adaptive window size
+      
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const idx = (y * width + x) * 4;
+          
+          // Calculate local mean in window
+          let sum = 0;
+          let count = 0;
+          
+          for (let wy = Math.max(0, y - windowSize/2); wy < Math.min(height, y + windowSize/2); wy++) {
+            for (let wx = Math.max(0, x - windowSize/2); wx < Math.min(width, x + windowSize/2); wx++) {
+              const widx = (wy * width + wx) * 4;
+              sum += data[widx];
+              count++;
+            }
+          }
+          
+          const localMean = sum / count;
+          const threshold = localMean * 0.9; // Slightly below local mean
+          
+          const value = data[idx] < threshold ? 0 : 255; // Black text on white background
+          result[idx] = value;
+          result[idx + 1] = value;
+          result[idx + 2] = value;
+          result[idx + 3] = data[idx + 3];
+        }
+      }
+      
+      return result;
+    }
+    
+    function applyMorphologicalOperations(data, width, height) {
+      // Apply dilation to connect nearby text characters
+      const dilated = dilateImage(data, width, height, 2);
+      
+      // Apply erosion to clean up noise
+      const eroded = erodeImage(dilated, width, height, 1);
+      
+      return eroded;
+    }
+    
+    function dilateImage(data, width, height, radius) {
+      const result = new Uint8ClampedArray(data.length);
+      
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const idx = (y * width + x) * 4;
+          let maxValue = 0;
+          
+          // Check neighborhood
+          for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+              const ny = y + dy;
+              const nx = x + dx;
+              
+              if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+                const nidx = (ny * width + nx) * 4;
+                maxValue = Math.max(maxValue, data[nidx]);
+              }
+            }
+          }
+          
+          result[idx] = maxValue;
+          result[idx + 1] = maxValue;
+          result[idx + 2] = maxValue;
+          result[idx + 3] = data[idx + 3];
+        }
+      }
+      
+      return result;
+    }
+    
+    function erodeImage(data, width, height, radius) {
+      const result = new Uint8ClampedArray(data.length);
+      
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const idx = (y * width + x) * 4;
+          let minValue = 255;
+          
+          // Check neighborhood
+          for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+              const ny = y + dy;
+              const nx = x + dx;
+              
+              if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+                const nidx = (ny * width + nx) * 4;
+                minValue = Math.min(minValue, data[nidx]);
+              }
+            }
+          }
+          
+          result[idx] = minValue;
+          result[idx + 1] = minValue;
+          result[idx + 2] = minValue;
+          result[idx + 3] = data[idx + 3];
+        }
+      }
+      
+      return result;
+    }
+    
+    function findConnectedComponents(data, width, height) {
+      const visited = new Array(width * height).fill(false);
+      const components = [];
+      
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const idx = y * width + x;
+          const pixelIdx = idx * 4;
+          
+          if (!visited[idx] && data[pixelIdx] > 128) { // White pixel (text)
+            const component = floodFill(data, visited, width, height, x, y);
+            if (component.pixels.length > 50) { // Minimum size filter
+              components.push(component);
+            }
+          }
+        }
+      }
+      
+      return components;
+    }
+    
+    function floodFill(data, visited, width, height, startX, startY) {
+      const stack = [{x: startX, y: startY}];
+      const pixels = [];
+      let minX = startX, maxX = startX, minY = startY, maxY = startY;
+      
+      while (stack.length > 0) {
+        const {x, y} = stack.pop();
+        const idx = y * width + x;
+        
+        if (x < 0 || x >= width || y < 0 || y >= height || visited[idx]) continue;
+        
+        const pixelIdx = idx * 4;
+        if (data[pixelIdx] < 128) continue; // Not a text pixel
+        
+        visited[idx] = true;
+        pixels.push({x, y});
+        
+        // Update bounding box
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+        
+        // Add neighbors to stack
+        stack.push({x: x + 1, y}, {x: x - 1, y}, {x, y: y + 1}, {x, y: y - 1});
+      }
+      
+      return {
+        pixels,
+        boundingBox: {x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1}
+      };
+    }
+    
+    function filterRelevantRegions(components, imageWidth, imageHeight) {
+      console.log('🎯 Filtering regions by size and characteristics...');
+      
+      return components.filter(component => {
+        const bbox = component.boundingBox;
+        const area = bbox.width * bbox.height;
+        const aspectRatio = bbox.width / bbox.height;
+        
+        // Filter criteria for text regions
+        const minArea = (imageWidth * imageHeight) * 0.001; // At least 0.1% of image
+        const maxArea = (imageWidth * imageHeight) * 0.3;   // At most 30% of image
+        const minAspectRatio = 0.1; // Not too tall
+        const maxAspectRatio = 20;  // Not too wide
+        
+        // Text regions are usually in the middle-bottom area of receipts
+        const isInRelevantArea = bbox.y > imageHeight * 0.1 && bbox.y < imageHeight * 0.9;
+        
+        const isValidSize = area >= minArea && area <= maxArea;
+        const isValidAspectRatio = aspectRatio >= minAspectRatio && aspectRatio <= maxAspectRatio;
+        
+        return isValidSize && isValidAspectRatio && isInRelevantArea;
+      });
+    }
+    
+    function createFocusedImage(originalCanvas, textRegions) {
+      console.log('🎨 Creating focused image with text regions only...');
+      
+      // Create new canvas for focused image
+      const focusedCanvas = document.createElement('canvas');
+      focusedCanvas.width = originalCanvas.width;
+      focusedCanvas.height = originalCanvas.height;
+      const focusedCtx = focusedCanvas.getContext('2d');
+      
+      // Fill with white background
+      focusedCtx.fillStyle = 'white';
+      focusedCtx.fillRect(0, 0, focusedCanvas.width, focusedCanvas.height);
+      
+      // Copy only the text regions from original image
+      for (const region of textRegions) {
+        const bbox = region.boundingBox;
+        
+        // Add some padding around text regions
+        const padding = 10;
+        const x = Math.max(0, bbox.x - padding);
+        const y = Math.max(0, bbox.y - padding);
+        const width = Math.min(originalCanvas.width - x, bbox.width + 2 * padding);
+        const height = Math.min(originalCanvas.height - y, bbox.height + 2 * padding);
+        
+        // Copy region from original to focused canvas
+        focusedCtx.drawImage(
+          originalCanvas,
+          x, y, width, height, // Source rectangle
+          x, y, width, height  // Destination rectangle
+        );
+      }
+      
+      console.log(`✅ Created focused image with ${textRegions.length} text regions`);
+      return focusedCanvas.toDataURL('image/jpeg', 0.9);
     }
     
     // Advanced Image Preprocessing for OCR Accuracy
