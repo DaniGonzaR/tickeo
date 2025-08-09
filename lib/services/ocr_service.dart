@@ -152,11 +152,13 @@ class OCRService {
       'alcampo', 'factura simplificada', 'establecimiento', 'localidad',
       'numero tarjeta', 'numero operacion', 'tipo de transaccion', 'codigo respuesta',
       'importe', 'numero autorizacion', 'fecha', 'hora', 'verificacion',
+      // Tax and total patterns (critical to exclude)
+      'base', 'cuota', 'tot', 'total', 'subtotal', 'imp.', 'iva',
+      'impuesto', 'impuestos', '10%', '21%', 'c iva', 'a iva', 'b iva',
+      'total:', 'total (impuestos incl.)', 'total art.', 'vendidos',
       // Common patterns
-      'no op.:', 'uds.', 'producto', 'base:', 'cuota:', 'tot', 'ap',
-      'total:', 'total (impuestos incl.)', 'gracias por su visita',
-      'iva', 'impuesto', 'subtotal', '10%', '21%', 'c iva', 'a iva', 'b iva',
-      'num. total art.', 'vendidos', 'imp.', 'para el cliente',
+      'no op.:', 'uds.', 'producto', 'base:', 'cuota:', 'ap',
+      'gracias por su visita', 'num.', 'para el cliente',
       'etiqueta con usuario', 'tarjeta', 'cambio', '€*', '€', 'eur/kg'
     ];
     
@@ -199,6 +201,11 @@ class OCRService {
       
       // Skip if line contains only price information
       if (RegExp(r'^\s*\d+[.,]\d{2}\s*[€]?\s*[ABC]?\s*$').hasMatch(line)) {
+        continue;
+      }
+      
+      // Skip tax/total lines that are just single words with prices
+      if (RegExp(r'^(base|cuota|tot|total|subtotal|iva|imp\.?)\s*$', caseSensitive: false).hasMatch(line.trim())) {
         continue;
       }
       
