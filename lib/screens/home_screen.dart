@@ -46,15 +46,17 @@ class _HomeScreenState extends State<HomeScreen> {
       if (result != null && mounted) {
         // Show OCR review dialog to let user verify/edit extracted items
         final reviewedResult = await _showOCRReviewDialog(result);
-        
+
         if (reviewedResult != null && mounted) {
           // Ask for bill name
           final billName = await _showBillNameDialog();
           if (billName != null && billName.isNotEmpty) {
-            final billProvider = Provider.of<BillProvider>(context, listen: false);
-            
+            final billProvider =
+                Provider.of<BillProvider>(context, listen: false);
+
             // Create bill from reviewed OCR result
-            await billProvider.createBillFromOCRResult(billName, reviewedResult);
+            await billProvider.createBillFromOCRResult(
+                billName, reviewedResult);
 
             if (billProvider.currentBill != null && mounted) {
               Navigator.of(context).push(
@@ -100,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final billName = await _showBillNameDialog();
     if (billName != null && billName.isNotEmpty) {
       final billProvider = Provider.of<BillProvider>(context, listen: false);
-      await billProvider.createManualBill(billName);
+      billProvider.createManualBill(billName);
 
       if (billProvider.currentBill != null && mounted) {
         Navigator.of(context).push(
@@ -114,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<String?> _showBillNameDialog() async {
     String? errorText;
-    
+
     return showDialog<String>(
       context: context,
       barrierDismissible: false,
@@ -122,14 +124,14 @@ class _HomeScreenState extends State<HomeScreen> {
         return LayoutBuilder(
           builder: (context, constraints) {
             final isMobile = constraints.maxWidth < 600;
-            
+
             return StatefulBuilder(
               builder: (context, setState) {
                 // Request focus after the dialog is built
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _billNameFocusNode.requestFocus();
                 });
-                
+
                 return AlertDialog(
                   title: Text(
                     'Nombre de la Cuenta',
@@ -142,58 +144,65 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                      TextField(
-                        controller: _billNameController,
-                        focusNode: _billNameFocusNode,
-                        style: TextStyle(fontSize: isMobile ? 16 : 14),
-                        decoration: InputDecoration(
-                          hintText: 'ej: Cena en Restaurante',
-                          hintStyle: TextStyle(
-                            fontSize: isMobile ? 16 : 14,
-                            color: AppColors.textSecondary,
+                        TextField(
+                          controller: _billNameController,
+                          focusNode: _billNameFocusNode,
+                          style: TextStyle(fontSize: isMobile ? 16 : 14),
+                          decoration: InputDecoration(
+                            hintText: 'ej: Cena en Restaurante',
+                            hintStyle: TextStyle(
+                              fontSize: isMobile ? 16 : 14,
+                              color: AppColors.textSecondary,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(isMobile ? 8 : 12),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(isMobile ? 8 : 12),
+                              borderSide:
+                                  const BorderSide(color: AppColors.border),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(isMobile ? 8 : 12),
+                              borderSide: const BorderSide(
+                                  color: AppColors.primary, width: 2),
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(isMobile ? 8 : 12),
+                              borderSide: const BorderSide(
+                                  color: AppColors.error, width: 2),
+                            ),
+                            errorText: errorText,
+                            helperText: 'Introduce un nombre para tu cuenta',
+                            helperStyle: TextStyle(
+                              fontSize: isMobile ? 12 : 11,
+                            ),
+                            errorStyle: TextStyle(
+                              fontSize: isMobile ? 12 : 11,
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: isMobile ? 14 : 16,
+                              vertical: isMobile ? 18 : 16,
+                            ),
                           ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
-                            borderSide: BorderSide(color: AppColors.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
-                            borderSide: BorderSide(color: AppColors.primary, width: 2),
-                          ),
-                          errorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
-                            borderSide: BorderSide(color: AppColors.error, width: 2),
-                          ),
-                          errorText: errorText,
-                          helperText: 'Introduce un nombre para tu cuenta',
-                          helperStyle: TextStyle(
-                            fontSize: isMobile ? 12 : 11,
-                          ),
-                          errorStyle: TextStyle(
-                            fontSize: isMobile ? 12 : 11,
-                          ),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: isMobile ? 14 : 16,
-                            vertical: isMobile ? 18 : 16,
-                          ),
+                          autofocus: true,
+                          onChanged: (value) {
+                            setState(() {
+                              errorText = Validators.validateBillName(value);
+                            });
+                          },
+                          onSubmitted: (value) {
+                            if (errorText == null && value.trim().isNotEmpty) {
+                              final billName = value.trim();
+                              _billNameController.clear();
+                              Navigator.of(context).pop(billName);
+                            }
+                          },
                         ),
-                        autofocus: true,
-                        onChanged: (value) {
-                          setState(() {
-                            errorText = Validators.validateBillName(value);
-                          });
-                        },
-                        onSubmitted: (value) {
-                          if (errorText == null && value.trim().isNotEmpty) {
-                            final billName = value.trim();
-                            _billNameController.clear();
-                            Navigator.of(context).pop(billName);
-                          }
-                        },
-                      ),
                       ],
                     ),
                   ),
@@ -216,7 +225,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.of(context).pop(null);
                       },
                       style: TextButton.styleFrom(
-                        minimumSize: Size(isMobile ? 80 : 64, isMobile ? 44 : 36),
+                        minimumSize:
+                            Size(isMobile ? 80 : 64, isMobile ? 44 : 36),
                         padding: EdgeInsets.symmetric(
                           horizontal: isMobile ? 16 : 12,
                           vertical: isMobile ? 12 : 8,
@@ -229,7 +239,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: errorText == null && _billNameController.text.trim().isNotEmpty
+                      onPressed: errorText == null &&
+                              _billNameController.text.trim().isNotEmpty
                           ? () {
                               final billName = _billNameController.text.trim();
                               _billNameController.clear();
@@ -239,7 +250,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
-                        minimumSize: Size(isMobile ? 80 : 64, isMobile ? 44 : 36),
+                        minimumSize:
+                            Size(isMobile ? 80 : 64, isMobile ? 44 : 36),
                         padding: EdgeInsets.symmetric(
                           horizontal: isMobile ? 16 : 12,
                           vertical: isMobile ? 12 : 8,
@@ -260,10 +272,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<Map<String, dynamic>?> _showOCRReviewDialog(Map<String, dynamic> ocrResult) async {
+  Future<Map<String, dynamic>?> _showOCRReviewDialog(
+      Map<String, dynamic> ocrResult) async {
     final items = List<BillItem>.from(ocrResult['items'] ?? []);
     final editableItems = List<BillItem>.from(items);
-    
+
     return showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
@@ -271,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return LayoutBuilder(
           builder: (context, constraints) {
             final isMobile = constraints.maxWidth < 600;
-            
+
             return StatefulBuilder(
               builder: (context, setState) {
                 return AlertDialog(
@@ -311,13 +324,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                         flex: 2,
                                         child: TextFormField(
                                           initialValue: item.name,
-                                          style: TextStyle(fontSize: isMobile ? 14 : 12),
+                                          style: TextStyle(
+                                              fontSize: isMobile ? 14 : 12),
                                           decoration: InputDecoration(
                                             labelText: 'Producto',
                                             border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(8),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
-                                            contentPadding: const EdgeInsets.symmetric(
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
                                               horizontal: 12,
                                               vertical: 8,
                                             ),
@@ -336,21 +352,27 @@ class _HomeScreenState extends State<HomeScreen> {
                                       Expanded(
                                         flex: 1,
                                         child: TextFormField(
-                                          initialValue: item.price.toStringAsFixed(2),
-                                          style: TextStyle(fontSize: isMobile ? 14 : 12),
+                                          initialValue:
+                                              item.price.toStringAsFixed(2),
+                                          style: TextStyle(
+                                              fontSize: isMobile ? 14 : 12),
                                           decoration: InputDecoration(
                                             labelText: 'Precio (€)',
                                             border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(8),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
-                                            contentPadding: const EdgeInsets.symmetric(
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
                                               horizontal: 12,
                                               vertical: 8,
                                             ),
                                           ),
                                           keyboardType: TextInputType.number,
                                           onChanged: (value) {
-                                            final price = double.tryParse(value) ?? item.price;
+                                            final price =
+                                                double.tryParse(value) ??
+                                                    item.price;
                                             editableItems[index] = BillItem(
                                               id: item.id,
                                               name: item.name,
@@ -384,7 +406,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           onPressed: () {
                             setState(() {
                               editableItems.add(BillItem(
-                                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                id: DateTime.now()
+                                    .millisecondsSinceEpoch
+                                    .toString(),
                                 name: 'Nuevo Producto',
                                 price: 0.0,
                                 selectedBy: [],
@@ -417,16 +441,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                 0.0,
                                 (sum, item) => sum + item.price,
                               );
-                              
+
                               final reviewedResult = {
                                 'items': editableItems,
                                 'subtotal': subtotal,
                                 'tax': 0.0,
                                 'tip': 0.0,
                                 'total': subtotal,
-                                'restaurantName': ocrResult['restaurantName'] ?? 'Ticket Escaneado',
+                                'restaurantName': ocrResult['restaurantName'] ??
+                                    'Ticket Escaneado',
                               };
-                              
+
                               Navigator.of(context).pop(reviewedResult);
                             }
                           : null,
@@ -503,15 +528,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Row(
                       children: [
                         Icon(
-                          authProvider.isAuthenticated 
-                            ? Icons.account_circle 
-                            : Icons.account_circle_outlined,
+                          authProvider.isAuthenticated
+                              ? Icons.account_circle
+                              : Icons.account_circle_outlined,
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          authProvider.isAuthenticated 
-                            ? 'Mi Perfil' 
-                            : 'Perfil (Invitado)',
+                          authProvider.isAuthenticated
+                              ? 'Mi Perfil'
+                              : 'Perfil (Invitado)',
                         ),
                       ],
                     ),
@@ -560,14 +585,15 @@ class _HomeScreenState extends State<HomeScreen> {
               final screenWidth = constraints.maxWidth;
               final isTablet = screenWidth > 600;
               final isMobile = screenWidth < 600;
-              
+
               // Responsive padding and sizing
-              final horizontalPadding = isMobile ? 16.0 : (isTablet ? 32.0 : 40.0);
+              final horizontalPadding =
+                  isMobile ? 16.0 : (isTablet ? 32.0 : 40.0);
               final verticalPadding = isMobile ? 16.0 : 24.0;
               final maxContentWidth = isTablet ? 800.0 : double.infinity;
               final buttonSpacing = isMobile ? 12.0 : 16.0;
               final sectionSpacing = isMobile ? 24.0 : 32.0;
-              
+
               return SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
                   horizontal: horizontalPadding,
@@ -598,9 +624,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               Text(
                                 '¡Bienvenido!',
-                                style: isMobile 
-                                  ? AppTextStyles.headingMedium 
-                                  : AppTextStyles.heading1,
+                                style: isMobile
+                                    ? AppTextStyles.headingMedium
+                                    : AppTextStyles.heading1,
                               ),
                               SizedBox(height: isMobile ? 6 : 8),
                               Text(
@@ -619,9 +645,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         // Action buttons section
                         Text(
                           'Crear Nueva Cuenta',
-                          style: isMobile 
-                            ? AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold)
-                            : AppTextStyles.headingMedium,
+                          style: isMobile
+                              ? AppTextStyles.bodyLarge
+                                  .copyWith(fontWeight: FontWeight.bold)
+                              : AppTextStyles.headingMedium,
                         ),
                         SizedBox(height: buttonSpacing),
 
@@ -707,7 +734,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   onPressed: () {
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
-                                        builder: (context) => const JoinBillScreen(),
+                                        builder: (context) =>
+                                            const JoinBillScreen(),
                                       ),
                                     );
                                   },
@@ -724,18 +752,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         if (billProvider.billHistory.isNotEmpty) ...[
                           Text(
                             'Cuentas Recientes',
-                            style: isMobile 
-                              ? AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold)
-                              : AppTextStyles.headingMedium,
+                            style: isMobile
+                                ? AppTextStyles.bodyLarge
+                                    .copyWith(fontWeight: FontWeight.bold)
+                                : AppTextStyles.headingMedium,
                           ),
                           SizedBox(height: buttonSpacing),
-                          
+
                           // Responsive grid for bill history
                           if (isTablet && billProvider.billHistory.length > 2)
                             GridView.builder(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
                                 crossAxisSpacing: 16,
                                 mainAxisSpacing: 16,
@@ -749,10 +779,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 return BillHistoryCard(
                                   bill: bill,
                                   onTap: () {
-                                    billProvider.loadBillFromShareCode(bill.shareCode);
+                                    billProvider
+                                        .loadBillFromShareCode(bill.shareCode);
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
-                                        builder: (context) => const BillDetailsScreen(),
+                                        builder: (context) =>
+                                            const BillDetailsScreen(),
                                       ),
                                     );
                                   },
@@ -769,14 +801,17 @@ class _HomeScreenState extends State<HomeScreen> {
                               itemBuilder: (context, index) {
                                 final bill = billProvider.billHistory[index];
                                 return Padding(
-                                  padding: EdgeInsets.only(bottom: buttonSpacing),
+                                  padding:
+                                      EdgeInsets.only(bottom: buttonSpacing),
                                   child: BillHistoryCard(
                                     bill: bill,
                                     onTap: () {
-                                      billProvider.loadBillFromShareCode(bill.shareCode);
+                                      billProvider.loadBillFromShareCode(
+                                          bill.shareCode);
                                       Navigator.of(context).push(
                                         MaterialPageRoute(
-                                          builder: (context) => const BillDetailsScreen(),
+                                          builder: (context) =>
+                                              const BillDetailsScreen(),
                                         ),
                                       );
                                     },

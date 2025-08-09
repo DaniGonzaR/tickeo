@@ -25,7 +25,8 @@ class BillProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get hasBillsToSync => _billHistory.any((bill) => !bill.isSynced);
-  int get unsyncedBillsCount => _billHistory.where((bill) => !bill.isSynced).length;
+  int get unsyncedBillsCount =>
+      _billHistory.where((bill) => !bill.isSynced).length;
 
   // Create new bill from OCR
   Future<void> createBillFromImage(File imageFile, String billName) async {
@@ -74,16 +75,18 @@ class BillProvider extends ChangeNotifier {
       }
 
       // Create basic structure for manual editing (web-compatible)
-      final items = [BillItem(
-        id: const Uuid().v4(),
-        name: 'Producto del ticket',
-        price: 0.00,
-        selectedBy: [],
-      )];
-      
-      final subtotal = 0.00;
-      final tax = 0.0;
-      final total = 0.00;
+      final items = [
+        BillItem(
+          id: const Uuid().v4(),
+          name: 'Producto del ticket',
+          price: 0.00,
+          selectedBy: [],
+        )
+      ];
+
+      const subtotal = 0.00;
+      const tax = 0.0;
+      const total = 0.00;
 
       final bill = Bill(
         id: _uuid.v4(),
@@ -110,7 +113,8 @@ class BillProvider extends ChangeNotifier {
   }
 
   // Create bill from OCR result (camera scanner integration)
-  Future<void> createBillFromOCRResult(String billName, Map<String, dynamic> ocrResult) async {
+  Future<void> createBillFromOCRResult(
+      String billName, Map<String, dynamic> ocrResult) async {
     _setLoading(true);
     _clearError();
 
@@ -156,7 +160,7 @@ class BillProvider extends ChangeNotifier {
   bool createManualBill(String billName) {
     try {
       _clearError();
-      
+
       // Validate bill name
       final nameValidation = Validators.validateBillName(billName);
       if (nameValidation != null) {
@@ -198,9 +202,10 @@ class BillProvider extends ChangeNotifier {
       }
 
       _clearError();
-      
+
       // Validate participant name
-      final nameValidation = Validators.validateParticipantName(participantName);
+      final nameValidation =
+          Validators.validateParticipantName(participantName);
       if (nameValidation != null) {
         _setError(nameValidation);
         return false;
@@ -210,7 +215,7 @@ class BillProvider extends ChangeNotifier {
       final existingNames = _currentBill!.payments
           .map((p) => p.participantName.toLowerCase().trim())
           .toList();
-      
+
       if (existingNames.contains(participantName.toLowerCase().trim())) {
         _setError('A participant with this name already exists');
         return false;
@@ -223,7 +228,10 @@ class BillProvider extends ChangeNotifier {
       }
 
       final participantId = _uuid.v4();
-      final updatedParticipants = [..._currentBill!.participants, participantId];
+      final updatedParticipants = [
+        ..._currentBill!.participants,
+        participantId
+      ];
 
       // Create payment entry for new participant
       final payment = Payment(
@@ -284,22 +292,25 @@ class BillProvider extends ChangeNotifier {
 
     // Check if any payment has been made - if so, don't allow deletion
     if (hasAnyPaymentBeenMade()) {
-      _setError('No se pueden eliminar productos una vez que alguien ha pagado');
+      _setError(
+          'No se pueden eliminar productos una vez que alguien ha pagado');
       return;
     }
 
-    final updatedItems = _currentBill!.items.where((item) => item.id != itemId).toList();
-    
+    final updatedItems =
+        _currentBill!.items.where((item) => item.id != itemId).toList();
+
     // Recalculate subtotal and total after removing the item
-    final newSubtotal = updatedItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+    final newSubtotal =
+        updatedItems.fold(0.0, (sum, item) => sum + item.totalPrice);
     final newTotal = newSubtotal + _currentBill!.tax + _currentBill!.tip;
-    
+
     _currentBill = _currentBill!.copyWith(
       items: updatedItems,
       subtotal: newSubtotal,
       total: newTotal,
     );
-    
+
     _updatePaymentAmounts();
     notifyListeners();
   }
@@ -316,7 +327,8 @@ class BillProvider extends ChangeNotifier {
 
     // Check if any payment has been made - if so, don't allow changes
     if (hasAnyPaymentBeenMade()) {
-      _setError('No se pueden modificar las selecciones una vez que alguien ha pagado');
+      _setError(
+          'No se pueden modificar las selecciones una vez que alguien ha pagado');
       return;
     }
 
@@ -344,7 +356,7 @@ class BillProvider extends ChangeNotifier {
       }
 
       _clearError();
-      
+
       // Validate item name
       final nameValidation = Validators.validateItemName(itemName);
       if (nameValidation != null) {
@@ -430,7 +442,8 @@ class BillProvider extends ChangeNotifier {
 
     // Check if any payment has been made - if so, don't allow split equally
     if (hasAnyPaymentBeenMade()) {
-      _setError('No se puede dividir equitativamente una vez que alguien ha pagado');
+      _setError(
+          'No se puede dividir equitativamente una vez que alguien ha pagado');
       return;
     }
 
@@ -450,7 +463,7 @@ class BillProvider extends ChangeNotifier {
       items: updatedItems,
       payments: updatedPayments,
     );
-    
+
     _saveBillLocally(_currentBill!); // Sync changes to history
     notifyListeners();
   }
@@ -539,8 +552,9 @@ class BillProvider extends ChangeNotifier {
 
     try {
       // Upload unsynced bills to cloud
-      final unsyncedBills = _billHistory.where((bill) => !bill.isSynced).toList();
-      
+      final unsyncedBills =
+          _billHistory.where((bill) => !bill.isSynced).toList();
+
       for (final bill in unsyncedBills) {
         await _firebaseService.saveBill(bill);
         // Mark bill as synced
@@ -552,9 +566,10 @@ class BillProvider extends ChangeNotifier {
 
       // Download bills from cloud that aren't in local storage
       final cloudBills = await _firebaseService.getUserBills();
-      
+
       for (final cloudBill in cloudBills) {
-        final existsLocally = _billHistory.any((bill) => bill.id == cloudBill.id);
+        final existsLocally =
+            _billHistory.any((bill) => bill.id == cloudBill.id);
         if (!existsLocally) {
           _billHistory.add(cloudBill.copyWith(isSynced: true));
         }
@@ -562,7 +577,7 @@ class BillProvider extends ChangeNotifier {
 
       // Sort bills by creation date (newest first)
       _billHistory.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      
+
       notifyListeners();
     } catch (e) {
       _setError('Error sincronizando con la nube: ${e.toString()}');
@@ -574,7 +589,7 @@ class BillProvider extends ChangeNotifier {
   Future<void> uploadBillToCloud(Bill bill) async {
     try {
       await _firebaseService.saveBill(bill);
-      
+
       // Mark bill as synced in local storage
       final index = _billHistory.indexWhere((b) => b.id == bill.id);
       if (index != -1) {
@@ -592,14 +607,15 @@ class BillProvider extends ChangeNotifier {
 
     try {
       final cloudBills = await _firebaseService.getUserBills();
-      
+
       // Replace local bills with cloud bills (cloud is source of truth)
       _billHistory.clear();
-      _billHistory.addAll(cloudBills.map((bill) => bill.copyWith(isSynced: true)));
-      
+      _billHistory
+          .addAll(cloudBills.map((bill) => bill.copyWith(isSynced: true)));
+
       // Sort bills by creation date (newest first)
       _billHistory.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      
+
       notifyListeners();
     } catch (e) {
       _setError('Error descargando facturas de la nube: ${e.toString()}');

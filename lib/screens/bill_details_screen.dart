@@ -30,7 +30,6 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
   final TextEditingController _itemNameController = TextEditingController();
   final TextEditingController _itemPriceController = TextEditingController();
 
-
   @override
   void initState() {
     super.initState();
@@ -50,7 +49,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
   void _addParticipant() {
     final name = _participantController.text.trim();
     final billProvider = Provider.of<BillProvider>(context, listen: false);
-    
+
     final success = billProvider.addParticipant(name);
     if (success) {
       _participantController.clear();
@@ -93,8 +92,6 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
       }
     }
   }
-
-
 
   void _showAddParticipantDialog() {
     showDialog(
@@ -150,7 +147,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
                 hintText: 'Enter item name',
                 labelText: 'Item Name',
                 autofocus: true,
-                prefixIcon: Icon(
+                prefixIcon: const Icon(
                   Icons.restaurant_menu,
                   color: AppColors.textSecondary,
                 ),
@@ -186,8 +183,6 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
       ),
     );
   }
-
-
 
   void _showShareDialog() {
     final billProvider = Provider.of<BillProvider>(context, listen: false);
@@ -268,7 +263,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
             final screenWidth = constraints.maxWidth;
             final isTablet = screenWidth > 600;
             final isMobile = screenWidth < 600;
-            
+
             return Scaffold(
               resizeToAvoidBottomInset: false,
               backgroundColor: AppColors.background,
@@ -300,7 +295,8 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
                 bottom: TabBar(
                   controller: _tabController,
                   labelColor: AppColors.textOnPrimary,
-                  unselectedLabelColor: AppColors.textOnPrimary.withOpacity(0.7),
+                  unselectedLabelColor:
+                      AppColors.textOnPrimary.withOpacity(0.7),
                   indicatorColor: AppColors.textOnPrimary,
                   labelStyle: TextStyle(
                     fontSize: isMobile ? 12 : 14,
@@ -321,7 +317,8 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
                     ),
                     Tab(
                       text: 'Resumen',
-                      icon: Icon(Icons.account_balance_wallet, size: isMobile ? 20 : 24),
+                      icon: Icon(Icons.account_balance_wallet,
+                          size: isMobile ? 20 : 24),
                     ),
                   ],
                 ),
@@ -344,10 +341,11 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
     );
   }
 
-  Widget _buildProductsTab(Bill bill, BillProvider billProvider, bool isMobile, bool isTablet) {
+  Widget _buildProductsTab(
+      Bill bill, BillProvider billProvider, bool isMobile, bool isTablet) {
     final horizontalPadding = isMobile ? 12.0 : 16.0;
     final verticalPadding = isMobile ? 12.0 : 16.0;
-    
+
     return Column(
       children: [
         // Summary header
@@ -357,11 +355,11 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
                 color: AppColors.shadow,
                 blurRadius: 4,
-                offset: const Offset(0, 2),
+                offset: Offset(0, 2),
               ),
             ],
           ),
@@ -380,7 +378,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Total', 
+                        Text('Total',
                             style: AppTextStyles.bodyMedium.copyWith(
                               fontWeight: FontWeight.bold,
                             )),
@@ -445,7 +443,8 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
     );
   }
 
-  Widget _buildParticipantsTab(Bill bill, BillProvider billProvider, bool isMobile, bool isTablet) {
+  Widget _buildParticipantsTab(
+      Bill bill, BillProvider billProvider, bool isMobile, bool isTablet) {
     return Column(
       children: [
         // Add participant button
@@ -466,7 +465,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.people_outline,
                         size: 64,
                         color: AppColors.textSecondary,
@@ -517,7 +516,8 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
     );
   }
 
-  Widget _buildSummaryTab(Bill bill, BillProvider billProvider, bool isMobile, bool isTablet) {
+  Widget _buildSummaryTab(
+      Bill bill, BillProvider billProvider, bool isMobile, bool isTablet) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -577,7 +577,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
                   onTap: () => _showPaymentDialog(payment, billProvider),
                 ),
               );
-            }).toList(),
+            }),
           ],
         ],
       ),

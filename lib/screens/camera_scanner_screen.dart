@@ -8,7 +8,7 @@ import 'package:tickeo/utils/app_colors.dart';
 
 class CameraScannerScreen extends StatefulWidget {
   final String scanType; // 'ticket' or 'qr'
-  
+
   const CameraScannerScreen({
     super.key,
     required this.scanType,
@@ -28,7 +28,8 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
     if (kIsWeb) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(widget.scanType == 'ticket' ? 'Escanear Ticket' : 'Escanear QR'),
+          title: Text(
+              widget.scanType == 'ticket' ? 'Escanear Ticket' : 'Escanear QR'),
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
         ),
@@ -39,14 +40,18 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  widget.scanType == 'ticket' ? Icons.receipt_long : Icons.qr_code,
+                  widget.scanType == 'ticket'
+                      ? Icons.receipt_long
+                      : Icons.qr_code,
                   size: 80,
                   color: AppColors.primary,
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  widget.scanType == 'ticket' ? 'Subir Imagen de Ticket' : 'Subir Imagen de QR',
-                  style: TextStyle(
+                  widget.scanType == 'ticket'
+                      ? 'Subir Imagen de Ticket'
+                      : 'Subir Imagen de QR',
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
@@ -54,23 +59,24 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  widget.scanType == 'ticket' 
-                    ? 'Selecciona una imagen de tu ticket para extraer los productos y precios automáticamente.'
-                    : 'Selecciona una imagen con el código QR para unirte a la cuenta.',
+                  widget.scanType == 'ticket'
+                      ? 'Selecciona una imagen de tu ticket para extraer los productos y precios automáticamente.'
+                      : 'Selecciona una imagen con el código QR para unirte a la cuenta.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 16,
                     color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 32),
                 if (_isProcessing)
-                  Column(
+                  const Column(
                     children: [
                       CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(AppColors.primary),
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       Text(
                         'Procesando imagen...',
                         style: TextStyle(
@@ -90,7 +96,8 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 16),
                           textStyle: const TextStyle(fontSize: 16),
                         ),
                       ),
@@ -107,7 +114,7 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
         ),
       );
     }
-    
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: Colors.black,
@@ -126,7 +133,7 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isMobile = constraints.maxWidth < 600;
-          
+
           return Column(
             children: [
               // Camera preview area (simulated)
@@ -146,17 +153,17 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              widget.scanType == 'ticket' 
-                                ? Icons.receipt_long
-                                : Icons.qr_code,
+                              widget.scanType == 'ticket'
+                                  ? Icons.receipt_long
+                                  : Icons.qr_code,
                               size: isMobile ? 80 : 60,
                               color: Colors.white54,
                             ),
                             const SizedBox(height: 16),
                             Text(
                               widget.scanType == 'ticket'
-                                ? 'Coloca el ticket dentro del marco'
-                                : 'Coloca el código QR dentro del marco',
+                                  ? 'Coloca el ticket dentro del marco'
+                                  : 'Coloca el código QR dentro del marco',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: isMobile ? 16 : 14,
@@ -184,7 +191,7 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
                   ),
                 ),
               ),
-              
+
               // Controls area
               Expanded(
                 flex: 1,
@@ -195,17 +202,17 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
                       // Instructions
                       Text(
                         widget.scanType == 'ticket'
-                          ? 'Toca el botón de cámara para capturar el ticket o selecciona una imagen de la galería'
-                          : 'Toca el botón de cámara para escanear el código QR',
+                            ? 'Toca el botón de cámara para capturar el ticket o selecciona una imagen de la galería'
+                            : 'Toca el botón de cámara para escanear el código QR',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: isMobile ? 14 : 12,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      
+
                       const SizedBox(height: 20),
-                      
+
                       // Action buttons
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -215,10 +222,11 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
                             _buildActionButton(
                               icon: Icons.photo_library,
                               label: 'Galería',
-                              onPressed: _isProcessing ? null : _pickFromGallery,
+                              onPressed:
+                                  _isProcessing ? null : _pickFromGallery,
                               isMobile: isMobile,
                             ),
-                          
+
                           // Camera button
                           _buildActionButton(
                             icon: Icons.camera_alt,
@@ -229,17 +237,18 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
                           ),
                         ],
                       ),
-                      
+
                       if (_isProcessing) ...[
                         const SizedBox(height: 20),
                         const CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(AppColors.primary),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           widget.scanType == 'ticket'
-                            ? 'Procesando ticket...'
-                            : 'Escaneando QR...',
+                              ? 'Procesando ticket...'
+                              : 'Escaneando QR...',
                           style: const TextStyle(color: Colors.white),
                         ),
                       ],
@@ -366,7 +375,7 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
       if (widget.scanType == 'ticket') {
         // Process ticket with OCR
         final ocrResult = await OCRService().processReceiptImage(imageFile);
-        
+
         if (mounted) {
           Navigator.of(context).pop(ocrResult);
         }
@@ -375,7 +384,7 @@ class _CameraScannerScreenState extends State<CameraScannerScreen> {
         // For now, we'll simulate QR processing
         // In a real implementation, you'd use a QR decoder
         await Future.delayed(const Duration(seconds: 1));
-        
+
         if (mounted) {
           Navigator.of(context).pop({
             'type': 'qr',

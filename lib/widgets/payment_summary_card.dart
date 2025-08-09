@@ -29,7 +29,7 @@ class PaymentSummaryCard extends StatelessWidget {
         final cardPadding = isMobile ? 16.0 : 20.0;
         final itemSpacing = isMobile ? 12.0 : 16.0;
         final borderRadius = isMobile ? 12.0 : 16.0;
-        
+
         return Card(
           elevation: 4,
           shadowColor: AppColors.shadow,
@@ -58,9 +58,9 @@ class PaymentSummaryCard extends StatelessWidget {
                   children: [
                     Text(
                       'Resumen de Pagos',
-                      style: isMobile 
-                        ? AppTextStyles.headingSmall
-                        : AppTextStyles.headingMedium,
+                      style: isMobile
+                          ? AppTextStyles.headingSmall
+                          : AppTextStyles.headingMedium,
                     ),
                     Container(
                       padding: EdgeInsets.symmetric(
@@ -68,15 +68,17 @@ class PaymentSummaryCard extends StatelessWidget {
                         vertical: isMobile ? 4 : 6,
                       ),
                       decoration: BoxDecoration(
-                        color: progressValue >= 1.0 
-                          ? AppColors.success.withOpacity(0.2)
-                          : AppColors.warning.withOpacity(0.2),
+                        color: progressValue >= 1.0
+                            ? AppColors.success.withOpacity(0.2)
+                            : AppColors.warning.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         progressValue >= 1.0 ? 'Completado' : 'Pendiente',
                         style: TextStyle(
-                          color: progressValue >= 1.0 ? AppColors.success : AppColors.warning,
+                          color: progressValue >= 1.0
+                              ? AppColors.success
+                              : AppColors.warning,
                           fontWeight: FontWeight.w600,
                           fontSize: isMobile ? 11 : 12,
                         ),
@@ -116,7 +118,9 @@ class PaymentSummaryCard extends StatelessWidget {
                       value: progressValue,
                       backgroundColor: AppColors.surface,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        progressValue >= 1.0 ? AppColors.success : AppColors.primary,
+                        progressValue >= 1.0
+                            ? AppColors.success
+                            : AppColors.primary,
                       ),
                       minHeight: isMobile ? 6 : 8,
                     ),
@@ -144,7 +148,8 @@ class PaymentSummaryCard extends StatelessWidget {
                       _buildAmountRow(
                         'Total Pagado',
                         '€${totalPaid.toStringAsFixed(2)}',
-                        AppTextStyles.bodyMedium.copyWith(color: AppColors.success),
+                        AppTextStyles.bodyMedium
+                            .copyWith(color: AppColors.success),
                         isMobile,
                       ),
                       SizedBox(height: isMobile ? 6 : 8),
@@ -152,7 +157,9 @@ class PaymentSummaryCard extends StatelessWidget {
                         'Pendiente',
                         '€${remainingAmount.toStringAsFixed(2)}',
                         AppTextStyles.bodyMedium.copyWith(
-                          color: remainingAmount > 0 ? AppColors.warning : AppColors.success,
+                          color: remainingAmount > 0
+                              ? AppColors.warning
+                              : AppColors.success,
                         ),
                         isMobile,
                       ),
@@ -163,7 +170,8 @@ class PaymentSummaryCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: AppColors.success.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.success.withOpacity(0.3)),
+                            border: Border.all(
+                                color: AppColors.success.withOpacity(0.3)),
                           ),
                           child: Row(
                             children: [
@@ -243,7 +251,7 @@ class PaymentSummaryCard extends StatelessWidget {
 
                 if (bill.payments.isNotEmpty) ...[
                   SizedBox(height: itemSpacing),
-                  
+
                   // Payment details
                   Text(
                     'Detalles de Pagos',
@@ -253,7 +261,7 @@ class PaymentSummaryCard extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: isMobile ? 6 : 8),
-                  
+
                   Container(
                     constraints: BoxConstraints(
                       maxHeight: isMobile ? 150 : 200,
@@ -261,27 +269,32 @@ class PaymentSummaryCard extends StatelessWidget {
                     child: ListView.separated(
                       shrinkWrap: true,
                       itemCount: bill.payments.length,
-                      separatorBuilder: (context, index) => SizedBox(height: isMobile ? 4 : 6),
+                      separatorBuilder: (context, index) =>
+                          SizedBox(height: isMobile ? 4 : 6),
                       itemBuilder: (context, index) {
                         final payment = bill.payments[index];
                         return Container(
                           padding: EdgeInsets.all(isMobile ? 8 : 12),
                           decoration: BoxDecoration(
-                            color: payment.isPaid 
-                              ? AppColors.success.withOpacity(0.1)
-                              : AppColors.warning.withOpacity(0.1),
+                            color: payment.isPaid
+                                ? AppColors.success.withOpacity(0.1)
+                                : AppColors.warning.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: payment.isPaid 
-                                ? AppColors.success.withOpacity(0.3)
-                                : AppColors.warning.withOpacity(0.3),
+                              color: payment.isPaid
+                                  ? AppColors.success.withOpacity(0.3)
+                                  : AppColors.warning.withOpacity(0.3),
                             ),
                           ),
                           child: Row(
                             children: [
                               Icon(
-                                payment.isPaid ? Icons.check_circle : Icons.schedule,
-                                color: payment.isPaid ? AppColors.success : AppColors.warning,
+                                payment.isPaid
+                                    ? Icons.check_circle
+                                    : Icons.schedule,
+                                color: payment.isPaid
+                                    ? AppColors.success
+                                    : AppColors.warning,
                                 size: isMobile ? 16 : 18,
                               ),
                               SizedBox(width: isMobile ? 6 : 8),
@@ -299,7 +312,9 @@ class PaymentSummaryCard extends StatelessWidget {
                                 '€${payment.amount.toStringAsFixed(2)}',
                                 style: AppTextStyles.bodySmall.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: payment.isPaid ? AppColors.success : AppColors.warning,
+                                  color: payment.isPaid
+                                      ? AppColors.success
+                                      : AppColors.warning,
                                   fontSize: isMobile ? 12 : 13,
                                 ),
                               ),
@@ -318,7 +333,8 @@ class PaymentSummaryCard extends StatelessWidget {
     );
   }
 
-  Widget _buildAmountRow(String label, String amount, TextStyle style, bool isMobile) {
+  Widget _buildAmountRow(
+      String label, String amount, TextStyle style, bool isMobile) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -337,7 +353,8 @@ class PaymentSummaryCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color, bool isMobile) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color, bool isMobile) {
     return Container(
       padding: EdgeInsets.all(isMobile ? 12 : 16),
       decoration: BoxDecoration(
@@ -346,58 +363,59 @@ class PaymentSummaryCard extends StatelessWidget {
         border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: isMobile
-        ? Column(
-            children: [
-              Row(
-                children: [
-                  Icon(icon, color: color, size: 18),
-                  SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 4),
-              Text(
-                value,
-                style: AppTextStyles.headingSmall.copyWith(
-                  color: color,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          )
-        : Row(
-            children: [
-              Icon(icon, color: color, size: 24),
-              SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          ? Column(
+              children: [
+                Row(
                   children: [
-                    Text(
-                      title,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
+                    Icon(icon, color: color, size: 18),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      value,
-                      style: AppTextStyles.headingSmall.copyWith(color: color),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: AppTextStyles.headingSmall.copyWith(
+                    color: color,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Icon(icon, color: color, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        value,
+                        style:
+                            AppTextStyles.headingSmall.copyWith(color: color),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }

@@ -8,7 +8,7 @@
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 /// COMMENTED OUT FOR BASIC VERSION COMPATIBILITY
-/// 
+///
 /// Example:
 /// ```dart
 /// import 'firebase_options.dart';
@@ -17,6 +17,7 @@
 ///   options: DefaultFirebaseOptions.currentPlatform,
 /// );
 /// ```
+library;
 
 // Firebase configuration commented out for basic version
 // Uncomment and restore when activating Firebase features
@@ -28,7 +29,7 @@ class DefaultFirebaseOptions {
       'Use pubspec_firebase.yaml to enable Firebase features.',
     );
   }
-  
+
   /*
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {

@@ -20,7 +20,7 @@ class ParticipantCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final participantName = billProvider.getParticipantName(participantId);
-    
+
     // Get payment for this participant to ensure synchronization with "Dividir Equitativamente"
     final payment = bill.payments.firstWhere(
       (p) => p.participantId == participantId,
@@ -28,11 +28,12 @@ class ParticipantCard extends StatelessWidget {
         id: '',
         participantId: participantId,
         participantName: participantName,
-        amount: bill.getAmountForParticipant(participantId), // Fallback to calculated amount
+        amount: bill.getAmountForParticipant(
+            participantId), // Fallback to calculated amount
         method: PaymentMethod.cash,
       ),
     );
-    
+
     final amount = payment.amount;
     final isPaid = payment.isPaid;
 
@@ -48,7 +49,7 @@ class ParticipantCard extends StatelessWidget {
         final cardPadding = isMobile ? 12.0 : 16.0;
         final avatarRadius = isMobile ? 18.0 : 20.0;
         final itemSpacing = isMobile ? 8.0 : 12.0;
-        
+
         return Card(
           margin: EdgeInsets.only(bottom: isMobile ? 8 : 12),
           elevation: 2,
@@ -69,7 +70,8 @@ class ParticipantCard extends StatelessWidget {
                       child: Row(
                         children: [
                           CircleAvatar(
-                            backgroundColor: isPaid ? AppColors.success : AppColors.primary,
+                            backgroundColor:
+                                isPaid ? AppColors.success : AppColors.primary,
                             radius: avatarRadius,
                             child: Text(
                               participantName.isNotEmpty
@@ -89,15 +91,16 @@ class ParticipantCard extends StatelessWidget {
                               children: [
                                 Text(
                                   participantName,
-                                  style: isMobile 
-                                    ? AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold)
-                                    : AppTextStyles.headingSmall,
+                                  style: isMobile
+                                      ? AppTextStyles.bodyLarge
+                                          .copyWith(fontWeight: FontWeight.bold)
+                                      : AppTextStyles.headingSmall,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
-                                  isMobile 
-                                    ? '${selectedItems.length} items'
-                                    : '${selectedItems.length} productos',
+                                  isMobile
+                                      ? '${selectedItems.length} items'
+                                      : '${selectedItems.length} productos',
                                   style: AppTextStyles.bodySmall.copyWith(
                                     fontSize: isMobile ? 12 : 14,
                                   ),
@@ -114,9 +117,9 @@ class ParticipantCard extends StatelessWidget {
                       children: [
                         Text(
                           '€${amount.toStringAsFixed(2)}',
-                          style: isMobile 
-                            ? AppTextStyles.priceMedium.copyWith(fontSize: 16)
-                            : AppTextStyles.priceLarge,
+                          style: isMobile
+                              ? AppTextStyles.priceMedium.copyWith(fontSize: 16)
+                              : AppTextStyles.priceLarge,
                         ),
                         Container(
                           padding: EdgeInsets.symmetric(
@@ -124,15 +127,17 @@ class ParticipantCard extends StatelessWidget {
                             vertical: isMobile ? 2 : 4,
                           ),
                           decoration: BoxDecoration(
-                            color: isPaid 
-                              ? AppColors.success.withOpacity(0.1)
-                              : AppColors.warning.withOpacity(0.1),
+                            color: isPaid
+                                ? AppColors.success.withOpacity(0.1)
+                                : AppColors.warning.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             isPaid ? 'Pagado' : 'Pendiente',
                             style: TextStyle(
-                              color: isPaid ? AppColors.success : AppColors.warning,
+                              color: isPaid
+                                  ? AppColors.success
+                                  : AppColors.warning,
                               fontSize: isMobile ? 10 : 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -167,29 +172,31 @@ class ParticipantCard extends StatelessWidget {
                           // Mobile: Show condensed view for many items
                           Column(
                             children: [
-                              ...selectedItems.take(2).map((item) => 
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 4),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          item.name,
-                                          style: AppTextStyles.bodySmall,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
+                              ...selectedItems.take(2).map(
+                                    (item) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              item.name,
+                                              style: AppTextStyles.bodySmall,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          Text(
+                                            '€${(item.price / item.selectedBy.length).toStringAsFixed(2)}',
+                                            style: AppTextStyles.bodySmall
+                                                .copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      Text(
-                                        '€${(item.price / item.selectedBy.length).toStringAsFixed(2)}',
-                                        style: AppTextStyles.bodySmall.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
+                                    ),
                                   ),
-                                ),
-                              ),
                               if (selectedItems.length > 2)
                                 Text(
                                   '... y ${selectedItems.length - 2} más',
@@ -202,11 +209,13 @@ class ParticipantCard extends StatelessWidget {
                           )
                         else
                           // Desktop/Tablet: Show all items
-                          ...selectedItems.map((item) => 
-                            Padding(
-                              padding: EdgeInsets.only(bottom: isMobile ? 4 : 8),
+                          ...selectedItems.map(
+                            (item) => Padding(
+                              padding:
+                                  EdgeInsets.only(bottom: isMobile ? 4 : 8),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Text(
@@ -251,7 +260,7 @@ class ParticipantCard extends StatelessWidget {
                         ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.error,
-                          side: BorderSide(color: AppColors.error),
+                          side: const BorderSide(color: AppColors.error),
                           padding: EdgeInsets.symmetric(
                             vertical: isMobile ? 8 : 12,
                             horizontal: isMobile ? 8 : 16,
@@ -268,13 +277,14 @@ class ParticipantCard extends StatelessWidget {
                           size: isMobile ? 16 : 18,
                         ),
                         label: Text(
-                          isPaid 
-                            ? (isMobile ? 'Editar' : 'Editar Pago')
-                            : (isMobile ? 'Pagar' : 'Marcar Pago'),
+                          isPaid
+                              ? (isMobile ? 'Editar' : 'Editar Pago')
+                              : (isMobile ? 'Pagar' : 'Marcar Pago'),
                           style: TextStyle(fontSize: isMobile ? 12 : 14),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: isPaid ? AppColors.secondary : AppColors.success,
+                          backgroundColor:
+                              isPaid ? AppColors.secondary : AppColors.success,
                           foregroundColor: AppColors.textOnPrimary,
                           padding: EdgeInsets.symmetric(
                             vertical: isMobile ? 8 : 12,
@@ -298,7 +308,8 @@ class ParticipantCard extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Quitar Participante'),
-        content: Text('¿Estás seguro de que quieres quitar a ${billProvider.getParticipantName(participantId)} de la cuenta?'),
+        content: Text(
+            '¿Estás seguro de que quieres quitar a ${billProvider.getParticipantName(participantId)} de la cuenta?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -349,7 +360,8 @@ class ParticipantCard extends StatelessWidget {
               Navigator.of(context).pop();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: payment.isPaid ? AppColors.warning : AppColors.success,
+              backgroundColor:
+                  payment.isPaid ? AppColors.warning : AppColors.success,
               foregroundColor: AppColors.textOnPrimary,
             ),
             child: Text(payment.isPaid ? 'Marcar Pendiente' : 'Marcar Pagado'),

@@ -27,7 +27,7 @@ class BillItemCard extends StatelessWidget {
         final cardPadding = isMobile ? 12.0 : 16.0;
         final itemSpacing = isMobile ? 8.0 : 12.0;
         final chipSpacing = isMobile ? 4.0 : 6.0;
-        
+
         return Card(
           margin: EdgeInsets.only(bottom: isMobile ? 8 : 12),
           elevation: 2,
@@ -47,9 +47,10 @@ class BillItemCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         item.name,
-                        style: isMobile 
-                          ? AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold)
-                          : AppTextStyles.headingSmall,
+                        style: isMobile
+                            ? AppTextStyles.bodyLarge
+                                .copyWith(fontWeight: FontWeight.bold)
+                            : AppTextStyles.headingSmall,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -59,15 +60,15 @@ class BillItemCard extends StatelessWidget {
                       children: [
                         Text(
                           '€${item.price.toStringAsFixed(2)}',
-                          style: isMobile 
-                            ? AppTextStyles.priceMedium.copyWith(fontSize: 16)
-                            : AppTextStyles.priceLarge,
+                          style: isMobile
+                              ? AppTextStyles.priceMedium.copyWith(fontSize: 16)
+                              : AppTextStyles.priceLarge,
                         ),
                         if (item.selectedBy.isNotEmpty)
                           Text(
-                            isMobile 
-                              ? 'Por persona: €${(item.price / item.selectedBy.length).toStringAsFixed(2)}'
-                              : 'Precio por persona: €${(item.price / item.selectedBy.length).toStringAsFixed(2)}',
+                            isMobile
+                                ? 'Por persona: €${(item.price / item.selectedBy.length).toStringAsFixed(2)}'
+                                : 'Precio por persona: €${(item.price / item.selectedBy.length).toStringAsFixed(2)}',
                             style: AppTextStyles.bodySmall.copyWith(
                               color: AppColors.textSecondary,
                               fontSize: isMobile ? 11 : 12,
@@ -82,13 +83,15 @@ class BillItemCard extends StatelessWidget {
 
                 // Participants selection
                 Text(
-                  isMobile ? 'Seleccionado por:' : 'Seleccionado por participantes:',
+                  isMobile
+                      ? 'Seleccionado por:'
+                      : 'Seleccionado por participantes:',
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontWeight: FontWeight.w600,
                     fontSize: isMobile ? 12 : 14,
                   ),
                 ),
-                
+
                 SizedBox(height: chipSpacing),
 
                 if (item.selectedBy.isEmpty)
@@ -97,7 +100,8 @@ class BillItemCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.warning.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+                      border:
+                          Border.all(color: AppColors.warning.withOpacity(0.3)),
                     ),
                     child: Row(
                       children: [
@@ -109,9 +113,9 @@ class BillItemCard extends StatelessWidget {
                         SizedBox(width: chipSpacing),
                         Expanded(
                           child: Text(
-                            isMobile 
-                              ? 'Ningún participante seleccionado'
-                              : 'Ningún participante ha seleccionado este producto',
+                            isMobile
+                                ? 'Ningún participante seleccionado'
+                                : 'Ningún participante ha seleccionado este producto',
                             style: AppTextStyles.bodySmall.copyWith(
                               color: AppColors.warning,
                               fontSize: isMobile ? 11 : 12,
@@ -123,9 +127,9 @@ class BillItemCard extends StatelessWidget {
                   )
                 else
                   // Responsive participant chips layout
-                  isMobile 
-                    ? _buildMobileParticipantChips(chipSpacing)
-                    : _buildDesktopParticipantChips(chipSpacing),
+                  isMobile
+                      ? _buildMobileParticipantChips(chipSpacing)
+                      : _buildDesktopParticipantChips(chipSpacing),
 
                 SizedBox(height: itemSpacing),
 
@@ -145,7 +149,7 @@ class BillItemCard extends StatelessWidget {
                         ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.error,
-                          side: BorderSide(color: AppColors.error),
+                          side: const BorderSide(color: AppColors.error),
                           padding: EdgeInsets.symmetric(
                             vertical: isMobile ? 8 : 12,
                             horizontal: isMobile ? 8 : 16,
@@ -156,7 +160,8 @@ class BillItemCard extends StatelessWidget {
                     SizedBox(width: itemSpacing),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => _showParticipantSelectionDialog(context),
+                        onPressed: () =>
+                            _showParticipantSelectionDialog(context),
                         icon: Icon(
                           Icons.people,
                           size: isMobile ? 16 : 18,
@@ -224,7 +229,8 @@ class BillItemCard extends StatelessWidget {
                         style: const TextStyle(fontSize: 11),
                       ),
                       backgroundColor: AppColors.primary.withOpacity(0.1),
-                      side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                      side:
+                          BorderSide(color: AppColors.primary.withOpacity(0.3)),
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                     );
                   }),
@@ -234,7 +240,8 @@ class BillItemCard extends StatelessWidget {
                       style: const TextStyle(fontSize: 11),
                     ),
                     backgroundColor: AppColors.secondary.withOpacity(0.1),
-                    side: BorderSide(color: AppColors.secondary.withOpacity(0.3)),
+                    side:
+                        BorderSide(color: AppColors.secondary.withOpacity(0.3)),
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                   ),
                 ],
@@ -256,7 +263,8 @@ class BillItemCard extends StatelessWidget {
           backgroundColor: AppColors.primary.withOpacity(0.1),
           side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
           deleteIcon: const Icon(Icons.close, size: 16),
-          onDeleted: () => billProvider.toggleParticipantForItem(item.id, participantId),
+          onDeleted: () =>
+              billProvider.toggleParticipantForItem(item.id, participantId),
         );
       }).toList(),
     );
@@ -267,7 +275,8 @@ class BillItemCard extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar Producto'),
-        content: Text('¿Estás seguro de que quieres eliminar "${item.name}" de la cuenta?'),
+        content: Text(
+            '¿Estás seguro de que quieres eliminar "${item.name}" de la cuenta?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -299,7 +308,8 @@ class BillItemCard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Selecciona los participantes que compartirán este producto:'),
+              const Text(
+                  'Selecciona los participantes que compartirán este producto:'),
               const SizedBox(height: 16),
               ...participants.map((participantId) {
                 final name = getParticipantName(participantId);
@@ -308,7 +318,8 @@ class BillItemCard extends StatelessWidget {
                   title: Text(name),
                   value: isSelected,
                   onChanged: (bool? value) {
-                    billProvider.toggleParticipantForItem(item.id, participantId);
+                    billProvider.toggleParticipantForItem(
+                        item.id, participantId);
                     Navigator.of(context).pop();
                     // Reopen dialog to show updated state
                     Future.delayed(const Duration(milliseconds: 100), () {

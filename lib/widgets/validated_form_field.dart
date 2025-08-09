@@ -131,19 +131,22 @@ class _ValidatedFormFieldState extends State<ValidatedFormField> {
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
-                  borderSide: BorderSide(color: AppColors.border),
+                  borderSide: const BorderSide(color: AppColors.border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
-                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  borderSide:
+                      const BorderSide(color: AppColors.primary, width: 2),
                 ),
                 errorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
-                  borderSide: BorderSide(color: AppColors.error, width: 2),
+                  borderSide:
+                      const BorderSide(color: AppColors.error, width: 2),
                 ),
                 focusedErrorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
-                  borderSide: BorderSide(color: AppColors.error, width: 2),
+                  borderSide:
+                      const BorderSide(color: AppColors.error, width: 2),
                 ),
                 filled: true,
                 fillColor: widget.enabled
@@ -239,7 +242,7 @@ class ParticipantNameFormField extends StatelessWidget {
       labelText: labelText,
       keyboardType: TextInputType.name,
       autofocus: autofocus,
-      prefixIcon: Icon(
+      prefixIcon: const Icon(
         Icons.person_outline,
         color: AppColors.textSecondary,
       ),

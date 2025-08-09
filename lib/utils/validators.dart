@@ -5,21 +5,21 @@ class Validators {
     if (value == null || value.trim().isEmpty) {
       return 'Bill name is required';
     }
-    
+
     if (value.trim().length < 2) {
       return 'Bill name must be at least 2 characters';
     }
-    
+
     if (value.trim().length > 50) {
       return 'Bill name must be less than 50 characters';
     }
-    
+
     // Check for invalid characters
     final validNameRegex = RegExp(r'^[a-zA-Z0-9\s\-_.,!()]+$');
     if (!validNameRegex.hasMatch(value.trim())) {
       return 'Bill name contains invalid characters';
     }
-    
+
     return null;
   }
 
@@ -28,15 +28,15 @@ class Validators {
     if (value == null || value.trim().isEmpty) {
       return 'Item name is required';
     }
-    
-    if (value.trim().length < 1) {
+
+    if (value.trim().isEmpty) {
       return 'Item name cannot be empty';
     }
-    
+
     if (value.trim().length > 100) {
       return 'Item name must be less than 100 characters';
     }
-    
+
     return null;
   }
 
@@ -45,36 +45,35 @@ class Validators {
     if (value == null || value.trim().isEmpty) {
       return 'Price is required';
     }
-    
+
     // Remove currency symbols and whitespace
     final cleanValue = value.trim().replaceAll(RegExp(r'[€,\s]'), '');
-    
+
     // Check if it's a valid number
     final double? price = double.tryParse(cleanValue);
     if (price == null) {
       return 'Please enter a valid price';
     }
-    
+
     if (price < 0) {
       return 'Price cannot be negative';
     }
-    
+
     if (price == 0) {
       return 'Price must be greater than zero';
     }
-    
+
     if (price > 99999.99) {
       return 'Price is too high (max: €99,999.99)';
     }
-    
+
     // Check decimal places
-    final decimalPlaces = cleanValue.contains('.') 
-        ? cleanValue.split('.')[1].length 
-        : 0;
+    final decimalPlaces =
+        cleanValue.contains('.') ? cleanValue.split('.')[1].length : 0;
     if (decimalPlaces > 2) {
       return 'Price can have maximum 2 decimal places';
     }
-    
+
     return null;
   }
 
@@ -83,21 +82,21 @@ class Validators {
     if (value == null || value.trim().isEmpty) {
       return 'Participant name is required';
     }
-    
-    if (value.trim().length < 1) {
+
+    if (value.trim().isEmpty) {
       return 'Participant name cannot be empty';
     }
-    
+
     if (value.trim().length > 30) {
       return 'Participant name must be less than 30 characters';
     }
-    
+
     // Check for basic valid characters (letters, numbers, spaces, common punctuation)
     final validNameRegex = RegExp(r'^[a-zA-Z0-9\s\-_.]+$');
     if (!validNameRegex.hasMatch(value.trim())) {
       return 'Participant name contains invalid characters';
     }
-    
+
     return null;
   }
 
@@ -106,23 +105,23 @@ class Validators {
     if (value == null || value.trim().isEmpty) {
       return 'Share code is required';
     }
-    
+
     final cleanCode = value.trim().toUpperCase();
-    
+
     if (cleanCode.length < 4) {
       return 'Share code must be at least 4 characters';
     }
-    
+
     if (cleanCode.length > 10) {
       return 'Share code must be less than 10 characters';
     }
-    
+
     // Check for valid characters (alphanumeric only)
     final validCodeRegex = RegExp(r'^[A-Z0-9]+$');
     if (!validCodeRegex.hasMatch(cleanCode)) {
       return 'Share code can only contain letters and numbers';
     }
-    
+
     return null;
   }
 
@@ -131,11 +130,11 @@ class Validators {
     if (value == null || value.trim().isEmpty) {
       return null; // Optional field
     }
-    
+
     if (value.trim().length > 100) {
       return 'Restaurant name must be less than 100 characters';
     }
-    
+
     return null;
   }
 
@@ -144,12 +143,12 @@ class Validators {
     if (value == null || value.trim().isEmpty) {
       return 'Email is required';
     }
-    
+
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value.trim())) {
       return 'Please enter a valid email address';
     }
-    
+
     return null;
   }
 
@@ -158,15 +157,15 @@ class Validators {
     if (value == null || value.isEmpty) {
       return 'Password is required';
     }
-    
+
     if (value.length < 6) {
       return 'Password must be at least 6 characters';
     }
-    
+
     if (value.length > 128) {
       return 'Password must be less than 128 characters';
     }
-    
+
     return null;
   }
 
@@ -175,21 +174,21 @@ class Validators {
     if (value == null || value.trim().isEmpty) {
       return 'Name is required';
     }
-    
+
     if (value.trim().length < 2) {
       return 'Name must be at least 2 characters';
     }
-    
+
     if (value.trim().length > 50) {
       return 'Name must be less than 50 characters';
     }
-    
+
     // Check for valid characters (letters, spaces, hyphens, apostrophes)
     final validNameRegex = RegExp(r'^[a-zA-Z\s\-]+$');
     if (!validNameRegex.hasMatch(value.trim())) {
       return 'Name can only contain letters, spaces and hyphens';
     }
-    
+
     return null;
   }
 
@@ -219,23 +218,23 @@ class Validators {
     required List<String> participants,
   }) {
     final errors = <String>[];
-    
+
     // Validate bill name
     final nameError = validateBillName(billName);
     if (nameError != null) {
       errors.add(nameError);
     }
-    
+
     // Check if bill has items
     if (items.isEmpty) {
       errors.add('Bill must have at least one item');
     }
-    
+
     // Check if bill has participants
     if (participants.isEmpty) {
       errors.add('Bill must have at least one participant');
     }
-    
+
     // Check if items have assignments
     bool hasUnassignedItems = false;
     for (final item in items) {
@@ -244,18 +243,16 @@ class Validators {
         break;
       }
     }
-    
+
     if (hasUnassignedItems) {
       errors.add('All items must be assigned to at least one participant');
     }
-    
+
     return ValidationResult(
       isValid: errors.isEmpty,
       errors: errors,
     );
   }
-
-
 
   /// Check if string is numeric
   static bool isNumeric(String? value) {
@@ -278,12 +275,12 @@ class Validators {
 class ValidationResult {
   final bool isValid;
   final List<String> errors;
-  
+
   const ValidationResult({
     required this.isValid,
     required this.errors,
   });
-  
+
   String get firstError => errors.isNotEmpty ? errors.first : '';
   String get allErrors => errors.join('\n');
 }

@@ -225,7 +225,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
               final percentage = stats.completedPayments > 0
                   ? (count / stats.completedPayments * 100)
                   : 0.0;
-              
+
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
@@ -244,7 +244,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -270,7 +270,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
               final name = entry.key;
               final frequency = entry.value;
               final spending = stats.participantSpending[name] ?? 0.0;
-              
+
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(
@@ -279,7 +279,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                       backgroundColor: AppColors.primary.withOpacity(0.1),
                       child: Text(
                         name.isNotEmpty ? name[0].toUpperCase() : '?',
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.bold,
                         ),
@@ -308,7 +308,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -336,7 +336,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
               final percentage = stats.totalSpent > 0
                   ? (spending / stats.totalSpent * 100)
                   : 0.0;
-              
+
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Column(
@@ -362,7 +362,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                     LinearProgressIndicator(
                       value: percentage / 100,
                       backgroundColor: AppColors.border,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppColors.primary),
                     ),
                     const SizedBox(height: 4),
                     Align(
@@ -377,7 +378,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -436,7 +437,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                           ],
                         ),
                       );
-                    }).toList(),
+                    }),
                 ],
               ),
             ),
@@ -483,7 +484,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                               child: Center(
                                 child: Text(
                                   '${item.count}',
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -513,7 +514,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                           ],
                         ),
                       );
-                    }).toList(),
+                    }),
                 ],
               ),
             ),
@@ -523,7 +524,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -578,15 +580,25 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   String _formatMonth(String monthKey) {
     final parts = monthKey.split('-');
     if (parts.length != 2) return monthKey;
-    
+
     final year = parts[0];
     final month = int.tryParse(parts[1]) ?? 1;
-    
+
     const monthNames = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
-    
+
     return '${monthNames[month - 1]} $year';
   }
 }

@@ -116,181 +116,181 @@ class _JoinBillScreenState extends State<JoinBillScreen> {
             bottom: 20 + MediaQuery.of(context).viewInsets.bottom,
           ),
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header illustration
-            Container(
-              height: 200,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary.withOpacity(0.1),
-                    AppColors.secondary.withOpacity(0.1),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.group_add,
-                    size: 64,
-                    color: AppColors.primary,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header illustration
+              Container(
+                height: 200,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primary.withOpacity(0.1),
+                      AppColors.secondary.withOpacity(0.1),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '¡Únete a una cuenta!',
-                    style: AppTextStyles.heading1.copyWith(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.group_add,
+                      size: 64,
                       color: AppColors.primary,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Ingresa el código que te compartieron para unirte a la división de la cuenta',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textSecondary,
+                    const SizedBox(height: 16),
+                    Text(
+                      '¡Únete a una cuenta!',
+                      style: AppTextStyles.heading1.copyWith(
+                        color: AppColors.primary,
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Share code input
-            Text(
-              'Código de la Cuenta',
-              style: AppTextStyles.label,
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _shareCodeController,
-              decoration: InputDecoration(
-                hintText: 'Ej: ABC12345',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.qr_code),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.qr_code_scanner),
-                  onPressed: _scanQRCode,
+                    const SizedBox(height: 8),
+                    Text(
+                      'Ingresa el código que te compartieron para unirte a la división de la cuenta',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
-              textCapitalization: TextCapitalization.characters,
-              onChanged: (value) {
-                // Auto format to uppercase
-                final cursorPosition = _shareCodeController.selection.start;
-                _shareCodeController.value =
-                    _shareCodeController.value.copyWith(
-                  text: value.toUpperCase(),
-                  selection: TextSelection.collapsed(offset: cursorPosition),
-                );
-              },
-            ),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
-            // Participant name input
-            Text(
-              'Tu Nombre',
-              style: AppTextStyles.label,
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _participantNameController,
-              decoration: const InputDecoration(
-                hintText: 'Ingresa tu nombre',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person),
+              // Share code input
+              Text(
+                'Código de la Cuenta',
+                style: AppTextStyles.label,
               ),
-              textCapitalization: TextCapitalization.words,
-            ),
-
-            const SizedBox(height: 32),
-
-            // Join button
-            CustomButton(
-              text: 'Unirse a la Cuenta',
-              icon: Icons.group_add,
-              onPressed: _isLoading ? null : _joinBill,
-              isLoading: _isLoading,
-              backgroundColor: AppColors.success,
-            ),
-
-            const SizedBox(height: 24),
-
-            // Instructions
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.info.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.info.withOpacity(0.3)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _shareCodeController,
+                decoration: InputDecoration(
+                  hintText: 'Ej: ABC12345',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.qr_code),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.qr_code_scanner),
+                    onPressed: _scanQRCode,
+                  ),
+                ),
+                textCapitalization: TextCapitalization.characters,
+                onChanged: (value) {
+                  // Auto format to uppercase
+                  final cursorPosition = _shareCodeController.selection.start;
+                  _shareCodeController.value =
+                      _shareCodeController.value.copyWith(
+                    text: value.toUpperCase(),
+                    selection: TextSelection.collapsed(offset: cursorPosition),
+                  );
+                },
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: AppColors.info,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Instrucciones',
-                        style: AppTextStyles.label.copyWith(
+
+              const SizedBox(height: 24),
+
+              // Participant name input
+              Text(
+                'Tu Nombre',
+                style: AppTextStyles.label,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _participantNameController,
+                decoration: const InputDecoration(
+                  hintText: 'Ingresa tu nombre',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person),
+                ),
+                textCapitalization: TextCapitalization.words,
+              ),
+
+              const SizedBox(height: 32),
+
+              // Join button
+              CustomButton(
+                text: 'Unirse a la Cuenta',
+                icon: Icons.group_add,
+                onPressed: _isLoading ? null : _joinBill,
+                isLoading: _isLoading,
+                backgroundColor: AppColors.success,
+              ),
+
+              const SizedBox(height: 24),
+
+              // Instructions
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.info.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.info.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.info_outline,
                           color: AppColors.info,
+                          size: 20,
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '1. Pide a quien creó la cuenta que te comparta el código\n'
-                    '2. Ingresa el código de 8 caracteres en el campo de arriba\n'
-                    '3. Escribe tu nombre para identificarte\n'
-                    '4. ¡Listo! Podrás ver y seleccionar los productos que consumiste',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.info,
+                        const SizedBox(width: 8),
+                        Text(
+                          'Instrucciones',
+                          style: AppTextStyles.label.copyWith(
+                            color: AppColors.info,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      '1. Pide a quien creó la cuenta que te comparta el código\n'
+                      '2. Ingresa el código de 8 caracteres en el campo de arriba\n'
+                      '3. Escribe tu nombre para identificarte\n'
+                      '4. ¡Listo! Podrás ver y seleccionar los productos que consumiste',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.info,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // Alternative options
-            Text(
-              'Otras opciones',
-              style: AppTextStyles.headingSmall,
-            ),
-            const SizedBox(height: 16),
+              // Alternative options
+              Text(
+                'Otras opciones',
+                style: AppTextStyles.headingSmall,
+              ),
+              const SizedBox(height: 16),
 
-            CustomButton(
-              text: 'Escanear Código QR',
-              icon: Icons.qr_code_scanner,
-              onPressed: _scanQRCode,
-              backgroundColor: AppColors.secondary,
-              isOutlined: true,
-            ),
+              CustomButton(
+                text: 'Escanear Código QR',
+                icon: Icons.qr_code_scanner,
+                onPressed: _scanQRCode,
+                backgroundColor: AppColors.secondary,
+                isOutlined: true,
+              ),
 
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            CustomButton(
-              text: 'Crear Nueva Cuenta',
-              icon: Icons.add,
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              backgroundColor: AppColors.primary,
-              isOutlined: true,
-            ),
-          ],
+              CustomButton(
+                text: 'Crear Nueva Cuenta',
+                icon: Icons.add,
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                backgroundColor: AppColors.primary,
+                isOutlined: true,
+              ),
+            ],
           ),
         ),
       ),
@@ -313,7 +313,7 @@ class _JoinBillScreenState extends State<JoinBillScreen> {
         if (qrData != null && qrData.isNotEmpty) {
           // Auto-fill the share code field
           _shareCodeController.text = qrData.toUpperCase();
-          
+
           // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

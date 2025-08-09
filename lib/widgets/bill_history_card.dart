@@ -67,7 +67,7 @@ class BillHistoryCard extends StatelessWidget {
               if (bill.restaurantName != null) ...[
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.restaurant,
                       size: 16,
                       color: AppColors.textSecondary,
@@ -83,7 +83,7 @@ class BillHistoryCard extends StatelessWidget {
               ],
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.calendar_today,
                     size: 16,
                     color: AppColors.textSecondary,
@@ -101,7 +101,7 @@ class BillHistoryCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.people,
                         size: 16,
                         color: AppColors.textSecondary,

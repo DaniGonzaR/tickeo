@@ -6,7 +6,7 @@ class AppTextStyles {
   static const String _fontFamily = 'Roboto'; // Fuente del sistema
 
   // Headings
-  static TextStyle get heading1 => TextStyle(
+  static TextStyle get heading1 => const TextStyle(
         fontSize: 32,
         fontWeight: FontWeight.bold,
         color: AppColors.textPrimary,
@@ -14,7 +14,7 @@ class AppTextStyles {
         height: 1.2,
       );
 
-  static TextStyle get heading2 => TextStyle(
+  static TextStyle get heading2 => const TextStyle(
         fontSize: 28,
         fontWeight: FontWeight.bold,
         color: AppColors.textPrimary,
@@ -22,7 +22,7 @@ class AppTextStyles {
         height: 1.3,
       );
 
-  static TextStyle get heading3 => TextStyle(
+  static TextStyle get heading3 => const TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
@@ -30,7 +30,7 @@ class AppTextStyles {
         height: 1.3,
       );
 
-  static TextStyle get heading4 => TextStyle(
+  static TextStyle get heading4 => const TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
@@ -38,7 +38,7 @@ class AppTextStyles {
         height: 1.4,
       );
 
-  static TextStyle get heading5 => TextStyle(
+  static TextStyle get heading5 => const TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.w500,
         color: AppColors.textPrimary,
@@ -46,7 +46,7 @@ class AppTextStyles {
         height: 1.4,
       );
 
-  static TextStyle get heading6 => TextStyle(
+  static TextStyle get heading6 => const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w500,
         color: AppColors.textPrimary,
@@ -54,7 +54,7 @@ class AppTextStyles {
         height: 1.4,
       );
 
-  static TextStyle get headingSmall => TextStyle(
+  static TextStyle get headingSmall => const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
@@ -62,7 +62,7 @@ class AppTextStyles {
         letterSpacing: 0.5,
       );
 
-  static TextStyle get headingMedium => TextStyle(
+  static TextStyle get headingMedium => const TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
@@ -71,7 +71,7 @@ class AppTextStyles {
       );
 
   // Body text
-  static TextStyle get bodyLarge => TextStyle(
+  static TextStyle get bodyLarge => const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.normal,
         color: AppColors.textPrimary,
@@ -79,7 +79,7 @@ class AppTextStyles {
         height: 1.5,
       );
 
-  static TextStyle get bodyMedium => TextStyle(
+  static TextStyle get bodyMedium => const TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.normal,
         color: AppColors.textPrimary,
@@ -87,7 +87,7 @@ class AppTextStyles {
         height: 1.5,
       );
 
-  static TextStyle get bodySmall => TextStyle(
+  static TextStyle get bodySmall => const TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.normal,
         color: AppColors.textSecondary,
@@ -96,7 +96,7 @@ class AppTextStyles {
       );
 
   // Button text
-  static TextStyle get buttonLarge => TextStyle(
+  static TextStyle get buttonLarge => const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: AppColors.textOnPrimary,
@@ -104,7 +104,7 @@ class AppTextStyles {
         letterSpacing: 0.5,
       );
 
-  static TextStyle get buttonMedium => TextStyle(
+  static TextStyle get buttonMedium => const TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: AppColors.textOnPrimary,
@@ -112,7 +112,7 @@ class AppTextStyles {
         letterSpacing: 0.5,
       );
 
-  static TextStyle get buttonSmall => TextStyle(
+  static TextStyle get buttonSmall => const TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w500,
         color: AppColors.textOnPrimary,
@@ -121,7 +121,7 @@ class AppTextStyles {
       );
 
   // Caption and labels
-  static TextStyle get caption => TextStyle(
+  static TextStyle get caption => const TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.normal,
         color: AppColors.textSecondary,
@@ -129,7 +129,7 @@ class AppTextStyles {
         height: 1.3,
       );
 
-  static TextStyle get overline => TextStyle(
+  static TextStyle get overline => const TextStyle(
         fontSize: 10,
         fontWeight: FontWeight.w500,
         color: AppColors.textSecondary,
@@ -138,7 +138,7 @@ class AppTextStyles {
         height: 1.6,
       );
 
-  static TextStyle get label => TextStyle(
+  static TextStyle get label => const TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w500,
         color: AppColors.textPrimary,
@@ -147,21 +147,21 @@ class AppTextStyles {
       );
 
   // Price styles
-  static TextStyle get priceMain => TextStyle(
+  static TextStyle get priceMain => const TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.bold,
         color: AppColors.primary,
         fontFamily: _fontFamily,
       );
 
-  static TextStyle get priceSecondary => TextStyle(
+  static TextStyle get priceSecondary => const TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: AppColors.primary,
         fontFamily: _fontFamily,
       );
 
-  static TextStyle get priceMedium => TextStyle(
+  static TextStyle get priceMedium => const TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.w700,
         color: AppColors.primary,
@@ -169,7 +169,7 @@ class AppTextStyles {
         letterSpacing: 0.5,
       );
 
-  static TextStyle get priceLarge => TextStyle(
+  static TextStyle get priceLarge => const TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.w700,
         color: AppColors.primary,
@@ -177,7 +177,7 @@ class AppTextStyles {
         letterSpacing: 0.5,
       );
 
-  static TextStyle get priceSmall => TextStyle(
+  static TextStyle get priceSmall => const TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w500,
         color: AppColors.primary,
@@ -185,7 +185,7 @@ class AppTextStyles {
       );
 
   // Status styles
-  static TextStyle get statusPaid => TextStyle(
+  static TextStyle get statusPaid => const TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w600,
         color: AppColors.success,
@@ -193,7 +193,7 @@ class AppTextStyles {
         letterSpacing: 0.5,
       );
 
-  static TextStyle get statusPending => TextStyle(
+  static TextStyle get statusPending => const TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w600,
         color: AppColors.warning,
@@ -201,7 +201,7 @@ class AppTextStyles {
         letterSpacing: 0.5,
       );
 
-  static TextStyle get statusOverdue => TextStyle(
+  static TextStyle get statusOverdue => const TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w600,
         color: AppColors.error,
