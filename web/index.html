@@ -808,6 +808,153 @@
       });
     };
     
+    // 🚀 UNIFIED ADVANCED OCR PIPELINE - Integrates ALL improvements
+    window.processImageWithOCR = async function(imageFile) {
+      console.log('\n🚀 === UNIFIED ADVANCED OCR PIPELINE STARTING ===');
+      console.log('📷 Processing image with ALL advanced improvements...');
+      
+      try {
+        // Convert image file to base64 if needed
+        let base64Image = imageFile;
+        if (typeof imageFile !== 'string' || !imageFile.startsWith('data:')) {
+          console.log('📸 Converting image to base64...');
+          base64Image = await convertToBase64(imageFile);
+        }
+        
+        console.log('✅ Image ready for processing');
+        
+        // STEP 1: Apply automatic perspective correction
+        console.log('🔧 STEP 1: Applying automatic perspective correction...');
+        const correctedImage = await window.correctPerspective(base64Image);
+        console.log('✅ Perspective correction completed');
+        
+        // STEP 2: Apply intelligent text region detection
+        console.log('🔍 STEP 2: Applying intelligent text region detection...');
+        const focusedImage = await window.detectTextRegions(correctedImage);
+        console.log('✅ Text region detection completed');
+        
+        // STEP 3: Apply advanced image preprocessing
+        console.log('🖼️ STEP 3: Applying advanced image preprocessing...');
+        const preprocessedImage = await window.preprocessImageForOCR(focusedImage);
+        console.log('✅ Advanced preprocessing completed');
+        
+        // STEP 4: Perform multi-configuration Tesseract OCR
+        console.log('🤖 STEP 4: Performing multi-configuration Tesseract OCR...');
+        
+        const ocrConfigs = [
+          {
+            name: 'Spanish Optimized',
+            options: {
+              lang: 'spa+eng',
+              psm: 6, // Uniform block of text
+              tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789áéíóúñüÁÉÍÓÚÑÜ.,€$%-() '
+            }
+          },
+          {
+            name: 'Receipt Mode',
+            options: {
+              lang: 'spa+eng',
+              psm: 4, // Single column of text
+              tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789áéíóúñüÁÉÍÓÚÑÜ.,€$%-() '
+            }
+          },
+          {
+            name: 'Line Detection',
+            options: {
+              lang: 'spa+eng',
+              psm: 8, // Single word
+              tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789áéíóúñüÁÉÍÓÚÑÜ.,€$%-() '
+            }
+          },
+          {
+            name: 'Sparse Text',
+            options: {
+              lang: 'spa+eng',
+              psm: 11, // Sparse text
+              tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789áéíóúñüÁÉÍÓÚÑÜ.,€$%-() '
+            }
+          }
+        ];
+        
+        let bestResult = '';
+        let bestConfidence = 0;
+        
+        for (const config of ocrConfigs) {
+          try {
+            console.log(`🔍 Trying ${config.name} configuration...`);
+            
+            const result = await Tesseract.recognize(preprocessedImage, config.options.lang, {
+              logger: m => {
+                if (m.status === 'recognizing text') {
+                  console.log(`📊 ${config.name}: ${Math.round(m.progress * 100)}%`);
+                }
+              },
+              tessedit_pageseg_mode: config.options.psm,
+              tessedit_char_whitelist: config.options.tessedit_char_whitelist
+            });
+            
+            const confidence = result.data.confidence;
+            const text = result.data.text.trim();
+            
+            console.log(`✅ ${config.name} completed:`);
+            console.log(`   Confidence: ${confidence.toFixed(1)}%`);
+            console.log(`   Text length: ${text.length} chars`);
+            console.log(`   Text preview: "${text.substring(0, 100)}..."`);
+            
+            // Select best result based on confidence and text length
+            const score = confidence * 0.7 + (text.length > 50 ? 30 : text.length * 0.6);
+            if (score > bestConfidence) {
+              bestResult = text;
+              bestConfidence = score;
+              console.log(`🏆 New best result from ${config.name} (score: ${score.toFixed(1)})`);
+            }
+            
+          } catch (configError) {
+            console.warn(`⚠️ ${config.name} failed:`, configError);
+          }
+        }
+        
+        console.log('\n🎯 === UNIFIED OCR PIPELINE COMPLETED ===');
+        console.log(`🏆 Best result confidence: ${bestConfidence.toFixed(1)}`);
+        console.log(`📝 Final extracted text (${bestResult.length} chars):`);
+        console.log(`"${bestResult}"`);
+        
+        return bestResult;
+        
+      } catch (error) {
+        console.error('❌ Unified OCR pipeline failed:', error);
+        throw error;
+      }
+    };
+    
+    // Helper function to convert various image types to base64
+    async function convertToBase64(imageFile) {
+      return new Promise((resolve, reject) => {
+        try {
+          if (typeof imageFile === 'string' && imageFile.startsWith('data:')) {
+            resolve(imageFile);
+            return;
+          }
+          
+          // Handle File or Blob objects
+          if (imageFile instanceof File || imageFile instanceof Blob) {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(imageFile);
+            return;
+          }
+          
+          // Handle other types
+          console.warn('⚠️ Unknown image file type, attempting direct use');
+          resolve(imageFile);
+          
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
+    
     // Make functions available globally
     window.tesseractOCR = {
       processImage: window.processImageWithOCR

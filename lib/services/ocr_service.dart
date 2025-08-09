@@ -15,21 +15,28 @@ class OCRService {
   final Uuid _uuid = const Uuid();
   final TextRecognizer _textRecognizer = TextRecognizer();
 
-  /// Process receipt image using ML Kit text recognition
+  /// Process receipt image and extract bill items with UNIFIED ADVANCED PIPELINE
   Future<Map<String, dynamic>> processReceiptImage(dynamic imageFile) async {
+    print('\n🚀 === UNIFIED ADVANCED OCR PIPELINE STARTING ===');
+    print('Platform: ${kIsWeb ? "Web" : "Mobile"}');
+    
     try {
-      // Check if running on web - use web-based OCR
+      // STEP 1: Apply advanced image preprocessing (unified for both platforms)
+      dynamic preprocessedImage = imageFile;
+      
       if (kIsWeb) {
-        return await _processImageOnWeb(imageFile);
+        // Apply web-specific preprocessing with perspective correction and text region detection
+        preprocessedImage = await _processImageOnWeb(imageFile);
+        print('✅ Web advanced preprocessing completed');
+        return preprocessedImage; // Web processing already includes parsing
+      } else {
+        // Apply mobile-specific preprocessing
+        preprocessedImage = await _preprocessImageForOCR(imageFile);
+        print('✅ Mobile preprocessing completed');
       }
-
-      // Use ML Kit for text recognition on mobile
-      print('Processing image with ML Kit on mobile...');
       
-      // Preprocess image for better OCR accuracy
-      final preprocessedImageFile = await _preprocessImageForOCR(imageFile);
-      
-      final inputImage = InputImage.fromFile(preprocessedImageFile ?? imageFile);
+      // STEP 2: Perform Mobile OCR with ML Kit
+      final inputImage = InputImage.fromFile(preprocessedImage ?? imageFile);
       final recognizedText = await _textRecognizer.processImage(inputImage);
       
       print('=== ML KIT OCR RESULTS ===');
@@ -54,18 +61,18 @@ class OCRService {
         return await _promptManualTextExtraction();
       }
       
-      // Preprocess and normalize the text for better parsing
+      // STEP 3: Apply unified text preprocessing and parsing
       final preprocessedText = _preprocessOCRText(recognizedText.text);
-      print('Preprocessed text: "$preprocessedText"');
+      print('🔤 Text preprocessing completed: "$preprocessedText"');
       
-      // Parse the recognized text to extract receipt data
+      // STEP 4: Parse with advanced extraction strategies
       final parseResult = _parseReceiptText(preprocessedText);
-      print('Parse result: ${parseResult['items']?.length ?? 0} items found');
+      print('📊 Advanced parsing completed: ${parseResult['items']?.length ?? 0} items found');
       
       return parseResult;
+      
     } catch (e) {
-      // Use manual extraction as last resort
-      print('❌ Mobile OCR failed: $e');
+      print('❌ Unified OCR pipeline failed: $e');
       return await _promptManualTextExtraction();
     }
   }
