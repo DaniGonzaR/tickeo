@@ -823,20 +823,38 @@
         
         console.log('✅ Image ready for processing');
         
-        // STEP 1: Apply automatic perspective correction
-        console.log('🔧 STEP 1: Applying automatic perspective correction...');
-        const correctedImage = await window.correctPerspective(base64Image);
-        console.log('✅ Perspective correction completed');
+        // Start with the original image as fallback
+        let processedImage = base64Image;
         
-        // STEP 2: Apply intelligent text region detection
-        console.log('🔍 STEP 2: Applying intelligent text region detection...');
-        const focusedImage = await window.detectTextRegions(correctedImage);
-        console.log('✅ Text region detection completed');
+        // STEP 1: Apply automatic perspective correction (with fallback)
+        try {
+          console.log('🔧 STEP 1: Applying automatic perspective correction...');
+          const correctedImage = await window.correctPerspective(base64Image);
+          processedImage = correctedImage;
+          console.log('✅ Perspective correction completed');
+        } catch (error) {
+          console.warn('⚠️ Perspective correction failed, using original image:', error.message);
+        }
         
-        // STEP 3: Apply advanced image preprocessing
-        console.log('🖼️ STEP 3: Applying advanced image preprocessing...');
-        const preprocessedImage = await window.preprocessImageForOCR(focusedImage);
-        console.log('✅ Advanced preprocessing completed');
+        // STEP 2: Apply intelligent text region detection (with fallback)
+        try {
+          console.log('🔍 STEP 2: Applying intelligent text region detection...');
+          const focusedImage = await window.detectTextRegions(processedImage);
+          processedImage = focusedImage;
+          console.log('✅ Text region detection completed');
+        } catch (error) {
+          console.warn('⚠️ Text region detection failed, using current image:', error.message);
+        }
+        
+        // STEP 3: Apply advanced image preprocessing (with fallback)
+        try {
+          console.log('🖼️ STEP 3: Applying advanced image preprocessing...');
+          const preprocessedImage = await window.preprocessImageForOCR(processedImage);
+          processedImage = preprocessedImage;
+          console.log('✅ Advanced preprocessing completed');
+        } catch (error) {
+          console.warn('⚠️ Advanced preprocessing failed, using current image:', error.message);
+        }
         
         // STEP 4: Perform multi-configuration Tesseract OCR
         console.log('🤖 STEP 4: Performing multi-configuration Tesseract OCR...');
@@ -883,7 +901,7 @@
           try {
             console.log(`🔍 Trying ${config.name} configuration...`);
             
-            const result = await Tesseract.recognize(preprocessedImage, config.options.lang, {
+            const result = await Tesseract.recognize(processedImage, config.options.lang, {
               logger: m => {
                 if (m.status === 'recognizing text') {
                   console.log(`📊 ${config.name}: ${Math.round(m.progress * 100)}%`);
