@@ -30,6 +30,10 @@ dependencies:
   camera: ^0.10.5+5
   qr_code_scanner: ^1.0.1
   permission_handler: ^11.1.0
+  
+  # Universal OCR dependencies
+  http: ^1.1.0
+  image: ^4.1.3
 
 dev_dependencies:
   flutter_test:
