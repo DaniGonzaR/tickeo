@@ -127,7 +127,7 @@
       // Download main.dart.js
       _flutter.loader.loadEntrypoint({
         serviceWorker: {
-          serviceWorkerVersion: serviceWorkerVersion,
+          serviceWorkerVersion: "{{flutter_service_worker_version}}",
         },
         onEntrypointLoaded: function(engineInitializer) {
           engineInitializer.initializeEngine().then(function(appRunner) {
@@ -142,129 +142,8 @@
 
 
 
-          
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          const img = new Image();
-          
-          img.onload = function() {
-            console.log('📸 Image loaded for text region detection');
-            
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-            
-            // Step 1: Convert to grayscale for analysis
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const grayData = convertToGrayscaleForRegions(imageData);
-            console.log('⚫ Converted to grayscale for region analysis');
-            
-            // Step 2: Detect text-like regions using morphological operations
-            const textMask = detectTextLikeRegions(grayData, canvas.width, canvas.height);
-            console.log('📝 Detected text-like regions');
-            
-            // Step 3: Filter regions by size and density
-            const filteredRegions = filterRelevantRegions(textMask, canvas.width, canvas.height);
-            console.log('🎯 Filtered relevant text regions:', filteredRegions.length);
-            
-            if (filteredRegions.length > 0) {
-              // Step 4: Create focused image with only text regions
-              const focusedImage = createFocusedImage(canvas, filteredRegions);
-              console.log('✅ Created focused image with text regions only');
-              
-              resolve(focusedImage);
-            } else {
-              console.log('⚠️ No text regions detected, using original image');
-              resolve(base64Image); // Fallback to original
-            }
-          };
-          
-          img.onerror = function() {
-            console.error('❌ Failed to load image for text region detection');
-            resolve(base64Image); // Fallback to original
-          };
-          
-          img.src = base64Image;
-          
-        } catch (error) {
-          console.error('❌ Text region detection failed:', error);
-          resolve(base64Image); // Fallback to original
-        }
-      });
-    };
-    
-    // Helper functions for text region detection
-    function convertToGrayscaleForRegions(imageData) {
-      const data = new Uint8ClampedArray(imageData.data.length);
-      for (let i = 0; i < imageData.data.length; i += 4) {
-        const gray = Math.round(0.299 * imageData.data[i] + 0.587 * imageData.data[i + 1] + 0.114 * imageData.data[i + 2]);
-        data[i] = gray;
-        data[i + 1] = gray;
-        data[i + 2] = gray;
-        data[i + 3] = imageData.data[i + 3];
-      }
-      return data;
-    }
-    
-    function detectTextLikeRegions(grayData, width, height) {
-      console.log('🔍 Analyzing image for text-like patterns...');
-      
-      // Step 1: Apply adaptive thresholding
-      const binaryData = applyAdaptiveThreshold(grayData, width, height);
-      
-      // Step 2: Morphological operations to connect text characters
-      const morphData = applyMorphologicalOperations(binaryData, width, height);
-      
-      // Step 3: Find connected components (potential text regions)
-      const components = findConnectedComponents(morphData, width, height);
-      
-      console.log(`📊 Found ${components.length} potential text regions`);
-      return components;
-    }
-    
-    function applyAdaptiveThreshold(data, width, height) {
-      const result = new Uint8ClampedArray(data.length);
-      const windowSize = 15; // Adaptive window size
-      
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const idx = (y * width + x) * 4;
-          
-          // Calculate local mean in window
-          let sum = 0;
-          let count = 0;
-          
-          for (let wy = Math.max(0, y - windowSize/2); wy < Math.min(height, y + windowSize/2); wy++) {
-            for (let wx = Math.max(0, x - windowSize/2); wx < Math.min(width, x + windowSize/2); wx++) {
-              const widx = (wy * width + wx) * 4;
-              sum += data[widx];
-              count++;
-            }
-          }
-          
-          const localMean = sum / count;
-          const threshold = localMean * 0.9; // Slightly below local mean
-          
-          const value = data[idx] < threshold ? 0 : 255; // Black text on white background
-          result[idx] = value;
-          result[idx + 1] = value;
-          result[idx + 2] = value;
-          result[idx + 3] = data[idx + 3];
-        }
-      }
-      
-      return result;
-    }
-    
-    function applyMorphologicalOperations(data, width, height) {
-      // Apply dilation to connect nearby text characters
-      const dilated = dilateImage(data, width, height, 2);
-      
-      // Apply erosion to clean up noise
-      const eroded = erodeImage(dilated, width, height, 1);
-      
-      return eroded;
-    }
+
+
     
     function dilateImage(data, width, height, radius) {
       const result = new Uint8ClampedArray(data.length);
