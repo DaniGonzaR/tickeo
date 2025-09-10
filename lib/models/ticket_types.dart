@@ -37,21 +37,21 @@ extension TicketTypeExtension on TicketType {
   PriceRange get typicalPriceRange {
     switch (this) {
       case TicketType.restaurant:
-        return PriceRange(min: 1.0, max: 150.0);
+        return const PriceRange(min: 1.0, max: 150.0);
       case TicketType.supermarket:
-        return PriceRange(min: 0.10, max: 500.0);
+        return const PriceRange(min: 0.10, max: 500.0);
       case TicketType.pharmacy:
-        return PriceRange(min: 0.50, max: 200.0);
+        return const PriceRange(min: 0.50, max: 200.0);
       case TicketType.gasStation:
-        return PriceRange(min: 5.0, max: 200.0);
+        return const PriceRange(min: 5.0, max: 200.0);
       case TicketType.clothing:
-        return PriceRange(min: 2.0, max: 1000.0);
+        return const PriceRange(min: 2.0, max: 1000.0);
       case TicketType.electronics:
-        return PriceRange(min: 5.0, max: 5000.0);
+        return const PriceRange(min: 5.0, max: 5000.0);
       case TicketType.bakery:
-        return PriceRange(min: 0.50, max: 50.0);
+        return const PriceRange(min: 0.50, max: 50.0);
       case TicketType.unknown:
-        return PriceRange(min: 0.10, max: 1000.0);
+        return const PriceRange(min: 0.10, max: 1000.0);
     }
   }
 

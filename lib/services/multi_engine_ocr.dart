@@ -6,6 +6,9 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:flutter/foundation.dart';
 import 'package:tickeo/models/ocr_models.dart';
 import 'package:tickeo/services/image_preprocessor.dart';
+// Conditional import: web bridge vs stub
+import 'package:tickeo/services/tesseract_stub.dart'
+    if (dart.library.html) 'package:tickeo/services/tesseract_web.dart';
 
 /// Motor OCR multi-engine que combina varios servicios para máxima precisión
 class MultiEngineOCR {
@@ -37,10 +40,13 @@ class MultiEngineOCR {
         }
       }
 
-      // Engine 2: OCR.space API (web y móvil)
+      // Engine 2: OCR.space API (web y móvil) con reintento alternativo
       final ocrSpaceResult = await _extractWithOCRSpace(processedImage);
       if (ocrSpaceResult != null) {
         results.add(ocrSpaceResult);
+      } else {
+        final ocrSpaceRetry = await _extractWithOCRSpace(processedImage, retryAlternate: true);
+        if (ocrSpaceRetry != null) results.add(ocrSpaceRetry);
       }
 
       // Engine 3: Tesseract.js (web fallback)
@@ -60,7 +66,14 @@ class MultiEngineOCR {
     }
 
     if (results.isEmpty) {
-      throw Exception('Todos los motores OCR fallaron');
+      print('⚠️ Ningún motor devolvió texto. Devolviendo resultado vacío para continuar el flujo.');
+      final empty = OCRResult(extractedText: '', confidence: 0.0, engine: 'none');
+      return MultiEngineOCRResult(
+        individualResults: [empty],
+        bestResult: empty,
+        consensusText: '',
+        overallConfidence: 0.0,
+      );
     }
 
     // Generar consenso entre resultados
@@ -110,26 +123,34 @@ class MultiEngineOCR {
   }
 
   /// Extrae texto usando OCR.space API
-  Future<OCRResult?> _extractWithOCRSpace(ProcessedImage image) async {
+  Future<OCRResult?> _extractWithOCRSpace(ProcessedImage image, {bool retryAlternate = false}) async {
     print('🌐 Extrayendo con OCR.space...');
     
     try {
       final base64Image = base64Encode(image.processedBytes);
       
-      final response = await http.post(
-        Uri.parse('https://api.ocr.space/parse/image'),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: {
-          'apikey': 'helloworld', // Free tier
-          'base64Image': 'data:image/png;base64,$base64Image',
-          'language': 'spa',
-          'isOverlayRequired': 'false',
-          'detectOrientation': 'true',
-          'scale': 'true',
-          'OCREngine': '2',
-          'isTable': 'true', // Mejor para tickets estructurados
-        },
-      ).timeout(const Duration(seconds: 30));
+      final body = <String, String>{
+        'apikey': 'helloworld',
+        'base64Image': 'data:image/png;base64,$base64Image',
+        'language': retryAlternate ? 'spa+eng' : 'spa',
+        'isOverlayRequired': 'false',
+        'detectOrientation': 'true',
+        'scale': retryAlternate ? 'false' : 'true',
+      };
+      if (!retryAlternate) {
+        body['OCREngine'] = '2';
+        body['isTable'] = 'true';
+      } else {
+        // Alternate: default engine, no table mode
+      }
+
+      final response = await http
+          .post(
+            Uri.parse('https://api.ocr.space/parse/image'),
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: body,
+          )
+          .timeout(Duration(seconds: retryAlternate ? 20 : 30));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -148,16 +169,17 @@ class MultiEngineOCR {
               'processingTimeInMilliseconds': data['ProcessingTimeInMilliseconds'],
               'isErroredOnProcessing': data['IsErroredOnProcessing'],
               'ocrExitCode': data['OCRExitCode'],
+              'retryAlternate': retryAlternate,
             },
           );
         }
       }
       
-      print('❌ OCR.space falló: ${response.statusCode}');
+      print('❌ OCR.space falló: ${response.statusCode} (retryAlternate=$retryAlternate)');
       return null;
       
     } catch (e) {
-      print('❌ Error en OCR.space: $e');
+      print('❌ Error en OCR.space: $e (retryAlternate=$retryAlternate)');
       return null;
     }
   }
@@ -169,18 +191,31 @@ class MultiEngineOCR {
     print('🕸️ Extrayendo con Tesseract.js...');
     
     try {
-      // Implementación simplificada - en producción usaríamos Tesseract.js real
-      // Por ahora, simulamos el resultado
-      
-      // TODO: Integrar Tesseract.js real para web
-      // const tesseract = require('tesseract.js');
-      // const result = await tesseract.recognize(image.processedBytes, 'spa');
-      
-      // Simulación temporal
-      await Future.delayed(const Duration(seconds: 2));
-      
-      print('⚠️ Tesseract.js no implementado completamente (simulación)');
-      return null;
+      final base64Image = base64Encode(image.processedBytes);
+      final dataUrl = 'data:image/png;base64,$base64Image';
+      final text = await runTesseractOnWeb(dataUrl, 'spa');
+
+      if (text.isEmpty) {
+        print('⚠️ Tesseract.js devolvió texto vacío');
+        return null;
+      }
+
+      // Heurística simple de confianza
+      double confidence = 0.5;
+      final priceMatches = RegExp(r'\d+[.,]\d{2}').allMatches(text).length;
+      if (text.length > 150) confidence += 0.1;
+      if (priceMatches >= 2) confidence += 0.1;
+      if (priceMatches >= 5) confidence += 0.1;
+      confidence = confidence.clamp(0.0, 1.0);
+
+      print('✅ Tesseract.js extrajo ${text.length} caracteres (confianza: ${confidence.toStringAsFixed(2)})');
+
+      return OCRResult(
+        extractedText: text,
+        confidence: confidence,
+        engine: 'tesseract_js',
+        metadata: {},
+      );
       
     } catch (e) {
       print('❌ Error en Tesseract.js: $e');

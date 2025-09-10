@@ -41,6 +41,26 @@
   <title>Tickeo - Bill Splitter</title>
   <link rel="manifest" href="manifest.json">
   
+  <!-- Tesseract.js (CDN) for Web OCR fallback -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script>
+    // Expose a simple OCR function usable from Dart via js_util
+    // Usage: await window.runTesseract('data:image/png;base64,...', 'spa') -> text
+    window.runTesseract = async function(base64Url, lang) {
+      try {
+        if (!window.Tesseract || !window.Tesseract.recognize) {
+          console.warn('Tesseract.js not available');
+          return '';
+        }
+        const result = await window.Tesseract.recognize(base64Url, lang || 'spa');
+        return (result && result.data && result.data.text) ? result.data.text : '';
+      } catch (e) {
+        console.error('Tesseract.js error:', e);
+        return '';
+      }
+    };
+  </script>
+  
   <!-- Simplified OCR - No complex dependencies needed -->
   <script>
     console.log('🚀 Initializing simplified OCR system (OCR.space only)...');
