@@ -779,8 +779,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 return BillHistoryCard(
                                   bill: bill,
                                   onTap: () {
-                                    billProvider
-                                        .loadBillFromShareCode(bill.shareCode);
+                                    // Open directly from local history to avoid cloud lookup errors
+                                    billProvider.openBill(bill);
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
                                         builder: (context) =>
@@ -806,8 +806,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   child: BillHistoryCard(
                                     bill: bill,
                                     onTap: () {
-                                      billProvider.loadBillFromShareCode(
-                                          bill.shareCode);
+                                      // Open directly from local history to avoid cloud lookup errors
+                                      billProvider.openBill(bill);
                                       Navigator.of(context).push(
                                         MaterialPageRoute(
                                           builder: (context) =>

@@ -197,7 +197,12 @@ class BillProvider extends ChangeNotifier {
   bool addParticipant(String participantName) {
     try {
       if (_currentBill == null) {
-        _setError('No active bill to add participant to');
+        _setError('No hay una cuenta activa para añadir participantes');
+        return false;
+      }
+
+      if (_currentBill!.isCompleted) {
+        _setError('Esta cuenta está completada y no se puede editar');
         return false;
       }
 
@@ -217,13 +222,13 @@ class BillProvider extends ChangeNotifier {
           .toList();
 
       if (existingNames.contains(participantName.toLowerCase().trim())) {
-        _setError('A participant with this name already exists');
+        _setError('Ya existe un participante con ese nombre');
         return false;
       }
 
       // Check participant limit
       if (_currentBill!.participants.length >= 20) {
-        _setError('Maximum 20 participants allowed per bill');
+        _setError('Máximo 20 participantes por cuenta');
         return false;
       }
 
@@ -262,6 +267,11 @@ class BillProvider extends ChangeNotifier {
   void removeParticipant(String participantId) {
     if (_currentBill == null) return;
 
+    if (_currentBill!.isCompleted) {
+      _setError('Esta cuenta está completada y no se puede editar');
+      return;
+    }
+
     // Remove participant from all items
     final updatedItems = _currentBill!.items.map((item) {
       final updatedSelectedBy =
@@ -283,12 +293,18 @@ class BillProvider extends ChangeNotifier {
     );
 
     _updatePaymentAmounts();
+    _saveBillLocally(_currentBill!); // Persist to history so Recent Bills updates
     notifyListeners();
   }
 
   // Remove item from bill
   void removeItem(String itemId) {
     if (_currentBill == null) return;
+
+    if (_currentBill!.isCompleted) {
+      _setError('Esta cuenta está completada y no se puede editar');
+      return;
+    }
 
     // Check if any payment has been made - if so, don't allow deletion
     if (hasAnyPaymentBeenMade()) {
@@ -325,6 +341,11 @@ class BillProvider extends ChangeNotifier {
   void toggleItemSelection(String itemId, String participantId) {
     if (_currentBill == null) return;
 
+    if (_currentBill!.isCompleted) {
+      _setError('Esta cuenta está completada y no se puede editar');
+      return;
+    }
+
     // Check if any payment has been made - if so, don't allow changes
     if (hasAnyPaymentBeenMade()) {
       _setError(
@@ -352,6 +373,11 @@ class BillProvider extends ChangeNotifier {
     try {
       if (_currentBill == null) {
         _setError('No active bill to add item to');
+        return false;
+      }
+
+      if (_currentBill!.isCompleted) {
+        _setError('Esta cuenta está completada y no se puede editar');
         return false;
       }
 
@@ -426,6 +452,11 @@ class BillProvider extends ChangeNotifier {
   void updateTip(double tip) {
     if (_currentBill == null) return;
 
+    if (_currentBill!.isCompleted) {
+      _setError('Esta cuenta está completada y no se puede editar');
+      return;
+    }
+
     final newTotal = _currentBill!.subtotal + _currentBill!.tax + tip;
     _currentBill = _currentBill!.copyWith(
       tip: tip,
@@ -439,6 +470,11 @@ class BillProvider extends ChangeNotifier {
   // Split bill equally
   void splitBillEqually() {
     if (_currentBill == null || _currentBill!.participants.isEmpty) return;
+
+    if (_currentBill!.isCompleted) {
+      _setError('Esta cuenta está completada y no se puede editar');
+      return;
+    }
 
     // Check if any payment has been made - if so, don't allow split equally
     if (hasAnyPaymentBeenMade()) {
@@ -473,10 +509,16 @@ class BillProvider extends ChangeNotifier {
       String participantId, PaymentMethod method, String? notes) {
     if (_currentBill == null) return;
 
+    if (_currentBill!.isCompleted) {
+      _setError('Esta cuenta está completada y no se puede editar');
+      return;
+    }
+
     final updatedPayments = _currentBill!.payments.map((payment) {
       if (payment.participantId == participantId) {
         return payment.copyWith(
           isPaid: true,
+          // Always refresh timestamp when marking/editing as paid
           paidAt: DateTime.now(),
           method: method,
           notes: notes,
@@ -638,6 +680,13 @@ class BillProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Open a bill from local history (avoid cloud lookup and errors)
+  void openBill(Bill bill) {
+    _currentBill = bill;
+    _clearError();
+    notifyListeners();
+  }
+
   String _generateShareCode() {
     return _uuid.v4().substring(0, 8).toUpperCase();
   }
@@ -651,14 +700,34 @@ class BillProvider extends ChangeNotifier {
   void togglePaymentStatus(String paymentId) {
     if (_currentBill == null) return;
 
+    if (_currentBill!.isCompleted) {
+      _setError('Esta cuenta está completada y no se puede editar');
+      return;
+    }
+
+    // Toggle paid flag and maintain paidAt timestamp accordingly
     final updatedPayments = _currentBill!.payments.map((payment) {
       if (payment.id == paymentId) {
-        return payment.copyWith(isPaid: !payment.isPaid);
+        final toggledIsPaid = !payment.isPaid;
+        return payment.copyWith(
+          isPaid: toggledIsPaid,
+          paidAt: toggledIsPaid ? DateTime.now() : null,
+        );
       }
       return payment;
     }).toList();
 
+    // Update current bill payments
     _currentBill = _currentBill!.copyWith(payments: updatedPayments);
+
+    // Update completion status based on all payments
+    final allPaid = updatedPayments.isNotEmpty &&
+        updatedPayments.every((payment) => payment.isPaid);
+    _currentBill = _currentBill!.copyWith(isCompleted: allPaid);
+
+    // Persist to local history so Home -> Cuentas Recientes reflects changes
+    _saveBillLocally(_currentBill!);
+
     notifyListeners();
   }
 

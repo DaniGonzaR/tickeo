@@ -3,6 +3,8 @@ import 'package:tickeo/models/bill_item.dart';
 import 'package:tickeo/providers/bill_provider.dart';
 import 'package:tickeo/utils/app_colors.dart';
 import 'package:tickeo/utils/app_text_styles.dart';
+import 'package:tickeo/utils/validators.dart';
+import 'package:tickeo/utils/error_handler.dart';
 
 class BillItemCard extends StatelessWidget {
   final BillItem item;
@@ -27,6 +29,8 @@ class BillItemCard extends StatelessWidget {
         final cardPadding = isMobile ? 12.0 : 16.0;
         final itemSpacing = isMobile ? 8.0 : 12.0;
         final chipSpacing = isMobile ? 4.0 : 6.0;
+
+        final isCompleted = billProvider.currentBill?.isCompleted ?? false;
 
         return Card(
           margin: EdgeInsets.only(bottom: isMobile ? 8 : 12),
@@ -138,7 +142,7 @@ class BillItemCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => _showDeleteConfirmation(context),
+                        onPressed: isCompleted ? null : () => _showDeleteConfirmation(context),
                         icon: Icon(
                           Icons.delete_outline,
                           size: isMobile ? 16 : 18,
@@ -160,7 +164,7 @@ class BillItemCard extends StatelessWidget {
                     SizedBox(width: itemSpacing),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () =>
+                        onPressed: isCompleted ? null : () =>
                             _showParticipantSelectionDialog(context),
                         icon: Icon(
                           Icons.people,
@@ -253,6 +257,7 @@ class BillItemCard extends StatelessWidget {
   }
 
   Widget _buildDesktopParticipantChips(double spacing) {
+    final isCompleted = billProvider.currentBill?.isCompleted ?? false;
     return Wrap(
       spacing: spacing,
       runSpacing: spacing,
@@ -263,8 +268,11 @@ class BillItemCard extends StatelessWidget {
           backgroundColor: AppColors.primary.withOpacity(0.1),
           side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
           deleteIcon: const Icon(Icons.close, size: 16),
-          onDeleted: () =>
-              billProvider.toggleParticipantForItem(item.id, participantId),
+          onDeleted: isCompleted
+              ? null
+              : () => billProvider.toggleParticipantForItem(
+                    item.id, participantId,
+                  ),
         );
       }).toList(),
     );
@@ -298,47 +306,165 @@ class BillItemCard extends StatelessWidget {
     );
   }
 
-  void _showParticipantSelectionDialog(BuildContext context) {
+  void _showParticipantSelectionDialog(BuildContext parentContext) {
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Asignar "${item.name}"'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                  'Selecciona los participantes que compartirán este producto:'),
-              const SizedBox(height: 16),
-              ...participants.map((participantId) {
-                final name = getParticipantName(participantId);
-                final isSelected = item.selectedBy.contains(participantId);
-                return CheckboxListTile(
-                  title: Text(name),
-                  value: isSelected,
-                  onChanged: (bool? value) {
-                    billProvider.toggleParticipantForItem(
-                        item.id, participantId);
-                    Navigator.of(context).pop();
-                    // Reopen dialog to show updated state
-                    Future.delayed(const Duration(milliseconds: 100), () {
-                      _showParticipantSelectionDialog(context);
-                    });
-                  },
-                  activeColor: AppColors.primary,
-                );
-              }),
+      context: parentContext,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (innerContext, setState) {
+          return AlertDialog(
+            title: Text('Asignar "${item.name}"'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                      'Selecciona los participantes que compartirán este producto:'),
+                  const SizedBox(height: 16),
+                  // Always use the latest participants and updated item selection from provider
+                  ...((billProvider.currentBill?.participants ?? participants)).map((participantId) {
+                    final name = getParticipantName(participantId);
+                    final currentItem = billProvider.currentBill?.items.firstWhere(
+                          (it) => it.id == item.id,
+                          orElse: () => item,
+                        ) ??
+                        item;
+                    final currentSelectedBy = currentItem.selectedBy;
+                    final isSelected = currentSelectedBy.contains(participantId);
+                    return CheckboxListTile(
+                      title: Text(name),
+                      value: isSelected,
+                      onChanged: (bool? value) {
+                        if (billProvider.hasAnyPaymentBeenMade()) {
+                          showDialog(
+                            context: dialogContext,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Acción no permitida'),
+                              content: const Text(
+                                  'No se pueden modificar las selecciones una vez que alguien ha pagado.'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(),
+                                  child: const Text('Entendido'),
+                                ),
+                              ],
+                            ),
+                          );
+                          return;
+                        }
+                        billProvider.toggleParticipantForItem(item.id, participantId);
+                        // Refresh just the dialog UI
+                        setState(() {});
+                      },
+                      activeColor: AppColors.primary,
+                    );
+                  }),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton.icon(
+                onPressed: () {
+                  // Open Add Participant on top of this dialog, and refresh when done
+                  _showAddParticipantInline(
+                    dialogContext,
+                    parentContext,
+                    () => setState(() {}),
+                  );
+                },
+                icon: const Icon(Icons.person_add),
+                label: const Text('Añadir Participante'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cerrar'),
+              ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cerrar'),
-          ),
-        ],
+          );
+        },
       ),
     );
+  }
+
+  void _showAddParticipantInline(
+    BuildContext selectionDialogContext,
+    BuildContext scaffoldContext,
+    VoidCallback onAdded,
+  ) {
+    final TextEditingController controller = TextEditingController();
+    String? errorText;
+    showDialog(
+      context: selectionDialogContext,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(builder: (innerCtx, setState) {
+          return AlertDialog(
+            title: const Text('Añadir Participante'),
+            content: TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                labelText: 'Nombre del participante',
+                hintText: 'Ej: Dani',
+                errorText: errorText,
+                border: const OutlineInputBorder(),
+              ),
+              autofocus: true,
+              onChanged: (value) {
+                setState(() {
+                  errorText = Validators.validateParticipantName(value);
+                });
+              },
+              onSubmitted: (_) {
+                _submitAddParticipant(dialogContext, scaffoldContext, controller, errorText);
+                onAdded();
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: (errorText == null && controller.text.trim().isNotEmpty)
+                    ? () {
+                        _submitAddParticipant(dialogContext, scaffoldContext, controller, errorText);
+                        onAdded();
+                      }
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.textOnPrimary,
+                ),
+                child: const Text('Añadir'),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  void _submitAddParticipant(
+    BuildContext dialogContext,
+    BuildContext scaffoldContext,
+    TextEditingController controller,
+    String? errorText,
+  ) {
+    final name = controller.text.trim();
+    final validation = Validators.validateParticipantName(name);
+    if (validation != null) {
+      // Keep dialog open and show error using scaffold context
+      ErrorHandler.showError(scaffoldContext, validation);
+      return;
+    }
+    final success = billProvider.addParticipant(name);
+    if (success) {
+      ErrorHandler.showSuccess(scaffoldContext, 'Participante creado correctamente');
+      Navigator.of(dialogContext).pop();
+    } else {
+      // Show provider error (e.g., duplicate name)
+      final msg = billProvider.error ?? 'No se pudo crear el participante';
+      ErrorHandler.showError(scaffoldContext, msg);
+    }
   }
 }

@@ -55,7 +55,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
       _participantController.clear();
       Navigator.of(context).pop();
       if (context.mounted) {
-        ErrorHandler.showSuccess(context, 'Participant added successfully');
+        ErrorHandler.showSuccess(context, 'Participante creado correctamente');
       }
     } else {
       if (context.mounted && billProvider.error != null) {
@@ -345,6 +345,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
       Bill bill, BillProvider billProvider, bool isMobile, bool isTablet) {
     final horizontalPadding = isMobile ? 12.0 : 16.0;
     final verticalPadding = isMobile ? 12.0 : 16.0;
+    final isCompleted = bill.isCompleted;
 
     return Column(
       children: [
@@ -434,7 +435,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
           child: CustomButton(
             text: isMobile ? 'Agregar Item' : 'Agregar Producto',
             icon: Icons.add_shopping_cart,
-            onPressed: _showAddItemDialog,
+            onPressed: isCompleted ? null : _showAddItemDialog,
             backgroundColor: AppColors.secondary,
             height: isMobile ? 48 : 56,
           ),
@@ -445,6 +446,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
 
   Widget _buildParticipantsTab(
       Bill bill, BillProvider billProvider, bool isMobile, bool isTablet) {
+    final isCompleted = bill.isCompleted;
     return Column(
       children: [
         // Add participant button
@@ -453,7 +455,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
           child: CustomButton(
             text: 'Agregar Participante',
             icon: Icons.person_add,
-            onPressed: _showAddParticipantDialog,
+            onPressed: isCompleted ? null : _showAddParticipantDialog,
             backgroundColor: AppColors.primary,
           ),
         ),
@@ -508,7 +510,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
             child: CustomButton(
               text: 'Dividir Equitativamente',
               icon: Icons.balance,
-              onPressed: billProvider.splitBillEqually,
+              onPressed: isCompleted ? null : billProvider.splitBillEqually,
               backgroundColor: AppColors.accent,
             ),
           ),
@@ -564,17 +566,22 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
                   ),
                   subtitle: Text(
                     payment.isPaid
-                        ? 'Pagado - ${payment.methodDisplayName}'
+                        ? 'Pagado - ${payment.methodDisplayName}' +
+                            (payment.paidAt != null
+                                ? ' · ${_formatPaidAt(payment.paidAt!)}'
+                                : '')
                         : 'Pendiente',
                     style: payment.isPaid
                         ? AppTextStyles.statusPaid
                         : AppTextStyles.statusPending,
                   ),
                   trailing: Text(
-                    '\$${payment.amount.toStringAsFixed(2)}',
+                    '€${payment.amount.toStringAsFixed(2)}',
                     style: AppTextStyles.priceMedium,
                   ),
-                  onTap: () => _showPaymentDialog(payment, billProvider),
+                  onTap: bill.isCompleted
+                      ? null
+                      : () => _showPaymentDialog(payment, billProvider),
                 ),
               );
             }),
@@ -587,52 +594,118 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
   void _showPaymentDialog(Payment payment, BillProvider billProvider) {
     if (payment.isPaid) return;
 
+    PaymentMethod selectedMethod = PaymentMethod.cash;
+
+    final scaffoldContext = context; // Use page context for SnackBars
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Marcar como Pagado', style: AppTextStyles.headingMedium),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '${payment.participantName} debe pagar \$${payment.amount.toStringAsFixed(2)}',
-              style: AppTextStyles.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            Text('Método de pago:', style: AppTextStyles.label),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<PaymentMethod>(
-              value: PaymentMethod.cash,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (ctx, setState) {
+            final bill = billProvider.currentBill;
+            return AlertDialog(
+              title: Text('Marcar como Pagado', style: AppTextStyles.headingMedium),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${payment.participantName} debe pagar €${payment.amount.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Método de pago:', style: AppTextStyles.label),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<PaymentMethod>(
+                    value: selectedMethod,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      PaymentMethod.transfer,
+                      PaymentMethod.card,
+                      PaymentMethod.cash,
+                      PaymentMethod.other,
+                    ].map((method) {
+                      return DropdownMenuItem(
+                        value: method,
+                        child: Text(_getPaymentMethodName(method)),
+                      );
+                    }).toList(),
+                    onChanged: (m) {
+                      if (m != null) setState(() => selectedMethod = m);
+                    },
+                  ),
+                ],
               ),
-              items: PaymentMethod.values.map((method) {
-                return DropdownMenuItem(
-                  value: method,
-                  child: Text(_getPaymentMethodName(method)),
-                );
-              }).toList(),
-              onChanged: (method) {
-                if (method != null) {
-                  billProvider.markPaymentAsPaid(
-                    payment.participantId,
-                    method,
-                    null,
-                  );
-                  Navigator.of(context).pop();
-                }
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
-        ],
-      ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final unpaidCount = bill?.payments.where((p) => !p.isPaid).length ?? 0;
+                    final isLastUnpaid = unpaidCount == 1;
+
+                    void doMarkPaid() {
+                      billProvider.markPaymentAsPaid(
+                        payment.participantId,
+                        selectedMethod,
+                        null,
+                      );
+                      Navigator.of(dialogContext).pop();
+                    }
+
+                    if (isLastUnpaid) {
+                      showDialog(
+                        context: dialogContext,
+                        builder: (confirmCtx) => AlertDialog(
+                          title: const Text('Último pago'),
+                          content: const Text(
+                              'Este es el último pago. Al confirmar, la cuenta se marcará como Completada y ya no se podrá editar (solo vista).'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(confirmCtx).pop(),
+                              child: const Text('Cancelar'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.of(confirmCtx).pop();
+                                doMarkPaid();
+                                // Visual confirmation
+                                Future.microtask(() => ErrorHandler.showSuccess(
+                                      scaffoldContext,
+                                      'Cuenta completada. La cuenta ha quedado en modo vista.',
+                                    ));
+                              },
+                              child: const Text('Aceptar'),
+                            ),
+                          ],
+                        ),
+                      );
+                    } else {
+                      doMarkPaid();
+                    }
+                  },
+                  child: const Text('Aceptar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
+  }
+
+  String _formatPaidAt(DateTime dt) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    final d = two(dt.day);
+    final m = two(dt.month);
+    final y = dt.year.toString();
+    final hh = two(dt.hour);
+    final mm = two(dt.minute);
+    return '$d/$m/$y $hh:$mm';
   }
 
   String _getPaymentMethodName(PaymentMethod method) {

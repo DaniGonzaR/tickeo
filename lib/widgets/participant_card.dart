@@ -4,6 +4,7 @@ import 'package:tickeo/models/payment.dart';
 import 'package:tickeo/providers/bill_provider.dart';
 import 'package:tickeo/utils/app_colors.dart';
 import 'package:tickeo/utils/app_text_styles.dart';
+import 'package:tickeo/utils/error_handler.dart';
 
 class ParticipantCard extends StatelessWidget {
   final String participantId;
@@ -36,6 +37,7 @@ class ParticipantCard extends StatelessWidget {
 
     final amount = payment.amount;
     final isPaid = payment.isPaid;
+    final isCompleted = bill.isCompleted;
 
     // Get selected items for this participant
     final selectedItems = bill.items
@@ -249,7 +251,7 @@ class ParticipantCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => _showRemoveDialog(context),
+                        onPressed: isCompleted ? null : () => _showRemoveDialog(context),
                         icon: Icon(
                           Icons.person_remove,
                           size: isMobile ? 16 : 18,
@@ -271,7 +273,7 @@ class ParticipantCard extends StatelessWidget {
                     SizedBox(width: itemSpacing),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => _showPaymentDialog(context, payment),
+                        onPressed: isCompleted ? null : () => _showPaymentDialog(context, payment),
                         icon: Icon(
                           isPaid ? Icons.edit : Icons.payment,
                           size: isMobile ? 16 : 18,
@@ -332,42 +334,139 @@ class ParticipantCard extends StatelessWidget {
   }
 
   void _showPaymentDialog(BuildContext context, Payment payment) {
+    final bool isPaid = payment.isPaid;
+    PaymentMethod selectedMethod = payment.method;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${payment.isPaid ? 'Editar' : 'Registrar'} Pago'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Participante: ${payment.participantName}'),
-            const SizedBox(height: 8),
-            Text('Monto: €${payment.amount.toStringAsFixed(2)}'),
-            const SizedBox(height: 16),
-            if (!payment.isPaid)
-              const Text('¿Marcar como pagado?')
-            else
-              const Text('¿Marcar como pendiente?'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              billProvider.togglePaymentStatus(payment.id);
-              Navigator.of(context).pop();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  payment.isPaid ? AppColors.warning : AppColors.success,
-              foregroundColor: AppColors.textOnPrimary,
-            ),
-            child: Text(payment.isPaid ? 'Marcar Pendiente' : 'Marcar Pagado'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(isPaid ? 'Editar Pago' : 'Registrar Pago'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Participante: ${payment.participantName}'),
+                  const SizedBox(height: 8),
+                  Text('Monto: €${payment.amount.toStringAsFixed(2)}'),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Método de pago',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  RadioListTile<PaymentMethod>(
+                    contentPadding: EdgeInsets.zero,
+                    value: PaymentMethod.transfer,
+                    groupValue: selectedMethod,
+                    onChanged: (val) {
+                      if (val != null) setState(() => selectedMethod = val);
+                    },
+                    title: const Text('Transferencia'),
+                  ),
+                  RadioListTile<PaymentMethod>(
+                    contentPadding: EdgeInsets.zero,
+                    value: PaymentMethod.card,
+                    groupValue: selectedMethod,
+                    onChanged: (val) {
+                      if (val != null) setState(() => selectedMethod = val);
+                    },
+                    title: const Text('Tarjeta'),
+                  ),
+                  RadioListTile<PaymentMethod>(
+                    contentPadding: EdgeInsets.zero,
+                    value: PaymentMethod.cash,
+                    groupValue: selectedMethod,
+                    onChanged: (val) {
+                      if (val != null) setState(() => selectedMethod = val);
+                    },
+                    title: const Text('Efectivo'),
+                  ),
+                  RadioListTile<PaymentMethod>(
+                    contentPadding: EdgeInsets.zero,
+                    value: PaymentMethod.other,
+                    groupValue: selectedMethod,
+                    onChanged: (val) {
+                      if (val != null) setState(() => selectedMethod = val);
+                    },
+                    title: const Text('Otros'),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                if (isPaid)
+                  TextButton(
+                    onPressed: () {
+                      // Mark as pending
+                      billProvider.togglePaymentStatus(payment.id);
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('Marcar Pendiente'),
+                  ),
+                ElevatedButton(
+                  onPressed: () {
+                    // If this is the last unpaid participant, ask for confirmation
+                    final unpaidCount = bill.payments.where((p) => !p.isPaid).length;
+                    final isLastUnpaid = !isPaid && unpaidCount == 1;
+
+                    void doMarkPaid() {
+                      billProvider.markPaymentAsPaid(
+                        payment.participantId,
+                        selectedMethod,
+                        null,
+                      );
+                      Navigator.of(context).pop();
+                    }
+
+                    if (isLastUnpaid) {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Último pago'),
+                          content: const Text(
+                              'Este es el último pago. Al confirmar, la cuenta se marcará como Completada y ya no se podrá editar (solo vista).'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(),
+                              child: const Text('Cancelar'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.of(ctx).pop();
+                                doMarkPaid();
+                                // Confirmación visual
+                                Future.microtask(() => ErrorHandler.showSuccess(
+                                      context,
+                                      'Cuenta completada. La cuenta ha quedado en modo vista.',
+                                    ));
+                              },
+                              child: const Text('Aceptar'),
+                            ),
+                          ],
+                        ),
+                      );
+                    } else {
+                      doMarkPaid();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        isPaid ? AppColors.secondary : AppColors.success,
+                    foregroundColor: AppColors.textOnPrimary,
+                  ),
+                  child: Text(isPaid ? 'Guardar' : 'Marcar Pagado'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -43,24 +43,27 @@ class BillHistoryCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: bill.isCompleted
-                          ? AppColors.success.withOpacity(0.1)
-                          : AppColors.warning.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      bill.isCompleted ? 'Completada' : 'Pendiente',
-                      style: bill.isCompleted
-                          ? AppTextStyles.statusPaid
-                          : AppTextStyles.statusPending,
-                    ),
-                  ),
+                  Builder(builder: (context) {
+                    final fullyPaid = _isFullyPaid(bill);
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: fullyPaid
+                            ? AppColors.success.withOpacity(0.1)
+                            : AppColors.warning.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        fullyPaid ? 'Completada' : 'Pendiente',
+                        style: fullyPaid
+                            ? AppTextStyles.statusPaid
+                            : AppTextStyles.statusPending,
+                      ),
+                    );
+                  }),
                 ],
               ),
               const SizedBox(height: 8),
