@@ -346,13 +346,6 @@ class BillProvider extends ChangeNotifier {
       return;
     }
 
-    // Check if any payment has been made - if so, don't allow changes
-    if (hasAnyPaymentBeenMade()) {
-      _setError(
-          'No se pueden modificar las selecciones una vez que alguien ha pagado');
-      return;
-    }
-
     final updatedItems = _currentBill!.items.map((item) {
       if (item.id == itemId) {
         final updatedSelectedBy = item.selectedBy.contains(participantId)
@@ -476,13 +469,6 @@ class BillProvider extends ChangeNotifier {
       return;
     }
 
-    // Check if any payment has been made - if so, don't allow split equally
-    if (hasAnyPaymentBeenMade()) {
-      _setError(
-          'No se puede dividir equitativamente una vez que alguien ha pagado');
-      return;
-    }
-
     // Assign all products to all participants for equal split
     final updatedItems = _currentBill!.items.map((item) {
       return item.copyWith(selectedBy: List.from(_currentBill!.participants));
@@ -529,9 +515,12 @@ class BillProvider extends ChangeNotifier {
 
     _currentBill = _currentBill!.copyWith(payments: updatedPayments);
 
-    // Check if bill is completed
-    final allPaid = updatedPayments.every((payment) => payment.isPaid);
-    if (allPaid) {
+    // Check if bill is completed (100% of total amount paid)
+    final totalPaid = updatedPayments
+        .where((payment) => payment.isPaid)
+        .fold(0.0, (sum, payment) => sum + payment.amount);
+    final isFullyPaid = totalPaid >= _currentBill!.total;
+    if (isFullyPaid) {
       _currentBill = _currentBill!.copyWith(isCompleted: true);
     }
 
@@ -720,10 +709,12 @@ class BillProvider extends ChangeNotifier {
     // Update current bill payments
     _currentBill = _currentBill!.copyWith(payments: updatedPayments);
 
-    // Update completion status based on all payments
-    final allPaid = updatedPayments.isNotEmpty &&
-        updatedPayments.every((payment) => payment.isPaid);
-    _currentBill = _currentBill!.copyWith(isCompleted: allPaid);
+    // Update completion status based on total amount paid (100%)
+    final totalPaid = updatedPayments
+        .where((payment) => payment.isPaid)
+        .fold(0.0, (sum, payment) => sum + payment.amount);
+    final isFullyPaid = totalPaid >= _currentBill!.total;
+    _currentBill = _currentBill!.copyWith(isCompleted: isFullyPaid);
 
     // Persist to local history so Home -> Cuentas Recientes reflects changes
     _saveBillLocally(_currentBill!);

@@ -335,13 +335,13 @@ class BillItemCard extends StatelessWidget {
                       title: Text(name),
                       value: isSelected,
                       onChanged: (bool? value) {
-                        if (billProvider.hasAnyPaymentBeenMade()) {
+                        if (billProvider.currentBill?.isCompleted == true) {
                           showDialog(
                             context: dialogContext,
                             builder: (ctx) => AlertDialog(
                               title: const Text('Acción no permitida'),
                               content: const Text(
-                                  'No se pueden modificar las selecciones una vez que alguien ha pagado.'),
+                                  'No se pueden modificar las selecciones una vez que la cuenta está completada.'),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.of(ctx).pop(),
