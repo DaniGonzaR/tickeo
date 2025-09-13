@@ -40,24 +40,94 @@
 
   <title>Tickeo - Bill Splitter</title>
   <link rel="manifest" href="manifest.json">
-</head>
-<body>
-  <!-- PWA Installation prompt -->
-  <div id="installPrompt" style="display: none; position: fixed; bottom: 20px; left: 20px; right: 20px; background: #6366F1; color: white; padding: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000;">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div>
-        <strong>Install Tickeo</strong>
-        <p style="margin: 4px 0 0 0; font-size: 14px;">Add to your home screen for quick access</p>
-      </div>
-      <div>
-        <button id="installBtn" style="background: white; color: #6366F1; border: none; padding: 8px 16px; border-radius: 4px; margin-right: 8px; cursor: pointer;">Install</button>
-        <button id="dismissBtn" style="background: transparent; color: white; border: 1px solid white; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Later</button>
-      </div>
-    </div>
-  </div>
-
+  
+  <!-- Tesseract.js (CDN) for Web OCR fallback -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script>
-    // Register Service Worker
+    // Expose a simple OCR function usable from Dart via js_util
+    // Usage: await window.runTesseract('data:image/png;base64,...', 'spa') -> text
+    window.runTesseract = async function(base64Url, lang) {
+      try {
+        if (!window.Tesseract || !window.Tesseract.recognize) {
+          console.warn('Tesseract.js not available');
+          return '';
+        }
+        const result = await window.Tesseract.recognize(base64Url, lang || 'spa');
+        return (result && result.data && result.data.text) ? result.data.text : '';
+      } catch (e) {
+        console.error('Tesseract.js error:', e);
+        return '';
+      }
+    };
+  </script>
+  
+  <!-- Simplified OCR - No complex dependencies needed -->
+  <script>
+    console.log('🚀 Initializing simplified OCR system (OCR.space only)...');
+    
+    // Simple placeholder for compatibility - OCR is handled server-side via OCR.space
+    window.processImageWithOCR = async function(imageFile) {
+      console.log('📝 OCR processing delegated to Dart OCR service (OCR.space)');
+      throw new Error('OCR processing should be handled by Dart service');
+    };
+    
+    console.log('✅ Simplified OCR system initialized - All processing handled by OCR.space API');
+  </script>
+
+  <!-- PWA Install Prompt -->
+  <script>
+    // PWA Install functionality
+    let deferredPrompt;
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      
+      // Show install button
+      const installButton = document.createElement('button');
+      installButton.textContent = 'Install Tickeo';
+      installButton.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #6366F1;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+      `;
+      
+      installButton.addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          console.log('PWA install outcome:', outcome);
+          deferredPrompt = null;
+          installButton.remove();
+        }
+      });
+      
+      document.body.appendChild(installButton);
+    });
+    
+    // Remove install button after successful install
+    window.addEventListener('appinstalled', () => {
+      console.log('PWA installed successfully');
+      const installButton = document.querySelector('button');
+      if (installButton && installButton.textContent === 'Install Tickeo') {
+        installButton.remove();
+      }
+    });
+  </script>
+</head>
+
+<body>
+  <script>
+    // Service Worker Registration
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
@@ -69,42 +139,23 @@
           });
       });
     }
-
-    // PWA Install Prompt
-    let deferredPrompt;
-    const installPrompt = document.getElementById('installPrompt');
-    const installBtn = document.getElementById('installBtn');
-    const dismissBtn = document.getElementById('dismissBtn');
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      installPrompt.style.display = 'block';
-    });
-
-    installBtn.addEventListener('click', async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        console.log(`User response to the install prompt: ${outcome}`);
-        deferredPrompt = null;
-        installPrompt.style.display = 'none';
-      }
-    });
-
-    dismissBtn.addEventListener('click', () => {
-      installPrompt.style.display = 'none';
-      deferredPrompt = null;
-    });
-
-    // Hide install prompt if already installed
-    window.addEventListener('appinstalled', () => {
-      installPrompt.style.display = 'none';
-      deferredPrompt = null;
-      console.log('PWA was installed');
-    });
   </script>
 
-  <script src="flutter_bootstrap.js" async></script>
+  <script src="flutter.js" defer></script>
+  <script>
+    window.addEventListener('load', function(ev) {
+      // Download main.dart.js
+      _flutter.loader.loadEntrypoint({
+        serviceWorker: {
+          serviceWorkerVersion: null,
+        },
+        onEntrypointLoaded: function(engineInitializer) {
+          engineInitializer.initializeEngine().then(function(appRunner) {
+            appRunner.runApp();
+          });
+        }
+      });
+    });
+  </script>
 </body>
 </html>

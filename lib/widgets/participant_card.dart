@@ -411,9 +411,9 @@ class ParticipantCard extends StatelessWidget {
                   ),
                 ElevatedButton(
                   onPressed: () {
-                    // If this is the last unpaid participant, ask for confirmation
-                    final unpaidCount = bill.payments.where((p) => !p.isPaid).length;
-                    final isLastUnpaid = !isPaid && unpaidCount == 1;
+                    // Check if this payment will complete 100% of the bill
+                    final currentPaidAmount = bill.getTotalPaid();
+                    final willCompleteBill = !isPaid && (currentPaidAmount + payment.amount >= bill.total);
 
                     void doMarkPaid() {
                       billProvider.markPaymentAsPaid(
@@ -424,7 +424,7 @@ class ParticipantCard extends StatelessWidget {
                       Navigator.of(context).pop();
                     }
 
-                    if (isLastUnpaid) {
+                    if (willCompleteBill) {
                       showDialog(
                         context: context,
                         builder: (ctx) => AlertDialog(

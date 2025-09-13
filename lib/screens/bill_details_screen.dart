@@ -645,8 +645,9 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    final unpaidCount = bill?.payments.where((p) => !p.isPaid).length ?? 0;
-                    final isLastUnpaid = unpaidCount == 1;
+                    // Check if this payment will complete 100% of the bill
+                    final currentPaidAmount = bill!.getTotalPaid();
+                    final willCompleteBill = currentPaidAmount + payment.amount >= bill.total;
 
                     void doMarkPaid() {
                       billProvider.markPaymentAsPaid(
@@ -657,7 +658,7 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
                       Navigator.of(dialogContext).pop();
                     }
 
-                    if (isLastUnpaid) {
+                    if (willCompleteBill) {
                       showDialog(
                         context: dialogContext,
                         builder: (confirmCtx) => AlertDialog(
