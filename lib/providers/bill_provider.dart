@@ -479,6 +479,28 @@ class BillProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Split individual item equally among all participants
+  void splitItemEqually(String itemId) {
+    if (_currentBill == null || _currentBill!.participants.isEmpty) return;
+
+    if (_currentBill!.isCompleted) {
+      _setError('Esta cuenta está completada y no se puede editar');
+      return;
+    }
+
+    final itemIndex = _currentBill!.items.indexWhere((item) => item.id == itemId);
+    if (itemIndex == -1) return;
+
+    final updatedItems = List<BillItem>.from(_currentBill!.items);
+    updatedItems[itemIndex] = updatedItems[itemIndex].copyWith(
+      selectedBy: List.from(_currentBill!.participants),
+    );
+
+    _currentBill = _currentBill!.copyWith(items: updatedItems);
+    _updatePaymentAmounts();
+    notifyListeners();
+  }
+
   // Split bill equally
   void splitBillEqually() {
     if (_currentBill == null || _currentBill!.participants.isEmpty) return;

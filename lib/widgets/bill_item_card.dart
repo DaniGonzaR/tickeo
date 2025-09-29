@@ -138,44 +138,73 @@ class BillItemCard extends StatelessWidget {
                 SizedBox(height: itemSpacing),
 
                 // Action buttons
-                Row(
+                Column(
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: isCompleted ? null : () => _showDeleteConfirmation(context),
-                        icon: Icon(
-                          Icons.delete_outline,
-                          size: isMobile ? 16 : 18,
-                        ),
-                        label: Text(
-                          isMobile ? 'Eliminar' : 'Eliminar Producto',
-                          style: TextStyle(fontSize: isMobile ? 12 : 14),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.error,
-                          side: const BorderSide(color: AppColors.error),
-                          padding: EdgeInsets.symmetric(
-                            vertical: isMobile ? 8 : 12,
-                            horizontal: isMobile ? 8 : 16,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: isCompleted ? null : () => _showDeleteConfirmation(context),
+                            icon: Icon(
+                              Icons.delete_outline,
+                              size: isMobile ? 16 : 18,
+                            ),
+                            label: Text(
+                              isMobile ? 'Eliminar' : 'Eliminar Producto',
+                              style: TextStyle(fontSize: isMobile ? 12 : 14),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.error,
+                              side: const BorderSide(color: AppColors.error),
+                              padding: EdgeInsets.symmetric(
+                                vertical: isMobile ? 8 : 12,
+                                horizontal: isMobile ? 8 : 16,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                        SizedBox(width: itemSpacing),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: isCompleted ? null : () =>
+                                _showParticipantSelectionDialog(context),
+                            icon: Icon(
+                              Icons.people,
+                              size: isMobile ? 16 : 18,
+                            ),
+                            label: Text(
+                              isMobile ? 'Asignar' : 'Asignar Participantes',
+                              style: TextStyle(fontSize: isMobile ? 12 : 14),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.textOnPrimary,
+                              padding: EdgeInsets.symmetric(
+                                vertical: isMobile ? 8 : 12,
+                                horizontal: isMobile ? 8 : 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(width: itemSpacing),
-                    Expanded(
+                    SizedBox(height: itemSpacing),
+                    SizedBox(
+                      width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: isCompleted ? null : () =>
-                            _showParticipantSelectionDialog(context),
+                        onPressed: (isCompleted || participants.isEmpty) 
+                            ? null 
+                            : () => billProvider.splitItemEqually(item.id),
                         icon: Icon(
-                          Icons.people,
+                          Icons.balance,
                           size: isMobile ? 16 : 18,
                         ),
                         label: Text(
-                          isMobile ? 'Asignar' : 'Asignar Participantes',
+                          isMobile ? 'Dividir Equitativamente' : 'Dividir Equitativamente',
                           style: TextStyle(fontSize: isMobile ? 12 : 14),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: AppColors.accent,
                           foregroundColor: AppColors.textOnPrimary,
                           padding: EdgeInsets.symmetric(
                             vertical: isMobile ? 8 : 12,
