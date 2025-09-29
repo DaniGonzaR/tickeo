@@ -491,9 +491,23 @@ class BillProvider extends ChangeNotifier {
     final itemIndex = _currentBill!.items.indexWhere((item) => item.id == itemId);
     if (itemIndex == -1) return;
 
+    // Get current item to preserve participants who have already paid
+    final currentItem = _currentBill!.items[itemIndex];
+    final participantsWhoPaid = currentItem.selectedBy
+        .where((participantId) => _currentBill!.isParticipantPaid(participantId))
+        .toList();
+
+    // Get participants who haven't paid yet
+    final participantsWhoHaventPaid = _currentBill!.participants
+        .where((participantId) => !_currentBill!.isParticipantPaid(participantId))
+        .toList();
+
+    // Combine paid participants (to preserve them) with unpaid participants
+    final newSelectedBy = [...participantsWhoPaid, ...participantsWhoHaventPaid];
+
     final updatedItems = List<BillItem>.from(_currentBill!.items);
     updatedItems[itemIndex] = updatedItems[itemIndex].copyWith(
-      selectedBy: List.from(_currentBill!.participants),
+      selectedBy: newSelectedBy,
     );
 
     _currentBill = _currentBill!.copyWith(items: updatedItems);
