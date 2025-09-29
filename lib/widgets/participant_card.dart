@@ -273,20 +273,20 @@ class ParticipantCard extends StatelessWidget {
                     SizedBox(width: itemSpacing),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: isCompleted ? null : () => _showPaymentDialog(context, payment),
+                        onPressed: (isCompleted || isPaid) ? null : () => _showPaymentDialog(context, payment),
                         icon: Icon(
-                          isPaid ? Icons.edit : Icons.payment,
+                          isPaid ? Icons.check_circle : Icons.payment,
                           size: isMobile ? 16 : 18,
                         ),
                         label: Text(
                           isPaid
-                              ? (isMobile ? 'Editar' : 'Editar Pago')
+                              ? (isMobile ? 'Pagado' : 'Pago Confirmado')
                               : (isMobile ? 'Pagar' : 'Marcar Pago'),
                           style: TextStyle(fontSize: isMobile ? 12 : 14),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
-                              isPaid ? AppColors.secondary : AppColors.success,
+                              isPaid ? AppColors.success : AppColors.success,
                           foregroundColor: AppColors.textOnPrimary,
                           padding: EdgeInsets.symmetric(
                             vertical: isMobile ? 8 : 12,
@@ -337,13 +337,73 @@ class ParticipantCard extends StatelessWidget {
     final bool isPaid = payment.isPaid;
     PaymentMethod selectedMethod = payment.method;
 
+    // If payment is already confirmed, show info dialog instead
+    if (isPaid) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Pago Confirmado'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Participante: ${payment.participantName}'),
+              const SizedBox(height: 8),
+              Text('Monto: €${payment.amount.toStringAsFixed(2)}'),
+              const SizedBox(height: 8),
+              Text('Método: ${payment.methodDisplayName}'),
+              if (payment.paidAt != null) ...[
+                const SizedBox(height: 8),
+                Text('Pagado el: ${payment.paidAt!.day}/${payment.paidAt!.month}/${payment.paidAt!.year} a las ${payment.paidAt!.hour}:${payment.paidAt!.minute.toString().padLeft(2, '0')}'),
+              ],
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.success.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: AppColors.success,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Este pago ya está confirmado y no se puede modificar.',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: Text(isPaid ? 'Editar Pago' : 'Registrar Pago'),
+              title: const Text('Registrar Pago'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -400,20 +460,11 @@ class ParticipantCard extends StatelessWidget {
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Cancelar'),
                 ),
-                if (isPaid)
-                  TextButton(
-                    onPressed: () {
-                      // Mark as pending
-                      billProvider.togglePaymentStatus(payment.id);
-                      Navigator.of(context).pop();
-                    },
-                    child: const Text('Marcar Pendiente'),
-                  ),
                 ElevatedButton(
                   onPressed: () {
                     // Check if this payment will complete 100% of the bill
                     final currentPaidAmount = bill.getTotalPaid();
-                    final willCompleteBill = !isPaid && (currentPaidAmount + payment.amount >= bill.total);
+                    final willCompleteBill = (currentPaidAmount + payment.amount >= bill.total);
 
                     void doMarkPaid() {
                       billProvider.markPaymentAsPaid(
@@ -456,11 +507,10 @@ class ParticipantCard extends StatelessWidget {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        isPaid ? AppColors.secondary : AppColors.success,
+                    backgroundColor: AppColors.success,
                     foregroundColor: AppColors.textOnPrimary,
                   ),
-                  child: Text(isPaid ? 'Guardar' : 'Marcar Pagado'),
+                  child: const Text('Marcar Pagado'),
                 ),
               ],
             );

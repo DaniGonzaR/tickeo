@@ -272,6 +272,14 @@ class BillProvider extends ChangeNotifier {
       return;
     }
 
+    // Check if participant has paid
+    final isParticipantPaid = _currentBill!.isParticipantPaid(participantId);
+    if (isParticipantPaid) {
+      final participantName = getParticipantName(participantId);
+      _setError('No se puede quitar a $participantName porque ya ha confirmado su pago');
+      return;
+    }
+
     // Remove participant from all items
     final updatedItems = _currentBill!.items.map((item) {
       final updatedSelectedBy =
@@ -343,6 +351,17 @@ class BillProvider extends ChangeNotifier {
 
     if (_currentBill!.isCompleted) {
       _setError('Esta cuenta está completada y no se puede editar');
+      return;
+    }
+
+    // Check if participant has paid and is being deselected
+    final isParticipantPaid = _currentBill!.isParticipantPaid(participantId);
+    final currentItem = _currentBill!.items.firstWhere((item) => item.id == itemId);
+    final isCurrentlySelected = currentItem.selectedBy.contains(participantId);
+    
+    if (isParticipantPaid && isCurrentlySelected) {
+      final participantName = getParticipantName(participantId);
+      _setError('No se puede quitar a $participantName de este producto porque ya ha confirmado su pago');
       return;
     }
 

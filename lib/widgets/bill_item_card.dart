@@ -263,12 +263,22 @@ class BillItemCard extends StatelessWidget {
       runSpacing: spacing,
       children: item.selectedBy.map((participantId) {
         final name = getParticipantName(participantId);
+        final isParticipantPaid = billProvider.currentBill?.isParticipantPaid(participantId) ?? false;
+        
         return Chip(
           label: Text(name),
-          backgroundColor: AppColors.primary.withOpacity(0.1),
-          side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
-          deleteIcon: const Icon(Icons.close, size: 16),
-          onDeleted: isCompleted
+          backgroundColor: isParticipantPaid 
+              ? AppColors.success.withOpacity(0.1)
+              : AppColors.primary.withOpacity(0.1),
+          side: BorderSide(
+            color: isParticipantPaid 
+                ? AppColors.success.withOpacity(0.3)
+                : AppColors.primary.withOpacity(0.3)
+          ),
+          deleteIcon: isParticipantPaid 
+              ? Icon(Icons.check_circle, size: 16, color: AppColors.success)
+              : const Icon(Icons.close, size: 16),
+          onDeleted: (isCompleted || isParticipantPaid)
               ? null
               : () => billProvider.toggleParticipantForItem(
                     item.id, participantId,
@@ -331,8 +341,31 @@ class BillItemCard extends StatelessWidget {
                         item;
                     final currentSelectedBy = currentItem.selectedBy;
                     final isSelected = currentSelectedBy.contains(participantId);
+                    final isParticipantPaid = billProvider.currentBill?.isParticipantPaid(participantId) ?? false;
+                    
                     return CheckboxListTile(
-                      title: Text(name),
+                      title: Row(
+                        children: [
+                          Text(name),
+                          if (isParticipantPaid) ...[
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.check_circle,
+                              size: 16,
+                              color: AppColors.success,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '(Pagado)',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.success,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                       value: isSelected,
                       onChanged: (bool? value) {
                         if (billProvider.currentBill?.isCompleted == true) {
@@ -352,11 +385,31 @@ class BillItemCard extends StatelessWidget {
                           );
                           return;
                         }
+                        
+                        // Check if participant has paid and is trying to be deselected
+                        if (isParticipantPaid && isSelected && value == false) {
+                          showDialog(
+                            context: dialogContext,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Acción no permitida'),
+                              content: Text(
+                                  'No se puede quitar a $name de este producto porque ya ha confirmado su pago.'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(),
+                                  child: const Text('Entendido'),
+                                ),
+                              ],
+                            ),
+                          );
+                          return;
+                        }
+                        
                         billProvider.toggleParticipantForItem(item.id, participantId);
                         // Refresh just the dialog UI
                         setState(() {});
                       },
-                      activeColor: AppColors.primary,
+                      activeColor: isParticipantPaid ? AppColors.success : AppColors.primary,
                     );
                   }),
                 ],
