@@ -692,6 +692,10 @@ class BillProvider extends ChangeNotifier {
       final bill = await _firebaseService.getBillByShareCode(shareCode);
       if (bill != null) {
         _currentBill = bill;
+        
+        // Add joined bill to local history so it appears in "Cuentas Recientes"
+        await _saveBillLocally(bill);
+        
         notifyListeners();
       } else {
         _setError('No se encontró la cuenta con ese código');

@@ -85,22 +85,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _pickImageFromGallery() async {
-    // Web-compatible version: simulate image picking
-    final billData = await _showBillCreationDialog();
-    if (billData != null && billData['billName']?.isNotEmpty == true && billData['ownerName']?.isNotEmpty == true) {
-      final billProvider = Provider.of<BillProvider>(context, listen: false);
-      await billProvider.createBillFromMockOCRWithOwner(billData['billName']!, billData['ownerName']!);
-
-      if (billProvider.currentBill != null && mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => const BillDetailsScreen(),
-          ),
-        );
-      }
-    }
-  }
 
   Future<void> _createManualBill() async {
     final billData = await _showBillCreationDialog();
@@ -725,14 +709,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           SizedBox(height: buttonSpacing),
                           CustomButton(
-                            text: 'Seleccionar de Galería',
-                            icon: Icons.photo_library,
-                            onPressed: _pickImageFromGallery,
-                            backgroundColor: AppColors.secondary,
-                            height: 52,
-                          ),
-                          SizedBox(height: buttonSpacing),
-                          CustomButton(
                             text: 'Crear Manualmente',
                             icon: Icons.edit,
                             onPressed: _createManualBill,
@@ -754,27 +730,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             height: 52,
                           ),
                         ] else ...[
-                          // Tablet/Desktop: Two column layout
-                          Row(
-                            children: [
-                              Expanded(
-                                child: CustomButton(
-                                  text: 'Escanear Ticket',
-                                  icon: Icons.camera_alt,
-                                  onPressed: _scanReceipt,
-                                  backgroundColor: AppColors.primary,
-                                ),
-                              ),
-                              SizedBox(width: buttonSpacing),
-                              Expanded(
-                                child: CustomButton(
-                                  text: 'Seleccionar de Galería',
-                                  icon: Icons.photo_library,
-                                  onPressed: _pickImageFromGallery,
-                                  backgroundColor: AppColors.secondary,
-                                ),
-                              ),
-                            ],
+                          // Tablet/Desktop: Single button for scanning
+                          CustomButton(
+                            text: 'Escanear Ticket',
+                            icon: Icons.camera_alt,
+                            onPressed: _scanReceipt,
+                            backgroundColor: AppColors.primary,
                           ),
                           SizedBox(height: buttonSpacing),
                           Row(

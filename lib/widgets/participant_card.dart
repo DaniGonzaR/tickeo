@@ -273,7 +273,7 @@ class ParticipantCard extends StatelessWidget {
                     SizedBox(width: itemSpacing),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: (isCompleted || isPaid) ? null : () => _showPaymentDialog(context, payment),
+                        onPressed: (isCompleted || isPaid || amount <= 0.0) ? null : () => _showPaymentDialog(context, payment),
                         icon: Icon(
                           isPaid ? Icons.check_circle : Icons.payment,
                           size: isMobile ? 16 : 18,
