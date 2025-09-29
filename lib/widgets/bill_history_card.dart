@@ -149,9 +149,10 @@ class BillHistoryCard extends StatelessWidget {
         .fold(0.0, (sum, payment) => sum + payment.amount);
   }
 
-  // Check if all payments are completed
+  // Check if bill is fully paid (100% of total amount)
   bool _isFullyPaid(Bill bill) {
-    if (bill.payments.isEmpty) return false;
-    return bill.payments.every((payment) => payment.isPaid);
+    if (bill.payments.isEmpty || bill.total <= 0) return false;
+    final totalPaid = _getTotalPaid(bill);
+    return totalPaid >= bill.total;
   }
 }
