@@ -268,11 +268,26 @@ class _BillDetailsScreenState extends State<BillDetailsScreen>
               resizeToAvoidBottomInset: false,
               backgroundColor: AppColors.background,
               appBar: AppBar(
-                title: Text(
-                  bill.name,
-                  style: TextStyle(
-                    fontSize: isMobile ? 18 : 20,
-                  ),
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      bill.name,
+                      style: TextStyle(
+                        fontSize: isMobile ? 18 : 20,
+                      ),
+                    ),
+                    if (bill.owner != null)
+                      Text(
+                        'Por: ${bill.owner!.name}',
+                        style: TextStyle(
+                          fontSize: isMobile ? 12 : 14,
+                          fontWeight: FontWeight.w300,
+                          color: AppColors.textOnPrimary.withOpacity(0.9),
+                        ),
+                      ),
+                  ],
                 ),
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.textOnPrimary,

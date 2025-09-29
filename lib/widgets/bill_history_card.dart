@@ -67,6 +67,23 @@ class BillHistoryCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
+              if (bill.owner != null) ...[
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.person,
+                      size: 16,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Propietario: ${bill.owner!.name}',
+                      style: AppTextStyles.bodySmall,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+              ],
               if (bill.restaurantName != null) ...[
                 Row(
                   children: [

@@ -1,5 +1,6 @@
 import 'package:tickeo/models/bill_item.dart';
 import 'package:tickeo/models/payment.dart';
+import 'package:tickeo/models/user.dart';
 
 class Bill {
   final String id;
@@ -17,6 +18,7 @@ class Bill {
   final bool isCompleted;
   final String shareCode;
   final bool isSynced;
+  final User? owner;
 
   Bill({
     required this.id,
@@ -34,6 +36,7 @@ class Bill {
     this.isCompleted = false,
     required this.shareCode,
     this.isSynced = false,
+    this.owner,
   });
 
   factory Bill.fromJson(Map<String, dynamic> json) {
@@ -59,6 +62,7 @@ class Bill {
       isCompleted: json['isCompleted'] ?? false,
       shareCode: json['shareCode'] ?? '',
       isSynced: json['isSynced'] ?? false,
+      owner: json['owner'] != null ? User.fromJson(json['owner']) : null,
     );
   }
 
@@ -79,6 +83,7 @@ class Bill {
       'isCompleted': isCompleted,
       'shareCode': shareCode,
       'isSynced': isSynced,
+      'owner': owner?.toJson(),
     };
   }
 
@@ -98,6 +103,7 @@ class Bill {
       imageUrl: null,
       isCompleted: false,
       shareCode: '',
+      owner: null,
     );
   }
 
@@ -117,6 +123,7 @@ class Bill {
     bool? isCompleted,
     String? shareCode,
     bool? isSynced,
+    User? owner,
   }) {
     return Bill(
       id: id ?? this.id,
@@ -134,6 +141,7 @@ class Bill {
       isCompleted: isCompleted ?? this.isCompleted,
       shareCode: shareCode ?? this.shareCode,
       isSynced: isSynced ?? this.isSynced,
+      owner: owner ?? this.owner,
     );
   }
 

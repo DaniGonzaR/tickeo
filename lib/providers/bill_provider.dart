@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tickeo/models/bill.dart';
 import 'package:tickeo/models/bill_item.dart';
 import 'package:tickeo/models/payment.dart';
+import 'package:tickeo/models/user.dart';
 import 'package:tickeo/services/ocr_service.dart';
 import 'package:tickeo/services/firebase_service.dart';
 import 'package:tickeo/utils/error_handler.dart';
@@ -61,8 +62,8 @@ class BillProvider extends ChangeNotifier {
     }
   }
 
-  // Create bill from mock OCR data (web-compatible version)
-  Future<void> createBillFromMockOCR(String billName) async {
+  // Create bill from mock OCR data with owner (web-compatible version)
+  Future<void> createBillFromMockOCRWithOwner(String billName, String ownerName) async {
     _setLoading(true);
     _clearError();
 
@@ -73,6 +74,32 @@ class BillProvider extends ChangeNotifier {
         _setError(nameValidation);
         return;
       }
+
+      // Validate owner name
+      final ownerNameValidation = Validators.validateParticipantName(ownerName);
+      if (ownerNameValidation != null) {
+        _setError(ownerNameValidation);
+        return;
+      }
+
+      // Create owner user
+      final owner = User(
+        id: _uuid.v4(),
+        name: ownerName.trim(),
+        createdAt: DateTime.now(),
+      );
+
+      // Create participant ID for owner
+      final ownerParticipantId = _uuid.v4();
+      
+      // Create payment entry for owner
+      final ownerPayment = Payment(
+        id: _uuid.v4(),
+        participantId: ownerParticipantId,
+        participantName: owner.name,
+        amount: 0.0,
+        method: PaymentMethod.cash,
+      );
 
       // Create basic structure for manual editing (web-compatible)
       final items = [
@@ -97,12 +124,14 @@ class BillProvider extends ChangeNotifier {
         tax: tax,
         tip: 0.0,
         total: total,
-        participants: [],
-        payments: [],
+        participants: [ownerParticipantId], // Add owner as participant
+        payments: [ownerPayment], // Add owner payment entry
         shareCode: _generateShareCode(),
+        owner: owner,
       );
 
       _currentBill = bill;
+      _updatePaymentAmounts(); // Calculate initial amounts
       await _saveBillLocally(bill);
       notifyListeners();
     } catch (e) {
@@ -112,9 +141,9 @@ class BillProvider extends ChangeNotifier {
     }
   }
 
-  // Create bill from OCR result (camera scanner integration)
-  Future<void> createBillFromOCRResult(
-      String billName, Map<String, dynamic> ocrResult) async {
+  // Create bill from OCR result with owner (camera scanner integration)
+  Future<void> createBillFromOCRResultWithOwner(
+      String billName, String ownerName, Map<String, dynamic> ocrResult) async {
     _setLoading(true);
     _clearError();
 
@@ -126,10 +155,36 @@ class BillProvider extends ChangeNotifier {
         return;
       }
 
+      // Validate owner name
+      final ownerNameValidation = Validators.validateParticipantName(ownerName);
+      if (ownerNameValidation != null) {
+        _setError(ownerNameValidation);
+        return;
+      }
+
       final items = ocrResult['items'] as List<BillItem>;
       final subtotal = ocrResult['subtotal'] as double;
       final total = ocrResult['total'] as double;
       final restaurantName = ocrResult['restaurantName'] as String?;
+
+      // Create owner user
+      final owner = User(
+        id: _uuid.v4(),
+        name: ownerName.trim(),
+        createdAt: DateTime.now(),
+      );
+
+      // Create participant ID for owner
+      final ownerParticipantId = _uuid.v4();
+      
+      // Create payment entry for owner
+      final ownerPayment = Payment(
+        id: _uuid.v4(),
+        participantId: ownerParticipantId,
+        participantName: owner.name,
+        amount: 0.0,
+        method: PaymentMethod.cash,
+      );
 
       final bill = Bill(
         id: _uuid.v4(),
@@ -140,13 +195,15 @@ class BillProvider extends ChangeNotifier {
         tax: 0.0, // No tax as per requirements
         tip: 0.0, // No tip as per requirements
         total: total,
-        participants: [],
-        payments: [],
+        participants: [ownerParticipantId], // Add owner as participant
+        payments: [ownerPayment], // Add owner payment entry
         restaurantName: restaurantName,
         shareCode: _generateShareCode(),
+        owner: owner,
       );
 
       _currentBill = bill;
+      _updatePaymentAmounts(); // Calculate initial amounts
       await _saveBillLocally(bill);
       notifyListeners();
     } catch (e) {
@@ -156,8 +213,8 @@ class BillProvider extends ChangeNotifier {
     }
   }
 
-  // Create manual bill with validation
-  bool createManualBill(String billName) {
+  // Create manual bill with owner and validation
+  bool createManualBillWithOwner(String billName, String ownerName) {
     try {
       _clearError();
 
@@ -168,6 +225,32 @@ class BillProvider extends ChangeNotifier {
         return false;
       }
 
+      // Validate owner name
+      final ownerNameValidation = Validators.validateParticipantName(ownerName);
+      if (ownerNameValidation != null) {
+        _setError(ownerNameValidation);
+        return false;
+      }
+
+      // Create owner user
+      final owner = User(
+        id: _uuid.v4(),
+        name: ownerName.trim(),
+        createdAt: DateTime.now(),
+      );
+
+      // Create participant ID for owner
+      final ownerParticipantId = _uuid.v4();
+      
+      // Create payment entry for owner
+      final ownerPayment = Payment(
+        id: _uuid.v4(),
+        participantId: ownerParticipantId,
+        participantName: owner.name,
+        amount: 0.0,
+        method: PaymentMethod.cash,
+      );
+
       final bill = Bill(
         id: _uuid.v4(),
         name: billName.trim(),
@@ -177,12 +260,14 @@ class BillProvider extends ChangeNotifier {
         tax: 0.0,
         tip: 0.0,
         total: 0.0,
-        participants: [],
-        payments: [],
+        participants: [ownerParticipantId], // Add owner as participant
+        payments: [ownerPayment], // Add owner payment entry
         shareCode: _generateShareCode(),
+        owner: owner,
       );
 
       _currentBill = bill;
+      _updatePaymentAmounts(); // Calculate initial amounts
       _saveBillLocally(bill); // Save to history like OCR bills
       notifyListeners();
       return true;

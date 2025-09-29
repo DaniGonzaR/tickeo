@@ -25,12 +25,16 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _billNameController = TextEditingController();
+  final TextEditingController _ownerNameController = TextEditingController();
   final FocusNode _billNameFocusNode = FocusNode();
+  final FocusNode _ownerNameFocusNode = FocusNode();
 
   @override
   void dispose() {
     _billNameController.dispose();
+    _ownerNameController.dispose();
     _billNameFocusNode.dispose();
+    _ownerNameFocusNode.dispose();
     super.dispose();
   }
 
@@ -48,15 +52,15 @@ class _HomeScreenState extends State<HomeScreen> {
         final reviewedResult = await _showOCRReviewDialog(result);
 
         if (reviewedResult != null && mounted) {
-          // Ask for bill name
-          final billName = await _showBillNameDialog();
-          if (billName != null && billName.isNotEmpty) {
+          // Ask for bill name and owner name
+          final billData = await _showBillCreationDialog();
+          if (billData != null && billData['billName']?.isNotEmpty == true && billData['ownerName']?.isNotEmpty == true) {
             final billProvider =
                 Provider.of<BillProvider>(context, listen: false);
 
-            // Create bill from reviewed OCR result
-            await billProvider.createBillFromOCRResult(
-                billName, reviewedResult);
+            // Create bill from reviewed OCR result with owner
+            await billProvider.createBillFromOCRResultWithOwner(
+                billData['billName']!, billData['ownerName']!, reviewedResult);
 
             if (billProvider.currentBill != null && mounted) {
               Navigator.of(context).push(
@@ -83,10 +87,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _pickImageFromGallery() async {
     // Web-compatible version: simulate image picking
-    final billName = await _showBillNameDialog();
-    if (billName != null && billName.isNotEmpty) {
+    final billData = await _showBillCreationDialog();
+    if (billData != null && billData['billName']?.isNotEmpty == true && billData['ownerName']?.isNotEmpty == true) {
       final billProvider = Provider.of<BillProvider>(context, listen: false);
-      await billProvider.createBillFromMockOCR(billName);
+      await billProvider.createBillFromMockOCRWithOwner(billData['billName']!, billData['ownerName']!);
 
       if (billProvider.currentBill != null && mounted) {
         Navigator.of(context).push(
@@ -99,10 +103,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _createManualBill() async {
-    final billName = await _showBillNameDialog();
-    if (billName != null && billName.isNotEmpty) {
+    final billData = await _showBillCreationDialog();
+    if (billData != null && billData['billName']?.isNotEmpty == true && billData['ownerName']?.isNotEmpty == true) {
       final billProvider = Provider.of<BillProvider>(context, listen: false);
-      billProvider.createManualBill(billName);
+      billProvider.createManualBillWithOwner(billData['billName']!, billData['ownerName']!);
 
       if (billProvider.currentBill != null && mounted) {
         Navigator.of(context).push(
@@ -114,10 +118,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<String?> _showBillNameDialog() async {
+  Future<Map<String, String>?> _showBillCreationDialog() async {
     String? errorText;
 
-    return showDialog<String>(
+    return showDialog<Map<String, String>>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
@@ -134,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 return AlertDialog(
                   title: Text(
-                    'Nombre de la Cuenta',
+                    'Crear Nueva Cuenta',
                     style: TextStyle(
                       fontSize: isMobile ? 18 : 16,
                       fontWeight: FontWeight.w600,
@@ -145,10 +149,56 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         TextField(
+                          controller: _ownerNameController,
+                          focusNode: _ownerNameFocusNode,
+                          style: TextStyle(fontSize: isMobile ? 16 : 14),
+                          decoration: InputDecoration(
+                            labelText: 'Tu nombre',
+                            hintText: 'ej: María García',
+                            hintStyle: TextStyle(
+                              fontSize: isMobile ? 16 : 14,
+                              color: AppColors.textSecondary,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(isMobile ? 8 : 12),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(isMobile ? 8 : 12),
+                              borderSide:
+                                  const BorderSide(color: AppColors.border),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(isMobile ? 8 : 12),
+                              borderSide: const BorderSide(
+                                  color: AppColors.primary, width: 2),
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(isMobile ? 8 : 12),
+                              borderSide: const BorderSide(
+                                  color: AppColors.error, width: 2),
+                            ),
+                            helperText: 'Serás el propietario de esta cuenta',
+                            helperStyle: TextStyle(
+                              fontSize: isMobile ? 12 : 11,
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: isMobile ? 14 : 16,
+                              vertical: isMobile ? 18 : 16,
+                            ),
+                          ),
+                          autofocus: true,
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
                           controller: _billNameController,
                           focusNode: _billNameFocusNode,
                           style: TextStyle(fontSize: isMobile ? 16 : 14),
                           decoration: InputDecoration(
+                            labelText: 'Nombre de la cuenta',
                             hintText: 'ej: Cena en Restaurante',
                             hintStyle: TextStyle(
                               fontSize: isMobile ? 16 : 14,
@@ -177,7 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   color: AppColors.error, width: 2),
                             ),
                             errorText: errorText,
-                            helperText: 'Introduce un nombre para tu cuenta',
+                            helperText: 'Describe esta cuenta para identificarla',
                             helperStyle: TextStyle(
                               fontSize: isMobile ? 12 : 11,
                             ),
@@ -189,17 +239,22 @@ class _HomeScreenState extends State<HomeScreen> {
                               vertical: isMobile ? 18 : 16,
                             ),
                           ),
-                          autofocus: true,
                           onChanged: (value) {
                             setState(() {
                               errorText = Validators.validateBillName(value);
                             });
                           },
                           onSubmitted: (value) {
-                            if (errorText == null && value.trim().isNotEmpty) {
-                              final billName = value.trim();
+                            if (errorText == null && 
+                                value.trim().isNotEmpty && 
+                                _ownerNameController.text.trim().isNotEmpty) {
+                              final result = {
+                                'billName': value.trim(),
+                                'ownerName': _ownerNameController.text.trim(),
+                              };
                               _billNameController.clear();
-                              Navigator.of(context).pop(billName);
+                              _ownerNameController.clear();
+                              Navigator.of(context).pop(result);
                             }
                           },
                         ),
@@ -222,6 +277,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     TextButton(
                       onPressed: () {
                         _billNameController.clear();
+                        _ownerNameController.clear();
                         Navigator.of(context).pop(null);
                       },
                       style: TextButton.styleFrom(
@@ -240,11 +296,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: errorText == null &&
-                              _billNameController.text.trim().isNotEmpty
+                              _billNameController.text.trim().isNotEmpty &&
+                              _ownerNameController.text.trim().isNotEmpty
                           ? () {
-                              final billName = _billNameController.text.trim();
+                              final result = {
+                                'billName': _billNameController.text.trim(),
+                                'ownerName': _ownerNameController.text.trim(),
+                              };
                               _billNameController.clear();
-                              Navigator.of(context).pop(billName);
+                              _ownerNameController.clear();
+                              Navigator.of(context).pop(result);
                             }
                           : null,
                       style: ElevatedButton.styleFrom(
