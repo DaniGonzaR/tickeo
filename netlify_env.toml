@@ -1,0 +1,15 @@
+# Netlify Environment Variables Configuration
+# This file shows how to set environment variables in Netlify
+
+[build.environment]
+  # EmailJS Configuration - Set these in Netlify dashboard
+  EMAILJS_SERVICE_ID = "service_8yszrio"
+  EMAILJS_TEMPLATE_ID = "template_3y6t142"
+  EMAILJS_PUBLIC_KEY = "aHizuvd5moHSyrDuP"
+  EMAILJS_PRIVATE_KEY = "aQ8RbGG0HBtnG94TzOWuv"
+
+# Instructions:
+# 1. Go to your Netlify site dashboard
+# 2. Navigate to Site settings > Environment variables
+# 3. Add these variables with your actual EmailJS credentials
+# 4. Redeploy your site

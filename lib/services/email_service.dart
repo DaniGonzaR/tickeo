@@ -3,14 +3,13 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tickeo/config/email_config.dart';
 
 class EmailService {
-  // EmailJS Configuration from EmailConfig
-  static const String _serviceId = EmailConfig.emailJsServiceId;
-  static const String _templateId = EmailConfig.emailJsTemplateId;
-  static const String _publicKey = EmailConfig.emailJsPublicKey;
-  static const String _privateKey = EmailConfig.emailJsPrivateKey;
+  // EmailJS Configuration - use environment variables for production
+  static const String _serviceId = String.fromEnvironment('EMAILJS_SERVICE_ID', defaultValue: 'service_8yszrio');
+  static const String _templateId = String.fromEnvironment('EMAILJS_TEMPLATE_ID', defaultValue: 'template_3y6t142');
+  static const String _publicKey = String.fromEnvironment('EMAILJS_PUBLIC_KEY', defaultValue: 'aHizuvd5moHSyrDuP');
+  static const String _privateKey = String.fromEnvironment('EMAILJS_PRIVATE_KEY', defaultValue: 'aQ8RbGG0HBtnG94TzOWuv');
 
   /// Generate a 6-digit verification code
   static String generateVerificationCode() {
@@ -64,8 +63,8 @@ class EmailService {
             'to_email': email,
             'to_name': userName,
             'verification_code': verificationCode,
-            'app_name': EmailConfig.appName,
-            'from_name': EmailConfig.appName,
+            'app_name': 'Tickeo',
+            'from_name': 'Tickeo',
           },
         }),
       );

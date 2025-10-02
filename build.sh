@@ -100,7 +100,18 @@ $FLUTTER_CMD clean || echo "⚠️ Clean command failed (continuing)"
 
 # Build for web
 echo "🏗️ Building Flutter web app..."
-$FLUTTER_CMD build web --release || { echo "❌ Flutter web build failed"; exit 1; }
+echo "📍 Environment variables:"
+echo "  EMAILJS_SERVICE_ID: ${EMAILJS_SERVICE_ID:-'not set'}"
+echo "  EMAILJS_TEMPLATE_ID: ${EMAILJS_TEMPLATE_ID:-'not set'}"
+echo "  EMAILJS_PUBLIC_KEY: ${EMAILJS_PUBLIC_KEY:-'not set'}"
+echo "  EMAILJS_PRIVATE_KEY: ${EMAILJS_PRIVATE_KEY:-'not set'}"
+
+# Build with environment variables
+$FLUTTER_CMD build web --release \
+  --dart-define=EMAILJS_SERVICE_ID="${EMAILJS_SERVICE_ID:-service_8yszrio}" \
+  --dart-define=EMAILJS_TEMPLATE_ID="${EMAILJS_TEMPLATE_ID:-template_3y6t142}" \
+  --dart-define=EMAILJS_PUBLIC_KEY="${EMAILJS_PUBLIC_KEY:-aHizuvd5moHSyrDuP}" \
+  --dart-define=EMAILJS_PRIVATE_KEY="${EMAILJS_PRIVATE_KEY:-aQ8RbGG0HBtnG94TzOWuv}" || { echo "❌ Flutter web build failed"; exit 1; }
 
 # Verify build output exists
 if [ ! -d "build/web" ]; then
