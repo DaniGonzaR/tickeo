@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:tickeo/services/email_service.dart';
 
 // Simple user model for offline mode
 class TickeoUser {
@@ -349,42 +350,55 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Send verification email (simulated)
+  // Send verification email (real implementation)
   Future<void> _sendVerificationEmail() async {
-    if (_user?.email == null) return;
+    if (_user?.email == null || _user?.displayName == null) return;
     
     try {
-      // Simulate email sending delay
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Clean up expired codes first
+      await EmailService.cleanupExpiredCodes();
       
-      // In a real app, this would use Firebase Auth or email service
-      debugPrint('Verification email sent to: ${_user!.email}');
+      // Send real email using EmailJS
+      final success = await EmailService.sendVerificationEmail(
+        _user!.email!,
+        _user!.displayName!,
+      );
       
-      // For demo purposes, we'll show a success message
-      // In production, this would actually send an email
+      if (success) {
+        debugPrint('Verification email sent successfully to: ${_user!.email}');
+      } else {
+        debugPrint('Failed to send verification email to: ${_user!.email}');
+        // In production, you might want to throw an exception here
+      }
     } catch (e) {
       debugPrint('Error sending verification email: $e');
+      // In production, you might want to rethrow this exception
     }
   }
 
-  // Simulate email verification (for demo)
+  // Real email verification
   Future<void> verifyEmail(String verificationCode) async {
     _setLoading(true);
     _clearError();
 
     try {
-      // Simulate verification delay
-      await Future.delayed(const Duration(seconds: 1));
+      if (_user?.email == null) {
+        throw Exception('No hay email para verificar');
+      }
+
+      // Verify code using EmailService
+      final isValid = await EmailService.verifyCode(_user!.email!, verificationCode);
       
-      // For demo, accept any 6-digit code
-      if (verificationCode.length == 6 && RegExp(r'^\d+$').hasMatch(verificationCode)) {
-        // Update user as verified
-        if (_user != null) {
-          // In a real app, this would update the user's email verification status
-          debugPrint('Email verified successfully for: ${_user!.email}');
-        }
+      if (isValid) {
+        // Update user as verified (in a real app, you'd update this in the user model)
+        debugPrint('Email verified successfully for: ${_user!.email}');
+        
+        // Clean up the verification code
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('verification_code_${_user!.email}');
+        await prefs.remove('verification_code_timestamp_${_user!.email}');
       } else {
-        throw Exception('Código de verificación inválido');
+        throw Exception('Código de verificación inválido o expirado');
       }
     } catch (e) {
       _setError('Error al verificar email: $e');
