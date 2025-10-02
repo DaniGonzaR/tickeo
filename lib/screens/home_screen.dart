@@ -52,15 +52,21 @@ class _HomeScreenState extends State<HomeScreen> {
         final reviewedResult = await _showOCRReviewDialog(result);
 
         if (reviewedResult != null && mounted) {
-          // Ask for bill name and owner name
-          final billData = await _showBillCreationDialog();
-          if (billData != null && billData['billName']?.isNotEmpty == true && billData['ownerName']?.isNotEmpty == true) {
-            final billProvider =
-                Provider.of<BillProvider>(context, listen: false);
+          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+          final billProvider = Provider.of<BillProvider>(context, listen: false);
+          
+          // Set auth provider reference
+          billProvider.setAuthProvider(authProvider);
 
-            // Create bill from reviewed OCR result with owner
-            await billProvider.createBillFromOCRResultWithOwner(
-                billData['billName']!, billData['ownerName']!, reviewedResult);
+          // Ask for bill name and owner name based on user state
+          final billData = await _showBillCreationDialog();
+          if (billData != null && billData['billName']?.isNotEmpty == true) {
+            // Use new dual mode method
+            await billProvider.createBillFromOCR(
+              billData['billName']!, 
+              billData['ownerName'], 
+              reviewedResult
+            );
 
             if (billProvider.currentBill != null && mounted) {
               Navigator.of(context).push(
@@ -85,14 +91,22 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-
   Future<void> _createManualBill() async {
-    final billData = await _showBillCreationDialog();
-    if (billData != null && billData['billName']?.isNotEmpty == true && billData['ownerName']?.isNotEmpty == true) {
-      final billProvider = Provider.of<BillProvider>(context, listen: false);
-      billProvider.createManualBillWithOwner(billData['billName']!, billData['ownerName']!);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final billProvider = Provider.of<BillProvider>(context, listen: false);
+    
+    // Set auth provider reference
+    billProvider.setAuthProvider(authProvider);
 
-      if (billProvider.currentBill != null && mounted) {
+    final billData = await _showBillCreationDialog();
+    if (billData != null && billData['billName']?.isNotEmpty == true) {
+      // Use new dual mode method
+      final success = await billProvider.createManualBill(
+        billData['billName']!, 
+        billData['ownerName']
+      );
+
+      if (success && billProvider.currentBill != null && mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => const BillDetailsScreen(),
@@ -103,6 +117,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<Map<String, String>?> _showBillCreationDialog() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    
+    // Check if we need to ask for owner name
+    final needsOwnerName = !authProvider.hasUser || 
+                          (authProvider.hasUser && authProvider.isAnonymous);
+    
     String? errorText;
 
     return showDialog<Map<String, String>>(
@@ -132,55 +152,59 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        TextField(
-                          controller: _ownerNameController,
-                          focusNode: _ownerNameFocusNode,
-                          style: TextStyle(fontSize: isMobile ? 16 : 14),
-                          decoration: InputDecoration(
-                            labelText: 'Tu nombre',
-                            hintText: 'ej: María García',
-                            hintStyle: TextStyle(
-                              fontSize: isMobile ? 16 : 14,
-                              color: AppColors.textSecondary,
+                        // Show owner name field only when needed
+                        if (needsOwnerName) ...[
+                          TextField(
+                            controller: _ownerNameController,
+                            focusNode: _ownerNameFocusNode,
+                            style: TextStyle(fontSize: isMobile ? 16 : 14),
+                            decoration: InputDecoration(
+                              labelText: 'Tu nombre',
+                              hintText: 'ej: María García',
+                              hintStyle: TextStyle(
+                                fontSize: isMobile ? 16 : 14,
+                                color: AppColors.textSecondary,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius:
+                                    BorderRadius.circular(isMobile ? 8 : 12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius:
+                                    BorderRadius.circular(isMobile ? 8 : 12),
+                                borderSide:
+                                    const BorderSide(color: AppColors.border),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius:
+                                    BorderRadius.circular(isMobile ? 8 : 12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.primary, width: 2),
+                              ),
+                              errorBorder: OutlineInputBorder(
+                                borderRadius:
+                                    BorderRadius.circular(isMobile ? 8 : 12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.error, width: 2),
+                              ),
+                              helperText: 'Serás el propietario de esta cuenta',
+                              helperStyle: TextStyle(
+                                fontSize: isMobile ? 12 : 11,
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: isMobile ? 14 : 16,
+                                vertical: isMobile ? 18 : 16,
+                              ),
                             ),
-                            border: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.circular(isMobile ? 8 : 12),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.circular(isMobile ? 8 : 12),
-                              borderSide:
-                                  const BorderSide(color: AppColors.border),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.circular(isMobile ? 8 : 12),
-                              borderSide: const BorderSide(
-                                  color: AppColors.primary, width: 2),
-                            ),
-                            errorBorder: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.circular(isMobile ? 8 : 12),
-                              borderSide: const BorderSide(
-                                  color: AppColors.error, width: 2),
-                            ),
-                            helperText: 'Serás el propietario de esta cuenta',
-                            helperStyle: TextStyle(
-                              fontSize: isMobile ? 12 : 11,
-                            ),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: isMobile ? 14 : 16,
-                              vertical: isMobile ? 18 : 16,
-                            ),
+                            autofocus: needsOwnerName,
                           ),
-                          autofocus: true,
-                        ),
-                        const SizedBox(height: 16),
+                          const SizedBox(height: 16),
+                        ],
                         TextField(
                           controller: _billNameController,
                           focusNode: _billNameFocusNode,
                           style: TextStyle(fontSize: isMobile ? 16 : 14),
+                          autofocus: !needsOwnerName,
                           decoration: InputDecoration(
                             labelText: 'Nombre de la cuenta',
                             hintText: 'ej: Cena en Restaurante',
@@ -211,7 +235,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   color: AppColors.error, width: 2),
                             ),
                             errorText: errorText,
-                            helperText: 'Describe esta cuenta para identificarla',
+                            helperText:
+                                'Describe esta cuenta para identificarla',
                             helperStyle: TextStyle(
                               fontSize: isMobile ? 12 : 11,
                             ),
@@ -229,12 +254,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             });
                           },
                           onSubmitted: (value) {
-                            if (errorText == null && 
-                                value.trim().isNotEmpty && 
-                                _ownerNameController.text.trim().isNotEmpty) {
+                            if (errorText == null && value.trim().isNotEmpty) {
+                              // Check if owner name is required and provided
+                              if (needsOwnerName && _ownerNameController.text.trim().isEmpty) {
+                                return; // Don't submit if owner name is required but empty
+                              }
+                              
                               final result = {
                                 'billName': value.trim(),
-                                'ownerName': _ownerNameController.text.trim(),
+                                'ownerName': needsOwnerName ? _ownerNameController.text.trim() : null,
                               };
                               _billNameController.clear();
                               _ownerNameController.clear();
@@ -281,11 +309,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     ElevatedButton(
                       onPressed: errorText == null &&
                               _billNameController.text.trim().isNotEmpty &&
-                              _ownerNameController.text.trim().isNotEmpty
+                              (!needsOwnerName || _ownerNameController.text.trim().isNotEmpty)
                           ? () {
                               final result = {
                                 'billName': _billNameController.text.trim(),
-                                'ownerName': _ownerNameController.text.trim(),
+                                'ownerName': needsOwnerName ? _ownerNameController.text.trim() : null,
                               };
                               _billNameController.clear();
                               _ownerNameController.clear();
@@ -519,17 +547,53 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _showLogoutDialog(AuthProvider authProvider) async {
+    final confirmed = await NotificationService.showConfirmationDialog(
+      context: context,
+      title: 'Cerrar Sesión',
+      message: authProvider.isAuthenticated 
+        ? '¿Estás seguro de que quieres cerrar sesión? Podrás volver a iniciar sesión más tarde.'
+        : '¿Estás seguro de que quieres salir del modo sin cuenta? Volverás a la pantalla de bienvenida.',
+      confirmText: 'Cerrar Sesión',
+      cancelText: 'Cancelar',
+    );
+
+    if (confirmed == true) {
+      await authProvider.signOut();
+      // The AppNavigator will automatically show WelcomeScreen when hasSeenWelcome becomes false
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(
-          'Tickeo',
-          style: AppTextStyles.headingMedium.copyWith(
-            color: Colors.white,
-          ),
+        title: Consumer<AuthProvider>(
+          builder: (context, authProvider, child) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Tickeo',
+                  style: AppTextStyles.headingMedium.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
+                if (authProvider.hasUser)
+                  Text(
+                    authProvider.isAuthenticated 
+                      ? '${authProvider.userDisplayName}' 
+                      : 'Modo sin cuenta',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
         backgroundColor: AppColors.primary,
         elevation: 0,
@@ -564,6 +628,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       break;
                     case 'tips':
                       NotificationService.showTipsDialog(context: context);
+                      break;
+                    case 'logout':
+                      _showLogoutDialog(authProvider);
                       break;
                   }
                 },
@@ -617,6 +684,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
+                  if (authProvider.hasUser)
+                    const PopupMenuItem<String>(
+                      value: 'logout',
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Cerrar Sesión', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
                 ],
               );
             },

@@ -36,11 +36,13 @@ class TickeoUser {
 class AuthProvider extends ChangeNotifier {
   // For web compatibility, we'll use local storage instead of Firebase
   static const String _userKey = 'tickeo_user';
+  static const String _hasSeenWelcomeKey = 'tickeo_has_seen_welcome';
   final Uuid _uuid = const Uuid();
   
   TickeoUser? _user;
   bool _isLoading = false;
   String? _error;
+  bool _hasSeenWelcome = false;
 
   // Getters
   TickeoUser? get user => _user;
@@ -48,6 +50,8 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isAuthenticated => _user != null && !_user!.isAnonymous;
   bool get isAnonymous => _user?.isAnonymous ?? false;
+  bool get hasUser => _user != null;
+  bool get hasSeenWelcome => _hasSeenWelcome;
   String? get userDisplayName => _user?.displayName ?? _user?.email?.split('@').first;
   String? get userEmail => _user?.email;
 
@@ -58,11 +62,16 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _initializeAuth() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      
+      // Load user data
       final userJson = prefs.getString(_userKey);
       if (userJson != null) {
         final userData = jsonDecode(userJson);
         _user = TickeoUser.fromJson(userData);
       }
+      
+      // Load welcome screen state
+      _hasSeenWelcome = prefs.getBool(_hasSeenWelcomeKey) ?? false;
     } catch (e) {
       debugPrint('Error loading user from storage: $e');
     }
@@ -82,7 +91,22 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Anonymous sign in
+  // Continue without account (anonymous mode)
+  Future<void> continueWithoutAccount() async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      // Don't create a user, just mark welcome as seen
+      await _markWelcomeAsSeen();
+    } catch (e) {
+      _setError('Error al continuar sin cuenta: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Anonymous sign in (creates a temporary user)
   Future<void> signInAnonymously() async {
     _setLoading(true);
     _clearError();
@@ -94,6 +118,7 @@ class AuthProvider extends ChangeNotifier {
         displayName: 'Usuario Invitado',
       );
       await _saveUserToStorage();
+      await _markWelcomeAsSeen();
     } catch (e) {
       _setError('Error al iniciar sesión como invitado: $e');
     } finally {
@@ -119,6 +144,7 @@ class AuthProvider extends ChangeNotifier {
         isAnonymous: false,
       );
       await _saveUserToStorage();
+      await _markWelcomeAsSeen();
     } catch (e) {
       _setError('Error al iniciar sesión: $e');
     } finally {
@@ -148,6 +174,7 @@ class AuthProvider extends ChangeNotifier {
         isAnonymous: false,
       );
       await _saveUserToStorage();
+      await _markWelcomeAsSeen();
     } catch (e) {
       _setError('Error al crear cuenta: $e');
     } finally {
@@ -195,7 +222,12 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       _user = null;
+      _hasSeenWelcome = false; // Reset welcome screen state
       await _saveUserToStorage();
+      
+      // Also clear welcome state from storage
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_hasSeenWelcomeKey);
     } catch (e) {
       _setError('Error al cerrar sesión: $e');
     } finally {
@@ -261,5 +293,17 @@ class AuthProvider extends ChangeNotifier {
     _error = error;
     _isLoading = false;
     notifyListeners();
+  }
+
+  // Mark welcome screen as seen
+  Future<void> _markWelcomeAsSeen() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_hasSeenWelcomeKey, true);
+      _hasSeenWelcome = true;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error saving welcome state: $e');
+    }
   }
 }

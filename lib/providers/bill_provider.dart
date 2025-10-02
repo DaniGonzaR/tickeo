@@ -4,6 +4,7 @@ import 'package:tickeo/models/bill.dart';
 import 'package:tickeo/models/bill_item.dart';
 import 'package:tickeo/models/payment.dart';
 import 'package:tickeo/models/user.dart';
+import 'package:tickeo/providers/auth_provider.dart';
 import 'package:tickeo/services/ocr_service.dart';
 import 'package:tickeo/services/firebase_service.dart';
 import 'package:tickeo/utils/error_handler.dart';
@@ -14,11 +15,17 @@ class BillProvider extends ChangeNotifier {
   final OCRService _ocrService = OCRService();
   final FirebaseService _firebaseService = FirebaseService();
   final Uuid _uuid = const Uuid();
+  AuthProvider? _authProvider;
 
   Bill? _currentBill;
   final List<Bill> _billHistory = [];
   bool _isLoading = false;
   String? _error;
+
+  // Set auth provider reference
+  void setAuthProvider(AuthProvider authProvider) {
+    _authProvider = authProvider;
+  }
 
   // Getters
   Bill? get currentBill => _currentBill;
@@ -63,7 +70,8 @@ class BillProvider extends ChangeNotifier {
   }
 
   // Create bill from mock OCR data with owner (web-compatible version)
-  Future<void> createBillFromMockOCRWithOwner(String billName, String ownerName) async {
+  Future<void> createBillFromMockOCRWithOwner(
+      String billName, String ownerName) async {
     _setLoading(true);
     _clearError();
 
@@ -91,7 +99,7 @@ class BillProvider extends ChangeNotifier {
 
       // Create participant ID for owner
       final ownerParticipantId = _uuid.v4();
-      
+
       // Create payment entry for owner
       final ownerPayment = Payment(
         id: _uuid.v4(),
@@ -176,7 +184,7 @@ class BillProvider extends ChangeNotifier {
 
       // Create participant ID for owner
       final ownerParticipantId = _uuid.v4();
-      
+
       // Create payment entry for owner
       final ownerPayment = Payment(
         id: _uuid.v4(),
@@ -241,7 +249,7 @@ class BillProvider extends ChangeNotifier {
 
       // Create participant ID for owner
       final ownerParticipantId = _uuid.v4();
-      
+
       // Create payment entry for owner
       final ownerPayment = Payment(
         id: _uuid.v4(),
@@ -273,6 +281,179 @@ class BillProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       ErrorHandler.logError('createManualBill', e);
+      _setError(ErrorHandler.getErrorMessage(e));
+      return false;
+    }
+  }
+
+  // ========== NEW DUAL MODE METHODS ==========
+  
+  // Create bill from OCR - works for both anonymous and registered users
+  Future<void> createBillFromOCR(String billName, String? ownerName, Map<String, dynamic> ocrResult) async {
+    if (_authProvider?.hasUser == true) {
+      // User is logged in (registered or anonymous)
+      final user = _authProvider!.user!;
+      if (user.isAnonymous) {
+        // Anonymous user - use provided owner name or user display name
+        final effectiveOwnerName = ownerName ?? user.displayName ?? 'Usuario Anónimo';
+        await createBillFromOCRResultWithOwner(billName, effectiveOwnerName, ocrResult);
+      } else {
+        // Registered user - use their account info
+        await createBillFromOCRResultWithRegisteredUser(billName, user, ocrResult);
+      }
+    } else {
+      // No user logged in - require owner name
+      if (ownerName == null || ownerName.trim().isEmpty) {
+        _setError('Se requiere un nombre de propietario');
+        return;
+      }
+      await createBillFromOCRResultWithOwner(billName, ownerName, ocrResult);
+    }
+  }
+
+  // Create manual bill - works for both anonymous and registered users
+  Future<bool> createManualBill(String billName, String? ownerName) async {
+    if (_authProvider?.hasUser == true) {
+      // User is logged in (registered or anonymous)
+      final user = _authProvider!.user!;
+      if (user.isAnonymous) {
+        // Anonymous user - use provided owner name or user display name
+        final effectiveOwnerName = ownerName ?? user.displayName ?? 'Usuario Anónimo';
+        return createManualBillWithOwner(billName, effectiveOwnerName);
+      } else {
+        // Registered user - use their account info
+        return createManualBillWithRegisteredUser(billName, user);
+      }
+    } else {
+      // No user logged in - require owner name
+      if (ownerName == null || ownerName.trim().isEmpty) {
+        _setError('Se requiere un nombre de propietario');
+        return false;
+      }
+      return createManualBillWithOwner(billName, ownerName);
+    }
+  }
+
+  // Create bill from OCR result for registered user
+  Future<void> createBillFromOCRResultWithRegisteredUser(
+      String billName, TickeoUser user, Map<String, dynamic> ocrResult) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      // Validate bill name
+      final nameValidation = Validators.validateBillName(billName);
+      if (nameValidation != null) {
+        _setError(nameValidation);
+        return;
+      }
+
+      final items = ocrResult['items'] as List<BillItem>;
+      final subtotal = ocrResult['subtotal'] as double;
+      final total = ocrResult['total'] as double;
+      final restaurantName = ocrResult['restaurantName'] as String?;
+
+      // Create owner from registered user
+      final owner = User(
+        id: user.uid,
+        name: user.displayName ?? user.email?.split('@').first ?? 'Usuario',
+        createdAt: DateTime.now(),
+        email: user.email,
+      );
+
+      // Create participant ID for owner
+      final ownerParticipantId = _uuid.v4();
+
+      // Create payment entry for owner
+      final ownerPayment = Payment(
+        id: _uuid.v4(),
+        participantId: ownerParticipantId,
+        participantName: owner.name,
+        amount: 0.0,
+        method: PaymentMethod.cash,
+      );
+
+      final bill = Bill(
+        id: _uuid.v4(),
+        name: billName.trim(),
+        createdAt: DateTime.now(),
+        items: items,
+        subtotal: subtotal,
+        tax: 0.0,
+        tip: 0.0,
+        total: total,
+        participants: [ownerParticipantId],
+        payments: [ownerPayment],
+        restaurantName: restaurantName,
+        shareCode: _generateShareCode(),
+        owner: owner,
+      );
+
+      _currentBill = bill;
+      _updatePaymentAmounts();
+      await _saveBillLocally(bill);
+      notifyListeners();
+    } catch (e) {
+      _setError('Error procesando el resultado OCR: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Create manual bill for registered user
+  bool createManualBillWithRegisteredUser(String billName, TickeoUser user) {
+    try {
+      _clearError();
+
+      // Validate bill name
+      final nameValidation = Validators.validateBillName(billName);
+      if (nameValidation != null) {
+        _setError(nameValidation);
+        return false;
+      }
+
+      // Create owner from registered user
+      final owner = User(
+        id: user.uid,
+        name: user.displayName ?? user.email?.split('@').first ?? 'Usuario',
+        createdAt: DateTime.now(),
+        email: user.email,
+      );
+
+      // Create participant ID for owner
+      final ownerParticipantId = _uuid.v4();
+
+      // Create payment entry for owner
+      final ownerPayment = Payment(
+        id: _uuid.v4(),
+        participantId: ownerParticipantId,
+        participantName: owner.name,
+        amount: 0.0,
+        method: PaymentMethod.cash,
+      );
+
+      final bill = Bill(
+        id: _uuid.v4(),
+        name: billName.trim(),
+        createdAt: DateTime.now(),
+        items: [],
+        subtotal: 0.0,
+        tax: 0.0,
+        tip: 0.0,
+        total: 0.0,
+        participants: [ownerParticipantId],
+        payments: [ownerPayment],
+        shareCode: _generateShareCode(),
+        owner: owner,
+      );
+
+      _currentBill = bill;
+      _updatePaymentAmounts();
+      _saveBillLocally(bill);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      ErrorHandler.logError('createManualBillWithRegisteredUser', e);
       _setError(ErrorHandler.getErrorMessage(e));
       return false;
     }
@@ -361,7 +542,8 @@ class BillProvider extends ChangeNotifier {
     final isParticipantPaid = _currentBill!.isParticipantPaid(participantId);
     if (isParticipantPaid) {
       final participantName = getParticipantName(participantId);
-      _setError('No se puede quitar a $participantName porque ya ha confirmado su pago');
+      _setError(
+          'No se puede quitar a $participantName porque ya ha confirmado su pago');
       return;
     }
 
@@ -386,7 +568,8 @@ class BillProvider extends ChangeNotifier {
     );
 
     _updatePaymentAmounts();
-    _saveBillLocally(_currentBill!); // Persist to history so Recent Bills updates
+    _saveBillLocally(
+        _currentBill!); // Persist to history so Recent Bills updates
     notifyListeners();
   }
 
@@ -441,12 +624,14 @@ class BillProvider extends ChangeNotifier {
 
     // Check if participant has paid and is being deselected
     final isParticipantPaid = _currentBill!.isParticipantPaid(participantId);
-    final currentItem = _currentBill!.items.firstWhere((item) => item.id == itemId);
+    final currentItem =
+        _currentBill!.items.firstWhere((item) => item.id == itemId);
     final isCurrentlySelected = currentItem.selectedBy.contains(participantId);
-    
+
     if (isParticipantPaid && isCurrentlySelected) {
       final participantName = getParticipantName(participantId);
-      _setError('No se puede quitar a $participantName de este producto porque ya ha confirmado su pago');
+      _setError(
+          'No se puede quitar a $participantName de este producto porque ya ha confirmado su pago');
       return;
     }
 
@@ -573,22 +758,28 @@ class BillProvider extends ChangeNotifier {
       return;
     }
 
-    final itemIndex = _currentBill!.items.indexWhere((item) => item.id == itemId);
+    final itemIndex =
+        _currentBill!.items.indexWhere((item) => item.id == itemId);
     if (itemIndex == -1) return;
 
     // Get current item to preserve participants who have already paid
     final currentItem = _currentBill!.items[itemIndex];
     final participantsWhoPaid = currentItem.selectedBy
-        .where((participantId) => _currentBill!.isParticipantPaid(participantId))
+        .where(
+            (participantId) => _currentBill!.isParticipantPaid(participantId))
         .toList();
 
     // Get participants who haven't paid yet
     final participantsWhoHaventPaid = _currentBill!.participants
-        .where((participantId) => !_currentBill!.isParticipantPaid(participantId))
+        .where(
+            (participantId) => !_currentBill!.isParticipantPaid(participantId))
         .toList();
 
     // Combine paid participants (to preserve them) with unpaid participants
-    final newSelectedBy = [...participantsWhoPaid, ...participantsWhoHaventPaid];
+    final newSelectedBy = [
+      ...participantsWhoPaid,
+      ...participantsWhoHaventPaid
+    ];
 
     final updatedItems = List<BillItem>.from(_currentBill!.items);
     updatedItems[itemIndex] = updatedItems[itemIndex].copyWith(
@@ -692,10 +883,10 @@ class BillProvider extends ChangeNotifier {
       final bill = await _firebaseService.getBillByShareCode(shareCode);
       if (bill != null) {
         _currentBill = bill;
-        
+
         // Add joined bill to local history so it appears in "Cuentas Recientes"
         await _saveBillLocally(bill);
-        
+
         notifyListeners();
       } else {
         _setError('No se encontró la cuenta con ese código');

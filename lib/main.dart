@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:tickeo/providers/auth_provider.dart';
 import 'package:tickeo/providers/bill_provider.dart';
 import 'package:tickeo/screens/home_screen.dart';
+import 'package:tickeo/screens/welcome_screen.dart';
 import 'package:tickeo/utils/app_colors.dart';
 
 void main() async {
@@ -43,8 +44,33 @@ class TickeoApp extends StatelessWidget {
             elevation: 0,
           ),
         ),
-        home: const HomeScreen(),
+        home: const AppNavigator(),
       ),
+    );
+  }
+}
+
+class AppNavigator extends StatelessWidget {
+  const AppNavigator({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        // Setup BillProvider reference to AuthProvider
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final billProvider = Provider.of<BillProvider>(context, listen: false);
+          billProvider.setAuthProvider(authProvider);
+        });
+
+        // Show welcome screen if user hasn't seen it yet
+        if (!authProvider.hasSeenWelcome) {
+          return const WelcomeScreen();
+        }
+
+        // Show home screen for all other cases
+        return const HomeScreen();
+      },
     );
   }
 }
