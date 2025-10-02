@@ -88,7 +88,7 @@ class _AuthScreenState extends State<AuthScreen>
 
     if (mounted) {
       if (authProvider.error == null) {
-        ErrorHandler.showSuccess(context, '¡Cuenta creada exitosamente!');
+        ErrorHandler.showSuccess(context, '¡Email de verificación enviado!');
         
         // Navigate to email verification screen
         Navigator.of(context).pushReplacement(

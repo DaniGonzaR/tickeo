@@ -184,19 +184,10 @@ class AuthProvider extends ChangeNotifier {
       // Simulate network delay
       await Future.delayed(const Duration(seconds: 1));
 
-      // Create new user
-      _user = TickeoUser(
-        uid: _uuid.v4(),
-        email: email,
-        displayName: displayName,
-        isAnonymous: false,
-      );
-
-      // Store account in accounts list
+      // Check if account already exists
       final prefs = await SharedPreferences.getInstance();
       final storedAccounts = prefs.getStringList('tickeo_accounts') ?? [];
       
-      // Check if account already exists
       final existingAccount = storedAccounts.any((accountJson) {
         final accountData = jsonDecode(accountJson);
         return accountData['email'] == email;
@@ -205,19 +196,15 @@ class AuthProvider extends ChangeNotifier {
       if (existingAccount) {
         throw Exception('Ya existe una cuenta con este email');
       }
-      
-      // Add new account to list
-      storedAccounts.add(jsonEncode(_user!.toJson()));
-      await prefs.setStringList('tickeo_accounts', storedAccounts);
-      
-      // Store password securely (in real app, this would be hashed)
-      await prefs.setString('password_${_user!.uid}', password);
 
-      await _saveUserToStorage();
-      await _markWelcomeAsSeen();
+      // Store pending user data (not yet verified)
+      await prefs.setString('pending_user_email', email);
+      await prefs.setString('pending_user_password', password);
+      await prefs.setString('pending_user_displayName', displayName);
+      await prefs.setString('pending_user_uid', _uuid.v4());
       
-      // Send verification email (simulated)
-      await _sendVerificationEmail();
+      // Send verification email
+      await _sendVerificationEmailForPendingUser(email, displayName);
     } catch (e) {
       _setError('Error al crear la cuenta: $e');
     } finally {
@@ -376,27 +363,80 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Real email verification
+  // Send verification email for pending user
+  Future<void> _sendVerificationEmailForPendingUser(String email, String displayName) async {
+    try {
+      // Clean up expired codes first
+      await EmailService.cleanupExpiredCodes();
+      
+      // Send real email using EmailJS
+      final success = await EmailService.sendVerificationEmail(email, displayName);
+      
+      if (success) {
+        debugPrint('Verification email sent successfully to: $email');
+      } else {
+        debugPrint('Failed to send verification email to: $email');
+        throw Exception('No se pudo enviar el email de verificación');
+      }
+    } catch (e) {
+      debugPrint('Error sending verification email: $e');
+      throw Exception('Error al enviar email de verificación: $e');
+    }
+  }
+
+  // Real email verification - creates account only after successful verification
   Future<void> verifyEmail(String verificationCode) async {
     _setLoading(true);
     _clearError();
 
     try {
-      if (_user?.email == null) {
-        throw Exception('No hay email para verificar');
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Get pending user data
+      final pendingEmail = prefs.getString('pending_user_email');
+      final pendingPassword = prefs.getString('pending_user_password');
+      final pendingDisplayName = prefs.getString('pending_user_displayName');
+      final pendingUid = prefs.getString('pending_user_uid');
+
+      if (pendingEmail == null || pendingPassword == null || pendingDisplayName == null || pendingUid == null) {
+        throw Exception('No hay datos de usuario pendientes de verificación');
       }
 
       // Verify code using EmailService
-      final isValid = await EmailService.verifyCode(_user!.email!, verificationCode);
+      final isValid = await EmailService.verifyCode(pendingEmail, verificationCode);
       
       if (isValid) {
-        // Update user as verified (in a real app, you'd update this in the user model)
-        debugPrint('Email verified successfully for: ${_user!.email}');
+        // NOW create the actual user account after successful verification
+        _user = TickeoUser(
+          uid: pendingUid,
+          email: pendingEmail,
+          displayName: pendingDisplayName,
+          isAnonymous: false,
+        );
+
+        // Store account in accounts list
+        final storedAccounts = prefs.getStringList('tickeo_accounts') ?? [];
+        storedAccounts.add(jsonEncode(_user!.toJson()));
+        await prefs.setStringList('tickeo_accounts', storedAccounts);
+        
+        // Store password securely
+        await prefs.setString('password_${_user!.uid}', pendingPassword);
+
+        // Save user to current session
+        await _saveUserToStorage();
+        await _markWelcomeAsSeen();
+        
+        // Clean up pending user data
+        await prefs.remove('pending_user_email');
+        await prefs.remove('pending_user_password');
+        await prefs.remove('pending_user_displayName');
+        await prefs.remove('pending_user_uid');
         
         // Clean up the verification code
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('verification_code_${_user!.email}');
-        await prefs.remove('verification_code_timestamp_${_user!.email}');
+        await prefs.remove('verification_code_$pendingEmail');
+        await prefs.remove('verification_code_timestamp_$pendingEmail');
+        
+        debugPrint('Account created and verified successfully for: $pendingEmail');
       } else {
         throw Exception('Código de verificación inválido o expirado');
       }
@@ -409,16 +449,25 @@ class AuthProvider extends ChangeNotifier {
 
   // Resend verification email
   Future<void> resendVerificationEmail() async {
-    if (_user?.email == null) {
-      _setError('No hay email para verificar');
-      return;
-    }
-
     _setLoading(true);
     _clearError();
 
     try {
-      await _sendVerificationEmail();
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Check if there's a pending user
+      final pendingEmail = prefs.getString('pending_user_email');
+      final pendingDisplayName = prefs.getString('pending_user_displayName');
+      
+      if (pendingEmail != null && pendingDisplayName != null) {
+        // Resend for pending user
+        await _sendVerificationEmailForPendingUser(pendingEmail, pendingDisplayName);
+      } else if (_user?.email != null) {
+        // Resend for existing user
+        await _sendVerificationEmail();
+      } else {
+        throw Exception('No hay email para verificar');
+      }
     } catch (e) {
       _setError('Error al reenviar email de verificación: $e');
     } finally {

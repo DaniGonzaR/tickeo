@@ -38,7 +38,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
     if (mounted) {
       if (authProvider.error == null) {
-        ErrorHandler.showSuccess(context, '¡Email verificado exitosamente!');
+        ErrorHandler.showSuccess(context, '¡Cuenta creada y verificada exitosamente!');
         Navigator.of(context).popUntil((route) => route.isFirst);
       } else {
         ErrorHandler.showError(context, authProvider.error!);
@@ -124,7 +124,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                           
                           // Description
                           Text(
-                            'Hemos enviado un código de verificación de 6 dígitos a:',
+                            'Hemos enviado un código de verificación de 6 dígitos a tu email. Tu cuenta se creará solo después de verificar el código:',
                             style: AppTextStyles.bodyMedium.copyWith(
                               color: AppColors.textSecondary,
                             ),
@@ -180,7 +180,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                           
                           // Verify button
                           CustomButton(
-                            text: 'Verificar Email',
+                            text: 'Verificar y Crear Cuenta',
                             onPressed: authProvider.isLoading ? null : _verifyEmail,
                             isLoading: authProvider.isLoading,
                           ),
