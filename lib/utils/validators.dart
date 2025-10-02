@@ -1,3 +1,6 @@
+import 'package:flutter/material.dart';
+import 'dart:math' as math;
+
 /// Utility class for input validation across the app
 class Validators {
   /// Validate bill name
@@ -152,21 +155,147 @@ class Validators {
     return null;
   }
 
-  /// Validate password strength
+  /// Validate password strength with modern security practices
   static String? validatePassword(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Password is required';
+      return 'La contraseña es obligatoria';
     }
 
-    if (value.length < 6) {
-      return 'Password must be at least 6 characters';
+    // Minimum length: 12 characters
+    if (value.length < 12) {
+      return 'La contraseña debe tener al menos 12 caracteres';
     }
 
     if (value.length > 128) {
-      return 'Password must be less than 128 characters';
+      return 'La contraseña debe tener menos de 128 caracteres';
+    }
+
+    // Check for common/leaked passwords
+    if (_isCommonPassword(value)) {
+      return 'Esta contraseña es muy común. Usa una más segura';
+    }
+
+    // Check for sequential patterns
+    if (_hasSequentialPattern(value)) {
+      return 'Evita patrones secuenciales como "123456" o "abcdef"';
     }
 
     return null;
+  }
+
+  /// Get password strength assessment
+  static PasswordStrength getPasswordStrength(String password) {
+    if (password.isEmpty) {
+      return PasswordStrength(
+        score: 0,
+        label: 'Muy débil',
+        color: const Color(0xFFE53E3E),
+        suggestions: ['Ingresa una contraseña'],
+      );
+    }
+
+    int score = 0;
+    List<String> suggestions = [];
+
+    // Length scoring
+    if (password.length >= 12) score += 2;
+    else if (password.length >= 8) score += 1;
+    else suggestions.add('Usa al menos 12 caracteres');
+
+    // Character variety
+    if (RegExp(r'[a-z]').hasMatch(password)) score += 1;
+    else suggestions.add('Incluye letras minúsculas');
+
+    if (RegExp(r'[A-Z]').hasMatch(password)) score += 1;
+    else suggestions.add('Incluye letras mayúsculas (recomendado)');
+
+    if (RegExp(r'[0-9]').hasMatch(password)) score += 1;
+    else suggestions.add('Incluye números (recomendado)');
+
+    if (RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) score += 1;
+    else suggestions.add('Incluye símbolos (recomendado)');
+
+    // Bonus for length
+    if (password.length >= 16) score += 1;
+    if (password.length >= 20) score += 1;
+
+    // Penalty for common patterns
+    if (_isCommonPassword(password)) score = 0;
+    if (_hasSequentialPattern(password)) score = math.max(0, score - 2);
+
+    // Determine strength
+    String label;
+    Color color;
+    
+    if (score >= 7) {
+      label = 'Muy fuerte';
+      color = const Color(0xFF38A169);
+    } else if (score >= 5) {
+      label = 'Fuerte';
+      color = const Color(0xFF68D391);
+    } else if (score >= 3) {
+      label = 'Moderada';
+      color = const Color(0xFFED8936);
+    } else if (score >= 1) {
+      label = 'Débil';
+      color = const Color(0xFFE53E3E);
+    } else {
+      label = 'Muy débil';
+      color = const Color(0xFFE53E3E);
+    }
+
+    return PasswordStrength(
+      score: score,
+      label: label,
+      color: color,
+      suggestions: suggestions,
+    );
+  }
+
+  /// Check if password is in common passwords list
+  static bool _isCommonPassword(String password) {
+    final commonPasswords = {
+      // Top common passwords in Spanish and English
+      'password', 'contraseña', '123456789', '12345678', '1234567890',
+      'qwertyuiop', 'asdfghjkl', 'zxcvbnm', 'admin', 'administrador',
+      'usuario', 'user', 'guest', 'invitado', 'root', 'toor',
+      'password123', 'contraseña123', '123456', '1234567', '12345',
+      'qwerty', 'abc123', 'password1', 'admin123', 'letmein',
+      'welcome', 'bienvenido', 'monkey', 'dragon', 'master',
+      'superman', 'batman', 'spiderman', 'pokemon', 'naruto',
+      'iloveyou', 'teamo', 'familia', 'family', 'love',
+      // Common Spanish names and words
+      'maria', 'jose', 'antonio', 'francisco', 'manuel',
+      'david', 'daniel', 'carlos', 'jesus', 'alejandro',
+      // Common patterns
+      '111111', '000000', 'aaaaaa', 'qqqqqq', '121212',
+      'barcelona', 'madrid', 'valencia', 'sevilla', 'bilbao',
+    };
+    
+    return commonPasswords.contains(password.toLowerCase());
+  }
+
+  /// Check for sequential patterns
+  static bool _hasSequentialPattern(String password) {
+    final lowerPassword = password.toLowerCase();
+    
+    // Check for sequential numbers
+    final sequences = [
+      '0123456789', '1234567890', '9876543210',
+      'abcdefghijklmnopqrstuvwxyz', 'zyxwvutsrqponmlkjihgfedcba',
+      'qwertyuiopasdfghjklzxcvbnm', 'mnbvcxzlkjhgfdsapoiuytrewq',
+    ];
+    
+    for (final sequence in sequences) {
+      for (int i = 0; i <= sequence.length - 4; i++) {
+        final subseq = sequence.substring(i, i + 4);
+        if (lowerPassword.contains(subseq)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
   }
 
   /// Validate name (for user registration)
@@ -283,4 +412,24 @@ class ValidationResult {
 
   String get firstError => errors.isNotEmpty ? errors.first : '';
   String get allErrors => errors.join('\n');
+}
+
+/// Password strength assessment result
+class PasswordStrength {
+  final int score;
+  final String label;
+  final Color color;
+  final List<String> suggestions;
+
+  const PasswordStrength({
+    required this.score,
+    required this.label,
+    required this.color,
+    required this.suggestions,
+  });
+
+  bool get isWeak => score < 3;
+  bool get isModerate => score >= 3 && score < 5;
+  bool get isStrong => score >= 5 && score < 7;
+  bool get isVeryStrong => score >= 7;
 }

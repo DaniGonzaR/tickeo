@@ -3,14 +3,14 @@ import 'package:provider/provider.dart';
 import 'package:tickeo/providers/auth_provider.dart';
 import 'package:tickeo/utils/app_colors.dart';
 import 'package:tickeo/utils/app_text_styles.dart';
-import 'package:tickeo/utils/validators.dart';
 import 'package:tickeo/utils/error_handler.dart';
-import 'package:tickeo/widgets/validated_form_field.dart';
+import 'package:tickeo/utils/validators.dart';
 import 'package:tickeo/widgets/custom_button.dart';
+import 'package:tickeo/widgets/validated_form_field.dart';
+import 'package:tickeo/widgets/password_strength_field.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
-
   @override
   State<AuthScreen> createState() => _AuthScreenState();
 }
@@ -74,15 +74,10 @@ class _AuthScreenState extends State<AuthScreen>
   }
 
   Future<void> _handleRegister() async {
-    print('DEBUG: _handleRegister called');
-    print('DEBUG: Form validation result: ${_registerFormKey.currentState!.validate()}');
-    
     if (!_registerFormKey.currentState!.validate()) {
-      print('DEBUG: Form validation failed, returning');
       return;
     }
 
-    print('DEBUG: Form validation passed, proceeding with registration');
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.createUserWithEmailAndPassword(
       email: _registerEmailController.text.trim(),
@@ -252,25 +247,17 @@ class _AuthScreenState extends State<AuthScreen>
                   prefixIcon: const Icon(Icons.email),
                 ),
                 const SizedBox(height: 16),
-                ValidatedFormField(
+                PasswordStrengthField(
                   controller: _registerPasswordController,
                   validator: Validators.validatePassword,
                   hintText: 'Ingresa tu contraseña',
                   labelText: 'Contraseña',
                   obscureText: _obscureRegisterPassword,
-                  prefixIcon: const Icon(Icons.lock),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureRegisterPassword
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureRegisterPassword = !_obscureRegisterPassword;
-                      });
-                    },
-                  ),
+                  onToggleVisibility: () {
+                    setState(() {
+                      _obscureRegisterPassword = !_obscureRegisterPassword;
+                    });
+                  },
                 ),
                 const SizedBox(height: 16),
                 ValidatedFormField(
@@ -304,6 +291,50 @@ class _AuthScreenState extends State<AuthScreen>
                         _obscureConfirmPassword = !_obscureConfirmPassword;
                       });
                     },
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // MFA Information
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.security,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Seguridad Adicional (Recomendado)',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Podrás activar la autenticación de dos factores (2FA) después del registro para mayor seguridad.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
