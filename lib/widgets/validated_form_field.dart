@@ -110,6 +110,7 @@ class _ValidatedFormFieldState extends State<ValidatedFormField> {
               obscureText: widget.obscureText,
               enabled: widget.enabled,
               style: TextStyle(fontSize: fontSize),
+              validator: widget.validator, // Add this line for Form validation
               decoration: InputDecoration(
                 hintText: widget.hintText,
                 helperText: widget.helperText,

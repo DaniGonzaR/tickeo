@@ -74,8 +74,15 @@ class _AuthScreenState extends State<AuthScreen>
   }
 
   Future<void> _handleRegister() async {
-    if (!_registerFormKey.currentState!.validate()) return;
+    print('DEBUG: _handleRegister called');
+    print('DEBUG: Form validation result: ${_registerFormKey.currentState!.validate()}');
+    
+    if (!_registerFormKey.currentState!.validate()) {
+      print('DEBUG: Form validation failed, returning');
+      return;
+    }
 
+    print('DEBUG: Form validation passed, proceeding with registration');
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.createUserWithEmailAndPassword(
       email: _registerEmailController.text.trim(),
@@ -269,10 +276,18 @@ class _AuthScreenState extends State<AuthScreen>
                 ValidatedFormField(
                   controller: _confirmPasswordController,
                   validator: (value) {
+                    // First validate the password itself
+                    final passwordError = Validators.validatePassword(value);
+                    if (passwordError != null) {
+                      return passwordError;
+                    }
+                    
+                    // Then check if passwords match
                     if (value != _registerPasswordController.text) {
                       return 'Las contraseñas no coinciden';
                     }
-                    return Validators.validatePassword(value);
+                    
+                    return null;
                   },
                   hintText: 'Confirma tu contraseña',
                   labelText: 'Confirmar Contraseña',
