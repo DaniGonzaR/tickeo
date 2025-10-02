@@ -3,12 +3,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AppProvider extends ChangeNotifier {
   bool _isDarkMode = false;
+  bool _useSystemTheme = true; // Nueva opción para seguir el tema del sistema
   String _selectedLanguage = 'es';
   bool _isFirstLaunch = true;
   bool _showOnboarding = true;
 
   // Getters
   bool get isDarkMode => _isDarkMode;
+  bool get useSystemTheme => _useSystemTheme;
   String get selectedLanguage => _selectedLanguage;
   bool get isFirstLaunch => _isFirstLaunch;
   bool get showOnboarding => _showOnboarding;
@@ -22,6 +24,7 @@ class AppProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       _isDarkMode = prefs.getBool('isDarkMode') ?? false;
+      _useSystemTheme = prefs.getBool('useSystemTheme') ?? true;
       _selectedLanguage = prefs.getString('selectedLanguage') ?? 'es';
       _isFirstLaunch = prefs.getBool('isFirstLaunch') ?? true;
       _showOnboarding = prefs.getBool('showOnboarding') ?? true;
@@ -34,11 +37,13 @@ class AppProvider extends ChangeNotifier {
   // Toggle dark mode
   Future<void> toggleDarkMode() async {
     _isDarkMode = !_isDarkMode;
+    _useSystemTheme = false; // Al cambiar manualmente, desactivar tema del sistema
     notifyListeners();
     
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isDarkMode', _isDarkMode);
+      await prefs.setBool('useSystemTheme', _useSystemTheme);
     } catch (e) {
       debugPrint('Error saving dark mode preference: $e');
     }
@@ -49,13 +54,30 @@ class AppProvider extends ChangeNotifier {
     if (_isDarkMode == value) return;
     
     _isDarkMode = value;
+    _useSystemTheme = false; // Al establecer manualmente, desactivar tema del sistema
     notifyListeners();
     
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isDarkMode', _isDarkMode);
+      await prefs.setBool('useSystemTheme', _useSystemTheme);
     } catch (e) {
       debugPrint('Error saving dark mode preference: $e');
+    }
+  }
+
+  // Set system theme preference
+  Future<void> setUseSystemTheme(bool value) async {
+    if (_useSystemTheme == value) return;
+    
+    _useSystemTheme = value;
+    notifyListeners();
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('useSystemTheme', _useSystemTheme);
+    } catch (e) {
+      debugPrint('Error saving system theme preference: $e');
     }
   }
 
@@ -107,6 +129,7 @@ class AppProvider extends ChangeNotifier {
       await prefs.clear();
       
       _isDarkMode = false;
+      _useSystemTheme = true;
       _selectedLanguage = 'es';
       _isFirstLaunch = true;
       _showOnboarding = true;
@@ -119,6 +142,9 @@ class AppProvider extends ChangeNotifier {
 
   // Get theme mode based on preference
   ThemeMode get themeMode {
+    if (_useSystemTheme) {
+      return ThemeMode.system; // Seguir el tema del sistema
+    }
     return _isDarkMode ? ThemeMode.dark : ThemeMode.light;
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tickeo/providers/auth_provider.dart';
+import 'package:tickeo/providers/app_provider.dart';
 import 'package:tickeo/providers/bill_provider.dart';
 import 'package:tickeo/screens/auth_screen.dart';
 import 'package:tickeo/utils/app_colors.dart';
@@ -19,7 +20,6 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _syncEnabled = true;
   bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +37,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         elevation: 0,
         centerTitle: true,
       ),
-      body: Consumer<AuthProvider>(
-        builder: (context, authProvider, child) {
+      body: Consumer2<AuthProvider, AppProvider>(
+        builder: (context, authProvider, appProvider, child) {
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -50,7 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 32),
                 
                 // Settings section
-                _buildSettingsSection(),
+                _buildSettingsSection(appProvider),
                 
                 const SizedBox(height: 32),
                 
@@ -164,7 +164,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSettingsSection() {
+  Widget _buildSettingsSection(AppProvider appProvider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -214,14 +214,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
           icon: Icons.dark_mode_outlined,
           title: 'Modo oscuro',
           subtitle: 'Tema oscuro para la aplicación',
-          value: _darkModeEnabled,
+          value: !appProvider.useSystemTheme && appProvider.isDarkMode,
           onChanged: (value) {
-            setState(() {
-              _darkModeEnabled = value;
-            });
+            appProvider.setDarkMode(value);
             ErrorHandler.showSuccess(
               context, 
               value ? 'Modo oscuro activado' : 'Modo claro activado'
+            );
+          },
+        ),
+        
+        // System theme setting
+        _buildSettingTile(
+          icon: Icons.brightness_auto_outlined,
+          title: 'Seguir tema del sistema',
+          subtitle: 'Usar el tema configurado en el dispositivo',
+          value: appProvider.useSystemTheme,
+          onChanged: (value) {
+            appProvider.setUseSystemTheme(value);
+            ErrorHandler.showSuccess(
+              context, 
+              value ? 'Siguiendo tema del sistema' : 'Tema manual activado'
             );
           },
         ),
