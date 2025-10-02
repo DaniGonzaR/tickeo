@@ -135,14 +135,32 @@ class AuthProvider extends ChangeNotifier {
       // Simulate authentication delay
       await Future.delayed(const Duration(seconds: 1));
       
-      // In a real app, this would authenticate with Firebase
-      // For now, we'll create a user account locally
-      _user = TickeoUser(
-        uid: _uuid.v4(),
-        email: email,
-        displayName: email.split('@').first,
-        isAnonymous: false,
-      );
+      // Check if user exists in stored accounts
+      final prefs = await SharedPreferences.getInstance();
+      final storedAccounts = prefs.getStringList('tickeo_accounts') ?? [];
+      
+      TickeoUser? foundUser;
+      String? storedPassword;
+      
+      for (final accountJson in storedAccounts) {
+        final accountData = jsonDecode(accountJson);
+        if (accountData['email'] == email) {
+          foundUser = TickeoUser.fromJson(accountData);
+          storedPassword = prefs.getString('password_${foundUser.uid}');
+          break;
+        }
+      }
+      
+      if (foundUser == null) {
+        throw Exception('No existe una cuenta con este email');
+      }
+      
+      if (storedPassword != password) {
+        throw Exception('Contraseña incorrecta');
+      }
+      
+      // Login successful
+      _user = foundUser;
       await _saveUserToStorage();
       await _markWelcomeAsSeen();
     } catch (e) {
@@ -152,31 +170,55 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Create user with email/password (offline simulation)
+  // Create user with email and password (offline simulation)
   Future<void> createUserWithEmailAndPassword({
     required String email,
     required String password,
-    String? displayName,
+    required String displayName,
   }) async {
     _setLoading(true);
     _clearError();
 
     try {
-      // Simulate account creation delay
+      // Simulate network delay
       await Future.delayed(const Duration(seconds: 1));
-      
-      // In a real app, this would create account with Firebase
-      // For now, we'll create a user account locally
+
+      // Create new user
       _user = TickeoUser(
         uid: _uuid.v4(),
         email: email,
-        displayName: displayName ?? email.split('@').first,
+        displayName: displayName,
         isAnonymous: false,
       );
+
+      // Store account in accounts list
+      final prefs = await SharedPreferences.getInstance();
+      final storedAccounts = prefs.getStringList('tickeo_accounts') ?? [];
+      
+      // Check if account already exists
+      final existingAccount = storedAccounts.any((accountJson) {
+        final accountData = jsonDecode(accountJson);
+        return accountData['email'] == email;
+      });
+      
+      if (existingAccount) {
+        throw Exception('Ya existe una cuenta con este email');
+      }
+      
+      // Add new account to list
+      storedAccounts.add(jsonEncode(_user!.toJson()));
+      await prefs.setStringList('tickeo_accounts', storedAccounts);
+      
+      // Store password securely (in real app, this would be hashed)
+      await prefs.setString('password_${_user!.uid}', password);
+
       await _saveUserToStorage();
       await _markWelcomeAsSeen();
+      
+      // Send verification email (simulated)
+      await _sendVerificationEmail();
     } catch (e) {
-      _setError('Error al crear cuenta: $e');
+      _setError('Error al crear la cuenta: $e');
     } finally {
       _setLoading(false);
     }
@@ -304,6 +346,69 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('Error saving welcome state: $e');
+    }
+  }
+
+  // Send verification email (simulated)
+  Future<void> _sendVerificationEmail() async {
+    if (_user?.email == null) return;
+    
+    try {
+      // Simulate email sending delay
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // In a real app, this would use Firebase Auth or email service
+      debugPrint('Verification email sent to: ${_user!.email}');
+      
+      // For demo purposes, we'll show a success message
+      // In production, this would actually send an email
+    } catch (e) {
+      debugPrint('Error sending verification email: $e');
+    }
+  }
+
+  // Simulate email verification (for demo)
+  Future<void> verifyEmail(String verificationCode) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      // Simulate verification delay
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // For demo, accept any 6-digit code
+      if (verificationCode.length == 6 && RegExp(r'^\d+$').hasMatch(verificationCode)) {
+        // Update user as verified
+        if (_user != null) {
+          // In a real app, this would update the user's email verification status
+          debugPrint('Email verified successfully for: ${_user!.email}');
+        }
+      } else {
+        throw Exception('Código de verificación inválido');
+      }
+    } catch (e) {
+      _setError('Error al verificar email: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Resend verification email
+  Future<void> resendVerificationEmail() async {
+    if (_user?.email == null) {
+      _setError('No hay email para verificar');
+      return;
+    }
+
+    _setLoading(true);
+    _clearError();
+
+    try {
+      await _sendVerificationEmail();
+    } catch (e) {
+      _setError('Error al reenviar email de verificación: $e');
+    } finally {
+      _setLoading(false);
     }
   }
 }

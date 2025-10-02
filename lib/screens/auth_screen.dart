@@ -8,6 +8,7 @@ import 'package:tickeo/utils/validators.dart';
 import 'package:tickeo/widgets/custom_button.dart';
 import 'package:tickeo/widgets/validated_form_field.dart';
 import 'package:tickeo/widgets/password_strength_field.dart';
+import 'package:tickeo/screens/email_verification_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -88,7 +89,15 @@ class _AuthScreenState extends State<AuthScreen>
     if (mounted) {
       if (authProvider.error == null) {
         ErrorHandler.showSuccess(context, '¡Cuenta creada exitosamente!');
-        Navigator.of(context).pop();
+        
+        // Navigate to email verification screen
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => EmailVerificationScreen(
+              email: _registerEmailController.text.trim(),
+            ),
+          ),
+        );
       } else {
         ErrorHandler.showError(context, authProvider.error!);
       }
