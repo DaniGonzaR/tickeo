@@ -3,13 +3,17 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'app_config.dart';
 
 class EmailService {
-  // EmailJS Configuration - use environment variables for production
-  static const String _serviceId = String.fromEnvironment('EMAILJS_SERVICE_ID', defaultValue: 'service_8yszrio');
-  static const String _templateId = String.fromEnvironment('EMAILJS_TEMPLATE_ID', defaultValue: 'template_3y6t142');
-  static const String _publicKey = String.fromEnvironment('EMAILJS_PUBLIC_KEY', defaultValue: 'aHizuvd5moHSyrDuP');
-  static const String _privateKey = String.fromEnvironment('EMAILJS_PRIVATE_KEY', defaultValue: 'aQ8RbGG0HBtnG94TzOWuv');
+  // EmailJS Configuration - SECURE: No hardcoded keys
+  static Map<String, String>? _emailConfig;
+  
+  /// Get EmailJS configuration securely
+  static Map<String, String> get _config {
+    _emailConfig ??= AppConfig.getEmailJsConfig();
+    return _emailConfig!;
+  }
 
   /// Generate a 6-digit verification code
   static String generateVerificationCode() {
@@ -44,9 +48,16 @@ class EmailService {
   /// Send verification email using EmailJS
   static Future<bool> sendVerificationEmail(String email, String userName) async {
     try {
+      // Check if EmailJS is configured
+      if (!AppConfig.isEmailJsConfigured) {
+        debugPrint('EmailJS not configured. Email verification disabled.');
+        return false;
+      }
+
       final verificationCode = generateVerificationCode();
       await _storeVerificationCode(email, verificationCode);
 
+      final config = _config;
       final url = Uri.parse('https://api.emailjs.com/api/v1.0/email/send');
       
       final response = await http.post(
@@ -55,10 +66,10 @@ class EmailService {
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'service_id': _serviceId,
-          'template_id': _templateId,
-          'user_id': _publicKey,
-          'accessToken': _privateKey,
+          'service_id': config['serviceId'],
+          'template_id': config['templateId'],
+          'user_id': config['publicKey'],
+          'accessToken': config['privateKey'],
           'template_params': {
             'to_email': email,
             'to_name': userName,

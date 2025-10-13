@@ -68,12 +68,23 @@ Xcode (iOS - macOS only)
    cd tickeo
    ```
 
-2. **Install dependencies**
+2. **Configure environment variables** 🔐
+   ```bash
+   # Copy environment template
+   cp .env.example .env
+   
+   # Edit .env with your API keys (see SECURITY.md)
+   # EMAILJS_SERVICE_ID=your_service_id
+   # EMAILJS_TEMPLATE_ID=your_template_id
+   # etc.
+   ```
+
+3. **Install dependencies**
    ```bash
    flutter pub get
    ```
 
-3. **Run the app**
+4. **Run the app**
    ```bash
    # Web (recommended for testing)
    flutter run -d chrome
@@ -81,8 +92,8 @@ Xcode (iOS - macOS only)
    # Mobile (requires device/emulator)
    flutter run
    
-   # Check available devices
-   flutter devices
+   # With environment variables
+   flutter run --dart-define=EMAILJS_SERVICE_ID=your_key
    ```
 
 ### Detailed Setup

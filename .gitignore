@@ -72,10 +72,18 @@ Icon
 **/firestore-debug.log
 **/ui-debug.log
 
-# Environment variables
+# Environment variables - NEVER commit these
 .env
 .env.local
 .env.*.local
+.env.production
+.env.development
+.env.staging
+
+# API Keys and sensitive configuration
+**/config/*_config.dart
+**/*_secrets.dart
+**/*_keys.dart
 
 # IDE - VSCode
 .vscode/*
